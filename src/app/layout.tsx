@@ -28,7 +28,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    default: "GRWTEE - Professional Styling Services in Lagos",
+    default: "GRWTEE | Wardrobe Stylist | Creative Director",
     template: "%s | GRWTEE"
   },
   description:
@@ -49,13 +49,13 @@ export const metadata: Metadata = {
     locale: "en_NG",
     url: "/",
     siteName: "GRWTEE",
-    title: "GRWTEE - Professional Styling Services",
+    title: "GRWTEE | Wardrobe Stylist | Creative Director",
     description: "Premium styling services tailored to your unique style",
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "GRWTEE" }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "GRWTEE - Professional Styling Services",
+    title: "GRWTEE | Wardrobe Stylist | Creative Director",
     description: "Premium styling services tailored to your unique style",
     images: ["/og-image.svg"]
   },
