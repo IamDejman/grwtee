@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <rect width="900" height="1200" fill="#FAF8F3"/>
+  <rect x="70" y="90" width="760" height="1020" rx="34" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="4"/>
+  <text x="110" y="210" font-family="Georgia, serif" font-size="52" font-weight="700" fill="#5B2C6F">Vacation</text>
+  <rect x="110" y="240" width="360" height="10" rx="5" fill="#F4A259"/>
+  <g opacity="0.18" fill="#4A235A">
+    <circle cx="260" cy="560" r="120"/>
+    <circle cx="520" cy="720" r="160"/>
+    <circle cx="640" cy="500" r="90"/>
+  </g>
+  <text x="110" y="1050" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" fill="#2C3E50" opacity="0.75">Placeholder artwork (replace with photos).</text>
+</svg>
+
+

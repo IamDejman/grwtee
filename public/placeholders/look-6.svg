@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <rect width="900" height="1200" fill="#FAF8F3"/>
+  <rect x="70" y="90" width="760" height="1020" rx="34" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="4"/>
+  <text x="110" y="210" font-family="Georgia, serif" font-size="52" font-weight="700" fill="#4A235A">Photoshoot</text>
+  <rect x="110" y="240" width="520" height="10" rx="5" fill="#F4A259"/>
+  <g opacity="0.18" fill="#5B2C6F">
+    <path d="M210 410h480a40 40 0 0 1 40 40v480a40 40 0 0 1-40 40H210a40 40 0 0 1-40-40V450a40 40 0 0 1 40-40Z"/>
+    <circle cx="450" cy="690" r="130" fill="#0D7377" opacity="0.35"/>
+    <circle cx="450" cy="690" r="70" fill="#FDB750" opacity="0.4"/>
+  </g>
+  <text x="110" y="1050" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" fill="#2C3E50" opacity="0.75">Elegant placeholder tile.</text>
+</svg>
+
+

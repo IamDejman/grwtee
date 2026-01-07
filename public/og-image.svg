@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D7377"/>
+      <stop offset="0.55" stop-color="#146C6D"/>
+      <stop offset="1" stop-color="#4A235A"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FDB750"/>
+      <stop offset="1" stop-color="#F4A259"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.16" fill="none" stroke="#FFFFFF">
+    <path d="M80 90h1040M80 540h1040" stroke-width="3"/>
+    <path d="M120 130h960M120 500h960" stroke-width="2"/>
+  </g>
+  <text x="90" y="280" font-family="Georgia, 'Times New Roman', serif" font-size="92" font-weight="700" fill="#FFFFFF">
+    GRWTEE
+  </text>
+  <rect x="90" y="315" width="520" height="8" rx="4" fill="url(#gold)"/>
+  <text x="90" y="390" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="34" font-weight="600" fill="#FAF8F3">
+    Premium Styling Services • Lagos, Nigeria
+  </text>
+  <text x="90" y="450" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="26" font-weight="500" fill="#F5F3E7" opacity="0.92">
+    Professional styling tailored to your unique style.
+  </text>
+</svg>
+
+

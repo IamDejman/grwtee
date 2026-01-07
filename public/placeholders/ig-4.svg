@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" rx="40" fill="#FAF8F3"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FDB750"/>
+      <stop offset="1" stop-color="#F4A259"/>
+    </linearGradient>
+  </defs>
+  <rect x="80" y="80" width="440" height="440" rx="34" fill="url(#g)" opacity="0.25"/>
+  <text x="90" y="320" font-family="Georgia, serif" font-size="44" font-weight="700" fill="#5B2C6F">Luxury</text>
+  <text x="90" y="370" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" font-weight="700" fill="#0D7377">styling details</text>
+</svg>
+
+

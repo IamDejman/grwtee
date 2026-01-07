@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" rx="40" fill="#F5F3E7"/>
+  <g opacity="0.18" fill="#0D7377">
+    <circle cx="200" cy="240" r="110"/>
+    <circle cx="380" cy="360" r="150"/>
+  </g>
+  <text x="70" y="520" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" font-weight="700" fill="#2C3E50">Client looks</text>
+</svg>
+
+

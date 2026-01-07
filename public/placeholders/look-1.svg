@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FAF8F3"/>
+      <stop offset="1" stop-color="#F5F3E7"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1200" fill="url(#bg)"/>
+  <rect x="70" y="90" width="760" height="1020" rx="34" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="4"/>
+  <text x="110" y="210" font-family="Georgia, serif" font-size="52" font-weight="700" fill="#5B2C6F">Portfolio</text>
+  <text x="110" y="270" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="28" font-weight="600" fill="#0D7377">GRWTEE</text>
+  <rect x="110" y="320" width="420" height="10" rx="5" fill="#FDB750"/>
+  <g opacity="0.18" fill="#0D7377">
+    <circle cx="190" cy="520" r="70"/>
+    <circle cx="360" cy="640" r="54"/>
+    <circle cx="610" cy="560" r="78"/>
+    <circle cx="520" cy="790" r="64"/>
+  </g>
+  <text x="110" y="1010" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" fill="#2C3E50" opacity="0.75">Add your real gallery images via Admin → Gallery.</text>
+</svg>
+
+

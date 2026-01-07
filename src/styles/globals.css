@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --teal-dark: #0D7377;
+  --teal-medium: #146C6D;
+  --teal-light: #14746F;
+  --purple-dark: #4A235A;
+  --purple-medium: #5B2C6F;
+  --cream: #F5F3E7;
+  --cream-light: #FAF8F3;
+  --white: #FFFFFF;
+  --gray-light: #F8F9FA;
+  --gray-medium: #E0E0E0;
+  --gray-dark: #2C3E50;
+  --gold: #F4A259;
+  --gold-light: #FDB750;
+  --success: #27AE60;
+  --error: #E74C3C;
+  --warning: #F39C12;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--cream-light);
+  color: var(--gray-dark);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--teal-dark);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only:focus,
+.sr-only:active {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+@layer components {
+  .container-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .lux-card {
+    @apply rounded-lg bg-white shadow-md ring-1 ring-gray-medium/50 transition;
+  }
+
+  .lux-card-hover {
+    @apply hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  .pattern-dark {
+    background-image:
+      url("/patterns/basket-weave-dark.png"),
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0),
+      linear-gradient(180deg, rgba(13, 115, 119, 0.92), rgba(13, 115, 119, 0.92));
+    background-size: 420px 420px, 18px 18px, cover;
+    background-repeat: repeat, repeat, no-repeat;
+    background-blend-mode: overlay, normal, normal;
+  }
+
+  .pattern-light {
+    background-image:
+      url("/patterns/basket-weave-light.png"),
+      radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.06) 1px, transparent 0),
+      linear-gradient(180deg, rgba(250, 248, 243, 1), rgba(245, 243, 231, 1));
+    background-size: 420px 420px, 18px 18px, cover;
+    background-repeat: repeat, repeat, no-repeat;
+    background-blend-mode: multiply, normal, normal;
+  }
+}
+
+
