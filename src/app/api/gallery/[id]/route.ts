@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { deleteImage } from "@/lib/cloudinary";
 import { z } from "zod";
@@ -16,19 +16,20 @@ const updateSchema = z.object({
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
+  const { id } = await params;
   const json = await req.json();
   const parsed = updateSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
   const data = await prisma.galleryImage.update({
-    where: { id: params.id },
+    where: { id },
     data: parsed.data
   });
   revalidateTag("gallery");
@@ -37,13 +38,14 @@ export async function PUT(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
-  const image = await prisma.galleryImage.delete({ where: { id: params.id } });
+  const { id } = await params;
+  const image = await prisma.galleryImage.delete({ where: { id } });
   if (image?.cloudinaryId) {
     await deleteImage(image.cloudinaryId);
   }

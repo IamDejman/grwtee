@@ -4,7 +4,7 @@ import { GalleryPreview } from "@/components/sections/GalleryPreview";
 import { CallToAction } from "@/components/sections/CallToAction";
 import { InstagramFeed } from "@/components/sections/InstagramFeed";
 
-export const revalidate = 60 * 30; // 30 minutes
+export const revalidate = 1800; // 30 minutes
 
 export default function HomePage() {
   return (
@@ -17,5 +17,3 @@ export default function HomePage() {
     </>
   );
 }
-
-

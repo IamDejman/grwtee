@@ -1,6 +1,18 @@
-import Image from "next/image";
+"use client";
 
-// Unsplash Source placeholder images - square format for Instagram feed
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+
+interface InstagramPost {
+  id: string;
+  media_url: string;
+  permalink: string;
+  caption?: string;
+  timestamp: string;
+}
+
+// Fallback placeholder images
 const placeholderImages = [
   "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=400&fit=crop",
   "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=400&fit=crop",
@@ -10,14 +22,46 @@ const placeholderImages = [
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop"
 ];
 
-const items = Array.from({ length: 6 }).map((_, i) => ({
-  id: `ig-${i}`,
-  imageUrl: placeholderImages[i % placeholderImages.length]
+const placeholderItems = Array.from({ length: 6 }).map((_, i) => ({
+  id: `placeholder-${i}`,
+  media_url: placeholderImages[i % placeholderImages.length],
+  permalink: "#",
+  timestamp: new Date().toISOString(),
+  isPlaceholder: true
 }));
 
 export function InstagramFeed() {
+  const [posts, setPosts] = useState<Array<InstagramPost & { isPlaceholder?: boolean }>>(
+    placeholderItems
+  );
+  const [loading, setLoading] = useState(true);
+
   const instagramUrl =
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";
+
+  useEffect(() => {
+    async function loadInstagramPosts() {
+      try {
+        const res = await fetch("/api/instagram");
+        const json = await res.json();
+
+        if (json.success && json.data && json.data.length > 0) {
+          setPosts(json.data);
+        } else {
+          // Keep placeholders if no posts found
+          setPosts(placeholderItems);
+        }
+      } catch (error) {
+        console.error("Failed to load Instagram posts:", error);
+        // Keep placeholders on error
+        setPosts(placeholderItems);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadInstagramPosts();
+  }, []);
 
   return (
     <section className="pattern-light py-16">
@@ -47,26 +91,28 @@ export function InstagramFeed() {
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {items.map((i) => (
-            <div
-              key={i.id}
-              className="group overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-gray-medium/40"
+          {posts.slice(0, 6).map((post) => (
+            <Link
+              key={post.id}
+              href={post.permalink}
+              target={post.isPlaceholder ? undefined : "_blank"}
+              rel={post.isPlaceholder ? undefined : "noreferrer"}
+              className="group overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-gray-medium/40 transition hover:shadow-lg"
             >
               <div className="relative aspect-square overflow-hidden">
                 <Image
-                  src={i.imageUrl}
-                  alt="Instagram placeholder"
+                  src={post.media_url}
+                  alt={post.caption || "Instagram post"}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                  unoptimized={post.isPlaceholder ? false : true}
                 />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
     </section>
   );
 }
-
-

@@ -29,8 +29,16 @@ body {
 body {
   font-family: var(--font-inter), Inter, system-ui, -apple-system, Segoe UI, Roboto,
     Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: var(--cream-light);
+  background-color: rgba(250, 248, 243, 1);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.04) 1px, transparent 0),
+    url("/patterns/basket-weave-light.png");
+  background-size: 18px 18px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, center;
+  background-blend-mode: normal, overlay;
   color: var(--gray-dark);
+  min-height: 100vh;
 }
 
 *:focus-visible {
@@ -75,24 +83,45 @@ body {
   }
 
   .pattern-dark {
+    /* Base teal colour */
+    background-color: rgba(13, 115, 119, 0.92);
+    /* Reduced opacity basket-weave + subtle dotted overlay + dark overlay for contrast */
     background-image:
-      url("/patterns/basket-weave-dark.png"),
-      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0),
-      linear-gradient(180deg, rgba(13, 115, 119, 0.92), rgba(13, 115, 119, 0.92));
-    background-size: 420px 420px, 18px 18px, cover;
-    background-repeat: repeat, repeat, no-repeat;
-    background-blend-mode: overlay, normal, normal;
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0),
+      linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
+      url("/patterns/basket-weave-dark.png");
+    /* Dots tile, dark overlay covers fully, weave image covers fully */
+    background-size: 18px 18px, 100% 100%, 100% 100%;
+    background-repeat: repeat, no-repeat, no-repeat;
+    background-position: 0 0, center, center;
+    /* Softer blend mode for less contrast */
+    background-blend-mode: normal, normal, soft-light;
   }
 
   .pattern-light {
+    /* Base cream gradient */
+    background-color: rgba(250, 248, 243, 1);
+    /* Subtle basket-weave + subtle dotted overlay */
     background-image:
-      url("/patterns/basket-weave-light.png"),
-      radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.06) 1px, transparent 0),
-      linear-gradient(180deg, rgba(250, 248, 243, 1), rgba(245, 243, 231, 1));
-    background-size: 420px 420px, 18px 18px, cover;
-    background-repeat: repeat, repeat, no-repeat;
-    background-blend-mode: multiply, normal, normal;
+      radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.04) 1px, transparent 0),
+      url("/patterns/basket-weave-light.png");
+    /* Dots tile, weave image covers fully */
+    background-size: 18px 18px, 100% 100%;
+    background-repeat: repeat, no-repeat;
+    background-position: 0 0, center;
+    /* Softer blend mode for subtle pattern visibility */
+    background-blend-mode: normal, overlay;
   }
+}
+
+/* Hide footer until page is fully loaded */
+footer {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
+body.loaded footer {
+  opacity: 1;
 }
 
 

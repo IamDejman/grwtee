@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display, Poppins } from "next/font/google";
 import "@/styles/globals.css";
 import { Footer } from "@/components/layout/Footer";
+import { FooterLoader } from "@/components/layout/FooterLoader";
 import { Header } from "@/components/layout/Header";
 import { StructuredData } from "@/components/StructuredData";
 
@@ -88,6 +89,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main id="main-content">{children}</main>
         <Footer />
+        <FooterLoader />
       </body>
     </html>
   );

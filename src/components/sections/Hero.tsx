@@ -18,7 +18,7 @@ export function Hero() {
           <ButtonLink href="/services" variant="primary" size="lg">
             Explore Services
           </ButtonLink>
-          <ButtonLink href="/pricing" variant="outline" size="lg" className="border-cream/70 text-cream hover:bg-cream hover:text-teal-dark">
+          <ButtonLink href="/pricing" variant="outline" size="lg" className="border-cream/70 text-white hover:bg-cream hover:text-teal-dark">
             View Pricing
           </ButtonLink>
         </div>

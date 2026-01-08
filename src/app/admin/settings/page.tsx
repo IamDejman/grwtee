@@ -13,6 +13,12 @@ type Settings = {
   adminEmailNotifications: boolean;
 };
 
+type EnvVar = {
+  key: string;
+  value: string;
+  source: "database" | "environment";
+};
+
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +27,8 @@ export default function AdminSettingsPage() {
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [envVars, setEnvVars] = useState<Record<string, EnvVar> | null>(null);
+  const [showEnvVars, setShowEnvVars] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -38,8 +46,45 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const loadEnvVars = async () => {
+    try {
+      const res = await fetch("/api/settings/env");
+      const json = await res.json();
+      if (!res.ok) throw new Error("Failed");
+      setEnvVars(json.data);
+    } catch {
+      // Silent fail for env vars
+    }
+  };
+
+  const saveEnvVars = async () => {
+    if (!envVars) return;
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const vars = Object.entries(envVars).map(([key, item]) => ({
+        key,
+        value: item.value
+      }));
+      const res = await fetch("/api/settings/env", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vars })
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSuccess("Environment variables saved to database.");
+      await loadEnvVars();
+    } catch {
+      setError("Failed to save environment variables.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadEnvVars();
   }, []);
 
   const save = async () => {
@@ -203,6 +248,71 @@ export default function AdminSettingsPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-heading text-xl font-semibold text-purple-dark">
+              Environment Variables
+            </h2>
+            <p className="mt-2 text-sm text-gray-dark/80">
+              Manage configuration values in the database. Values in database take precedence over environment variables.
+              <br />
+              <span className="text-xs text-gray-dark/60">
+                Note: DATABASE_URL must remain as an environment variable in Vercel.
+              </span>
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => { setShowEnvVars(!showEnvVars); void loadEnvVars(); }}>
+              {showEnvVars ? "Hide" : "Show"} Env Vars
+            </Button>
+            {showEnvVars && (
+              <Button onClick={saveEnvVars} loading={loading} disabled={!envVars}>
+                Save Env Vars
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {showEnvVars && envVars && (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(envVars).map(([key, item]) => (
+              <div key={key} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-gray-dark/80">
+                    {key}
+                  </label>
+                  <span
+                    className={`text-xs rounded px-1.5 py-0.5 ${
+                      item.source === "database"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {item.source === "database" ? "DB" : "ENV"}
+                  </span>
+                </div>
+                <Input
+                  type={key.includes("SECRET") || key.includes("PASSWORD") || key.includes("KEY") ? "password" : "text"}
+                  value={item.value}
+                  onChange={(e) =>
+                    setEnvVars((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            [key]: { ...item, value: e.target.value, source: "database" as const }
+                          }
+                        : null
+                    )
+                  }
+                  placeholder={item.source === "environment" ? `Using env var: ${process.env[key] ? "***" : "not set"}` : ""}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

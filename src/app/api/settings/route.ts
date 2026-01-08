@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthOptions } from "@/lib/auth";
+import { getConfig } from "@/lib/config";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -20,17 +21,20 @@ async function getSettingsMap() {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
   const map = await getSettingsMap();
+  const instagramUrl = map.instagramUrl || await getConfig("NEXT_PUBLIC_INSTAGRAM_URL", process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee");
+  const contactEmail = map.contactEmail || await getConfig("NEXT_PUBLIC_CONTACT_EMAIL", process.env.NEXT_PUBLIC_CONTACT_EMAIL || "grwteee@gmail.com");
+  
   return NextResponse.json({
     success: true,
     data: {
       siteTitle: map.siteTitle || "GRWTEE",
-      instagramUrl: map.instagramUrl || process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee",
-      contactEmail: map.contactEmail || process.env.NEXT_PUBLIC_CONTACT_EMAIL || "grwteee@gmail.com",
+      instagramUrl: instagramUrl || "https://instagram.com/grwtee",
+      contactEmail: contactEmail || "grwteee@gmail.com",
       businessHours: map.businessHours || "Mon–Fri: 9:00 AM – 6:00 PM WAT\nSaturday: By Appointment Only\nSunday: Closed",
       adminEmailNotifications: map.adminEmailNotifications
         ? map.adminEmailNotifications === "true"
@@ -40,7 +44,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

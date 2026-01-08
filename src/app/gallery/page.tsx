@@ -6,7 +6,7 @@ export const metadata = {
   description: "Featured work across personal styling, wardrobe, events, vacation, and photoshoots."
 };
 
-export const revalidate = 60 * 30; // 30 minutes
+export const revalidate = 1800; // 30 minutes
 
 export default function GalleryPage() {
   return (

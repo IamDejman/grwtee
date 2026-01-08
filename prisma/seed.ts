@@ -63,6 +63,37 @@ async function main() {
       create: s
     });
   }
+
+  // Seed environment variables into database (optional - can be set via admin panel)
+  // These will be used instead of env vars when set
+  const envDefaults: Record<string, string> = {
+    // Only set if not already in DB and env var exists
+    ...(process.env.NEXTAUTH_SECRET && { NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET }),
+    ...(process.env.NEXTAUTH_URL && { NEXTAUTH_URL: process.env.NEXTAUTH_URL }),
+    ...(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && { NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME }),
+    ...(process.env.CLOUDINARY_API_KEY && { CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY }),
+    ...(process.env.CLOUDINARY_API_SECRET && { CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET }),
+    ...(process.env.SMTP_HOST && { SMTP_HOST: process.env.SMTP_HOST }),
+    ...(process.env.SMTP_PORT && { SMTP_PORT: process.env.SMTP_PORT }),
+    ...(process.env.SMTP_USER && { SMTP_USER: process.env.SMTP_USER }),
+    ...(process.env.SMTP_PASSWORD && { SMTP_PASSWORD: process.env.SMTP_PASSWORD }),
+    ...(process.env.CONTACT_EMAIL && { CONTACT_EMAIL: process.env.CONTACT_EMAIL }),
+    ...(process.env.NEXT_PUBLIC_SITE_URL && { NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL }),
+    ...(process.env.NEXT_PUBLIC_INSTAGRAM_URL && { NEXT_PUBLIC_INSTAGRAM_URL: process.env.NEXT_PUBLIC_INSTAGRAM_URL }),
+    ...(process.env.NEXT_PUBLIC_CONTACT_EMAIL && { NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL })
+  };
+
+  for (const [key, value] of Object.entries(envDefaults)) {
+    await prisma.siteSettings.upsert({
+      where: { key: `env_${key}` },
+      update: {}, // Don't overwrite existing values
+      create: { key: `env_${key}`, value }
+    });
+  }
+
+  console.log("✅ Seeded admin user and services");
+  console.log("✅ Environment variables copied to database (if env vars were set)");
+  console.log("💡 You can manage env vars through the admin panel at /admin/settings");
 }
 
 main()

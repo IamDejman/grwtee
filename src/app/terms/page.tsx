@@ -94,8 +94,10 @@ export default function TermsPage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <a
-              href="#"
-              className="rounded-full border border-gray-medium/60 px-6 py-2 font-accent font-semibold text-gray-dark hover:border-teal-dark hover:text-teal-dark"
+              href="/api/terms/pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-gray-medium/60 px-6 py-2 font-accent font-semibold text-gray-dark hover:border-teal-dark hover:text-teal-dark transition"
             >
               Download PDF Version
             </a>

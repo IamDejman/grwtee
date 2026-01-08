@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getConfig } from "@/lib/config";
 import nodemailer from "nodemailer";
 
 const schema = z.object({
@@ -31,22 +32,31 @@ export async function POST(req: Request) {
 
   // Send notification email
   try {
+    const smtpHost = await getConfig("SMTP_HOST", process.env.SMTP_HOST);
+    const smtpPort = Number(await getConfig("SMTP_PORT", process.env.SMTP_PORT || "587"));
+    const smtpUser = await getConfig("SMTP_USER", process.env.SMTP_USER);
+    const smtpPassword = await getConfig("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
+    const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "grwteee@gmail.com");
+    const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com");
+
+    if (!smtpHost || !smtpUser || !smtpPassword) {
+      throw new Error("SMTP configuration must be set in database or environment variables");
+    }
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
+      host: smtpHost,
+      port: smtpPort,
       secure: false,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD
+        user: smtpUser,
+        pass: smtpPassword
       }
     });
-    const to = process.env.CONTACT_EMAIL || "grwteee@gmail.com";
-    const site = process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com";
     const subject = "New Contact / Booking Request";
 
     await transporter.sendMail({
-      from: `GRWTEE <${process.env.SMTP_USER}>`,
-      to,
+      from: `GRWTEE <${smtpUser}>`,
+      to: contactEmail,
       subject,
       text: [
         "New booking request received:",
@@ -68,14 +78,14 @@ export async function POST(req: Request) {
           <p><b>Service:</b> ${data.service}</p>
           <p><b>Message:</b><br/>${String(data.message).replace(/\n/g, "<br/>")}</p>
           <hr/>
-          <p style="color:#555">View in admin: <a href="${site}/admin/bookings">${site}/admin/bookings</a></p>
+          <p style="color:#555">View in admin: <a href="${siteUrl}/admin/bookings">${siteUrl}/admin/bookings</a></p>
         </div>
       `
     });
 
     // Confirmation email to client
     await transporter.sendMail({
-      from: `GRWTEE <${process.env.SMTP_USER}>`,
+      from: `GRWTEE <${smtpUser}>`,
       to: data.email,
       subject: "We received your message — GRWTEE",
       text: [
@@ -87,7 +97,7 @@ export async function POST(req: Request) {
         `Service interest: ${data.service}`,
         "",
         "In the meantime, you can review our policies here:",
-        `${site}/payment`,
+        `${siteUrl}/payment`,
         "",
         "Warm regards,",
         "GRWTEE"
@@ -98,7 +108,7 @@ export async function POST(req: Request) {
           <p>Thank you for reaching out to <b>GRWTEE</b>. We’ve received your message and will get back to you within <b>24–48 hours</b>.</p>
           <p><b>Service interest:</b> ${data.service}</p>
           <p style="margin-top:16px">In the meantime, you can review our policies here:</p>
-          <p><a href="${site}/payment">${site}/payment</a></p>
+          <p><a href="${siteUrl}/payment">${siteUrl}/payment</a></p>
           <p style="margin-top:18px">Warm regards,<br/>GRWTEE</p>
         </div>
       `

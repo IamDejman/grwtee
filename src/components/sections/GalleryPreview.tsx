@@ -35,7 +35,7 @@ export async function GalleryPreview() {
   }
 
   return (
-    <section className="bg-cream-light py-16">
+    <section className="pattern-light py-16">
       <div className="container-shell">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div>
