@@ -13,7 +13,7 @@ export default function PaymentPage() {
 
         <div className="mt-8 space-y-8">
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Payment Methods
             </h2>
             <div className="mt-3 grid gap-4 md:grid-cols-2">
@@ -34,12 +34,12 @@ export default function PaymentPage() {
               </div>
             </div>
             <p className="mt-3 text-sm text-gray-dark/85">
-              Contact: <a className="font-semibold text-teal-dark" href="mailto:grwteee@gmail.com">grwteee@gmail.com</a>
+              Contact: <a className="font-semibold text-green-dark" href="mailto:grwteee@gmail.com">grwteee@gmail.com</a>
             </p>
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Payment Terms
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -51,7 +51,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Service Timelines
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -61,7 +61,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Revision Policy
             </h2>
             <p className="mt-3 text-sm text-gray-dark/85">
@@ -70,7 +70,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Shopping & Purchase Policy
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -82,7 +82,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Physical Styling Services — Travel
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -92,7 +92,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Intellectual Property
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -102,7 +102,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Communication & Availability
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -112,7 +112,7 @@ export default function PaymentPage() {
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Additional Services
             </h2>
             <p className="mt-3 text-sm text-gray-dark/85">

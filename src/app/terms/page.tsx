@@ -97,7 +97,7 @@ export default function TermsPage() {
               href="/api/terms/pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-gray-medium/60 px-6 py-2 font-accent font-semibold text-gray-dark hover:border-teal-dark hover:text-teal-dark transition"
+              className="rounded-full border border-gray-medium/60 px-6 py-2 font-accent font-semibold text-gray-dark hover:border-green-dark hover:text-green-dark transition"
             >
               Download PDF Version
             </a>
@@ -106,7 +106,7 @@ export default function TermsPage() {
             </p>
             <p className="text-sm text-gray-dark/70">
               Contact for Questions:{" "}
-              <a className="font-semibold text-teal-dark" href="mailto:grwteee@gmail.com">
+              <a className="font-semibold text-green-dark" href="mailto:grwteee@gmail.com">
                 grwteee@gmail.com
               </a>
             </p>

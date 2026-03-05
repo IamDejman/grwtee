@@ -7,7 +7,7 @@ const placeholderImages = [
   "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=600&fit=crop",
   "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=600&fit=crop",
   "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1506629905607-3c0a0b0a0a0a?w=400&h=600&fit=crop",
+  "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&h=600&fit=crop",
   "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=600&fit=crop",
   "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop",
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop",
@@ -69,7 +69,7 @@ export async function GalleryPreview() {
                 />
               </div>
               <div className="p-4">
-                <p className="font-accent text-xs font-semibold tracking-wide text-teal-dark">
+                <p className="font-accent text-xs font-semibold tracking-wide text-green-dark">
                   Featured
                 </p>
                 <p className="mt-1 font-body text-sm text-gray-dark/80">

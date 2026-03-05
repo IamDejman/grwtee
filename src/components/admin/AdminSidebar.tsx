@@ -13,7 +13,7 @@ export function AdminSidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-gray-medium/60 bg-cream">
       <div className="px-4 py-4">
-        <p className="font-accent text-xs font-semibold tracking-widest text-teal-dark">
+        <p className="font-accent text-xs font-semibold tracking-widest text-green-dark">
           ADMIN
         </p>
       </div>

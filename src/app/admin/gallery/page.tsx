@@ -196,7 +196,7 @@ export default function AdminGalleryPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-1">
-          <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+          <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
             Upload Images
           </h2>
           <div className="mt-4 space-y-4">
@@ -322,7 +322,7 @@ export default function AdminGalleryPage() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        className="text-xs font-semibold text-teal-dark hover:text-purple-dark"
+                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
                         onClick={() => setEditing(img)}
                       >
                         Edit

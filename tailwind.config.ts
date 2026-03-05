@@ -5,22 +5,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        teal: {
-          dark: "#0D7377",
-          medium: "#146C6D",
-          light: "#14746F"
+        green: {
+          dark: "#0D674E",
+          medium: "#0F7A5C",
+          light: "#129468"
         },
         purple: {
-          dark: "#4A235A",
-          medium: "#5B2C6F"
+          dark: "#422D64",
+          medium: "#5B3D8A"
         },
         cream: {
           DEFAULT: "#F5F3E7",
           light: "#FAF8F3"
         },
         gold: {
-          DEFAULT: "#F4A259",
-          light: "#FDB750"
+          DEFAULT: "#CF9D4E",
+          light: "#DBA95E"
         },
         gray: {
           light: "#F8F9FA",

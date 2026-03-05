@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install poppler)",
+      "Bash(pdftoppm -v)",
+      "Bash(pdfinfo \"/Users/ayodejieluwande/Downloads/GRWTEE_BRAND PRESENTATION-1-1.pdf\")",
+      "Bash(pdftoppm -png -r 150 -f 1 -l 1 \"/Users/ayodejieluwande/Downloads/GRWTEE_BRAND PRESENTATION-1-1.pdf\" /tmp/grwtee_brand)"
+    ]
+  }
+}

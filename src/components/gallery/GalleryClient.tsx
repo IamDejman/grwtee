@@ -73,8 +73,8 @@ export function GalleryClient({ images }: { images: GalleryImage[] }) {
             className={[
               "rounded-full border px-4 py-2 text-sm font-medium transition",
               category === c
-                ? "border-teal-dark bg-teal-dark text-white"
-                : "border-gray-medium/60 bg-white text-gray-dark hover:border-teal-dark hover:text-teal-dark"
+                ? "border-green-dark bg-green-dark text-white"
+                : "border-gray-medium/60 bg-white text-gray-dark hover:border-green-dark hover:text-green-dark"
             ].join(" ")}
           >
             {CATEGORY_LABELS[c]}
@@ -108,7 +108,7 @@ export function GalleryClient({ images }: { images: GalleryImage[] }) {
               />
             </div>
             <div className="p-4">
-              <p className="font-accent text-xs font-semibold tracking-wide text-teal-dark">
+              <p className="font-accent text-xs font-semibold tracking-wide text-green-dark">
                 {img.title}
               </p>
             </div>

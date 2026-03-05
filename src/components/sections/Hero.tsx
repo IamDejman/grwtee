@@ -1,9 +1,41 @@
+"use client";
+
 import { ButtonLink } from "@/components/ui/Button";
+import { useEffect, useRef } from "react";
 
 export function Hero() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = true;
+    video
+      .play()
+      .catch(() => {
+        // Autoplay may still be blocked; fail silently
+      });
+  }, []);
+
   return (
-    <section className="pattern-dark">
-      <div className="container-shell flex min-h-[78vh] flex-col items-center justify-center py-20 text-center">
+    <section className="relative overflow-hidden">
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      >
+        <source src="/hero-bg.mp4" type="video/mp4" />
+      </video>
+
+      <div className="absolute inset-0 bg-green-dark/70" />
+
+      <div className="container-shell relative z-10 flex min-h-[78vh] flex-col items-center justify-center py-20 text-center">
         <p className="font-accent text-xs font-semibold tracking-[0.25em] text-gold-light">
           PREMIUM STYLING • LAGOS, NIGERIA
         </p>
@@ -18,8 +50,13 @@ export function Hero() {
           <ButtonLink href="/services" variant="primary" size="lg">
             Explore Services
           </ButtonLink>
-          <ButtonLink href="/pricing" variant="outline" size="lg" className="border-cream/70 text-white hover:bg-cream hover:text-teal-dark">
-            View Pricing
+          <ButtonLink
+            href="/contact"
+            variant="outline"
+            size="lg"
+            className="border-cream/70 text-white hover:bg-cream hover:text-green-dark"
+          >
+            Book a Consultation
           </ButtonLink>
         </div>
 
@@ -28,5 +65,3 @@ export function Hero() {
     </section>
   );
 }
-
-

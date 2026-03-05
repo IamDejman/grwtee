@@ -75,7 +75,7 @@ export function MobileMenu({
                     key={item.href}
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className="block font-accent text-lg font-semibold tracking-wide text-gray-dark transition hover:text-teal-dark"
+                    className="block font-accent text-lg font-semibold tracking-wide text-gray-dark transition hover:text-green-dark"
                   >
                     {item.label}
                   </Link>
@@ -87,7 +87,7 @@ export function MobileMenu({
                   href={instagramUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 font-accent text-sm font-semibold text-teal-dark hover:text-purple-dark"
+                  className="inline-flex items-center gap-2 font-accent text-sm font-semibold text-green-dark hover:text-purple-dark"
                 >
                   <span className="h-2 w-2 rounded-full bg-gold" />
                   Follow @grwtee on Instagram

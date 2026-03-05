@@ -72,7 +72,7 @@ export function InstagramFeed() {
               Follow Our Journey
             </h2>
             <p className="mt-2 font-body text-base text-gray-dark/80">
-              <span className="font-accent font-semibold text-teal-dark">
+              <span className="font-accent font-semibold text-green-dark">
                 @grwtee
               </span>{" "}
               — daily styling inspiration, client features, and curated looks.
@@ -82,7 +82,7 @@ export function InstagramFeed() {
             href={instagramUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 font-accent text-sm font-semibold text-teal-dark hover:text-purple-dark"
+            className="inline-flex items-center gap-2 font-accent text-sm font-semibold text-green-dark hover:text-purple-dark"
             aria-label="Open Instagram in a new tab"
           >
             <span className="h-2 w-2 rounded-full bg-gold" />

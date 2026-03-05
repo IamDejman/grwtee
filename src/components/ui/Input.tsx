@@ -20,7 +20,7 @@ export function Input({ label, error, required, id, className, ...props }: Props
         id={inputId}
         className={[
           "mt-1 w-full rounded-md border px-3 py-2 outline-none transition",
-          error ? "border-red-500 focus:border-red-600" : "border-gray-medium focus:border-teal-dark",
+          error ? "border-red-500 focus:border-red-600" : "border-gray-medium focus:border-green-dark",
           className || ""
         ].join(" ")}
         aria-invalid={!!error}

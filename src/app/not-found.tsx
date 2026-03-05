@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="pattern-light">
       <div className="container-shell py-20 text-center">
-        <p className="font-accent text-xs font-semibold tracking-[0.25em] text-teal-dark">
+        <p className="font-accent text-xs font-semibold tracking-[0.25em] text-green-dark">
           404
         </p>
         <h1 className="mt-4 font-heading text-3xl font-semibold text-purple-dark">
@@ -16,7 +16,7 @@ export default function NotFound() {
         <div className="mt-8 flex justify-center">
           <Link
             href="/"
-            className="rounded-full bg-teal-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
+            className="rounded-full bg-green-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
           >
             Go to homepage
           </Link>

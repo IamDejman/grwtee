@@ -67,7 +67,7 @@ const payment = [
 function Section({ title, items }: { title: string; items: { q: string; a: string }[] }) {
   return (
     <section className="mt-10">
-      <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+      <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
         {title}
       </h2>
       <div className="mt-4 divide-y divide-gray-medium/60 rounded-xl bg-white shadow-md ring-1 ring-gray-medium/60">
@@ -77,7 +77,7 @@ function Section({ title, items }: { title: string; items: { q: string; a: strin
               <span className="font-accent text-[18px] font-semibold text-purple-medium">
                 {item.q}
               </span>
-              <span className="ml-4 h-5 w-5 rounded-full bg-teal-dark/10 text-center text-teal-dark transition group-open:rotate-45">
+              <span className="ml-4 h-5 w-5 rounded-full bg-green-dark/10 text-center text-green-dark transition group-open:rotate-45">
                 +
               </span>
             </summary>
@@ -106,7 +106,7 @@ export default function FAQPage() {
         <Section title="BOOKING & SERVICES" items={booking} />
         <Section title="PAYMENT & POLICIES" items={payment} />
 
-        <div className="mt-12 rounded-xl bg-teal-dark p-8 text-center text-white">
+        <div className="mt-12 rounded-xl bg-green-dark p-8 text-center text-white">
           <h2 className="font-heading text-2xl font-semibold">
             Can’t find what you’re looking for?
           </h2>

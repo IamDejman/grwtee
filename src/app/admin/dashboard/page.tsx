@@ -49,7 +49,7 @@ export default async function DashboardPage() {
             className="rounded-lg bg-white p-5 shadow-md ring-1 ring-gray-medium/60 transition hover:-translate-y-1 hover:shadow-xl"
           >
             <p className="text-sm text-gray-dark/80">{c.title}</p>
-            <p className="mt-3 font-heading text-3xl font-semibold text-teal-dark">
+            <p className="mt-3 font-heading text-3xl font-semibold text-green-dark">
               {c.value}
             </p>
           </a>

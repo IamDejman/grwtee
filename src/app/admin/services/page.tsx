@@ -227,7 +227,7 @@ export default function AdminServicesPage() {
                   <td className="py-3 pr-4">{s.priceNGN ?? "—"}</td>
                   <td className="py-3 pr-4">
                     <button
-                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-teal-dark hover:text-teal-dark"
+                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
                       onClick={() => quickToggle(s.id, { featured: !s.featured })}
                       disabled={loading}
                     >
@@ -236,7 +236,7 @@ export default function AdminServicesPage() {
                   </td>
                   <td className="py-3 pr-4">
                     <button
-                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-teal-dark hover:text-teal-dark"
+                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
                       onClick={() => quickToggle(s.id, { active: !s.active })}
                       disabled={loading}
                     >
@@ -247,7 +247,7 @@ export default function AdminServicesPage() {
                   <td className="py-3 pr-4">
                     <div className="flex gap-3">
                       <button
-                        className="text-xs font-semibold text-teal-dark hover:text-purple-dark"
+                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
                         onClick={() => setEditing(s)}
                       >
                         Edit

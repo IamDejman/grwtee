@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
               <input
                 id="email"
                 type="email"
-                className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-teal-dark"
+                className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-green-dark"
                 placeholder="admin@grwtee.com"
                 {...register("email")}
               />
@@ -73,7 +73,7 @@ export default function AdminLoginPage() {
               <input
                 id="password"
                 type="password"
-                className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-teal-dark"
+                className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-green-dark"
                 placeholder="••••••••"
                 {...register("password")}
               />
@@ -84,7 +84,7 @@ export default function AdminLoginPage() {
                 <span className="text-sm text-gray-dark/80">Remember me</span>
               </label>
               <a
-                className="text-sm font-semibold text-teal-dark hover:text-purple-dark"
+                className="text-sm font-semibold text-green-dark hover:text-purple-dark"
                 href="mailto:grwteee@gmail.com?subject=GRWTEE%20Admin%20Password%20Reset"
               >
                 Forgot password?

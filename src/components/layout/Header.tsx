@@ -68,6 +68,7 @@ export function Header() {
             alt="GRWTEE"
             width={132}
             height={32}
+            style={{ width: "auto", height: "auto" }}
             priority
           />
         </Link>
@@ -77,7 +78,7 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative font-accent text-sm font-semibold tracking-wide text-gray-dark transition hover:text-teal-dark"
+              className="relative font-accent text-sm font-semibold tracking-wide text-gray-dark transition hover:text-green-dark"
             >
               {item.label}
               <span className="absolute -bottom-2 left-0 h-[2px] w-0 bg-gold transition-all duration-300 group-hover:w-full" />
@@ -90,7 +91,7 @@ export function Header() {
             href={instagramUrl}
             target="_blank"
             rel="noreferrer"
-            className="hidden rounded-full p-2 text-teal-dark transition hover:bg-teal-dark/10 md:inline-flex"
+            className="hidden rounded-full p-2 text-green-dark transition hover:bg-green-dark/10 md:inline-flex"
             aria-label="Visit GRWTEE on Instagram"
           >
             <InstagramIcon className="h-5 w-5" />

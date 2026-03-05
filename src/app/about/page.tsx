@@ -17,7 +17,7 @@ export default function AboutPage() {
 
         <div className="mt-8 space-y-8">
           <section>
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               What is GRWTEE?
             </h2>
             <p className="mt-2 text-gray-dark/90">
@@ -28,7 +28,7 @@ export default function AboutPage() {
           </section>
 
           <section>
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               Our Mission
             </h2>
             <p className="mt-2 text-gray-dark/90">
@@ -40,7 +40,7 @@ export default function AboutPage() {
           </section>
 
           <section>
-            <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+            <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
               What Sets Us Apart
             </h2>
             <ul className="mt-2 list-disc space-y-2 pl-6 text-gray-dark/90">
@@ -72,7 +72,7 @@ export default function AboutPage() {
         <div className="mt-12 flex justify-center">
           <a
             href="/services"
-            className="inline-flex rounded-full bg-teal-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
+            className="inline-flex rounded-full bg-green-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
           >
             View Our Services
           </a>

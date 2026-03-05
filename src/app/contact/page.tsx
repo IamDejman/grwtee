@@ -133,14 +133,14 @@ export default function ContactPage() {
                 <span className="text-sm text-gray-dark/80">
                   I have read and agree to the{" "}
                   <a
-                    className="font-semibold text-teal-dark hover:text-purple-dark"
+                    className="font-semibold text-green-dark hover:text-purple-dark"
                     href="/terms"
                   >
                     Terms & Conditions
                   </a>{" "}
                   and{" "}
                   <a
-                    className="font-semibold text-teal-dark hover:text-purple-dark"
+                    className="font-semibold text-green-dark hover:text-purple-dark"
                     href="/payment"
                   >
                     Payment Policies
@@ -178,14 +178,14 @@ export default function ContactPage() {
 
           <div className="space-y-6">
             <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-              <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+              <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
                 Contact Information
               </h2>
               <ul className="mt-3 text-sm text-gray-dark/85">
                 <li>
                   Email:{" "}
                   <a
-                    className="font-semibold text-teal-dark"
+                    className="font-semibold text-green-dark"
                     href="mailto:grwteee@gmail.com"
                   >
                     grwteee@gmail.com
@@ -194,7 +194,7 @@ export default function ContactPage() {
                 <li>
                   Instagram:{" "}
                   <a
-                    className="font-semibold text-teal-dark"
+                    className="font-semibold text-green-dark"
                     href="https://instagram.com/grwtee"
                     target="_blank"
                     rel="noreferrer"
@@ -207,7 +207,7 @@ export default function ContactPage() {
               </ul>
             </div>
             <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-              <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+              <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
                 How to Book Our Services
               </h2>
               <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm text-gray-dark/85">
@@ -219,13 +219,13 @@ export default function ContactPage() {
               </ol>
               <a
                 href="/services"
-                className="mt-4 inline-flex rounded-full border border-teal-dark px-6 py-2 font-accent font-semibold text-teal-dark transition hover:bg-teal-dark hover:text-white"
+                className="mt-4 inline-flex rounded-full border border-green-dark px-6 py-2 font-accent font-semibold text-green-dark transition hover:bg-green-dark hover:text-white"
               >
                 View Our Services
               </a>
             </div>
             <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-              <h2 className="font-accent text-sm font-semibold tracking-wider text-teal-dark">
+              <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
                 Office Hours
               </h2>
               <ul className="mt-3 text-sm text-gray-dark/85">

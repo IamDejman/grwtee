@@ -180,7 +180,7 @@ export default function AdminBookingsPage() {
             onChange={(e) => setStatus(e.target.value)}
           />
           <div className="rounded-lg bg-cream-light p-4 text-sm text-gray-dark/80">
-            <p className="font-semibold text-teal-dark">Total</p>
+            <p className="font-semibold text-green-dark">Total</p>
             <p className="mt-1 font-heading text-2xl font-semibold text-purple-dark">
               {filtered.length}
             </p>
@@ -219,7 +219,7 @@ export default function AdminBookingsPage() {
                         b.status === "pending"
                           ? "bg-gold/20 text-gray-dark"
                           : b.status === "contacted"
-                            ? "bg-teal-dark/10 text-teal-dark"
+                            ? "bg-green-dark/10 text-green-dark"
                             : b.status === "confirmed"
                               ? "bg-purple-medium/10 text-purple-medium"
                               : "bg-green-600/10 text-green-700"
@@ -231,7 +231,7 @@ export default function AdminBookingsPage() {
                   <td className="py-3 pr-4">
                     <div className="flex gap-3">
                       <button
-                        className="text-xs font-semibold text-teal-dark hover:text-purple-dark"
+                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
                         onClick={() => setDetail(b)}
                       >
                         View
@@ -271,7 +271,7 @@ export default function AdminBookingsPage() {
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="rounded-lg bg-cream-light p-4">
-                <p className="text-xs font-semibold tracking-wider text-teal-dark">
+                <p className="text-xs font-semibold tracking-wider text-green-dark">
                   CONTACT
                 </p>
                 <p className="mt-2 text-sm text-gray-dark/85">
@@ -292,7 +292,7 @@ export default function AdminBookingsPage() {
                 </p>
               </div>
               <div className="rounded-lg bg-white p-4 ring-1 ring-gray-medium/60">
-                <p className="text-xs font-semibold tracking-wider text-teal-dark">
+                <p className="text-xs font-semibold tracking-wider text-green-dark">
                   MESSAGE
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-gray-dark/85">

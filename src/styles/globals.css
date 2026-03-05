@@ -3,19 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --teal-dark: #0D7377;
-  --teal-medium: #146C6D;
-  --teal-light: #14746F;
-  --purple-dark: #4A235A;
-  --purple-medium: #5B2C6F;
+  --green-dark: #0D674E;
+  --green-medium: #0F7A5C;
+  --green-light: #129468;
+  --purple-dark: #422D64;
+  --purple-medium: #5B3D8A;
   --cream: #F5F3E7;
   --cream-light: #FAF8F3;
   --white: #FFFFFF;
   --gray-light: #F8F9FA;
   --gray-medium: #E0E0E0;
   --gray-dark: #2C3E50;
-  --gold: #F4A259;
-  --gold-light: #FDB750;
+  --gold: #CF9D4E;
+  --gold-light: #DBA95E;
   --success: #27AE60;
   --error: #E74C3C;
   --warning: #F39C12;
@@ -30,19 +30,12 @@ body {
   font-family: var(--font-inter), Inter, system-ui, -apple-system, Segoe UI, Roboto,
     Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   background-color: rgba(250, 248, 243, 1);
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.04) 1px, transparent 0),
-    url("/patterns/basket-weave-light.png");
-  background-size: 18px 18px, 100% 100%;
-  background-repeat: repeat, no-repeat;
-  background-position: 0 0, center;
-  background-blend-mode: normal, overlay;
   color: var(--gray-dark);
   min-height: 100vh;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--teal-dark);
+  outline: 2px solid var(--green-dark);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -83,34 +76,11 @@ body {
   }
 
   .pattern-dark {
-    /* Base teal colour */
-    background-color: rgba(13, 115, 119, 0.92);
-    /* Reduced opacity basket-weave + subtle dotted overlay + dark overlay for contrast */
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0),
-      linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
-      url("/patterns/basket-weave-dark.png");
-    /* Dots tile, dark overlay covers fully, weave image covers fully */
-    background-size: 18px 18px, 100% 100%, 100% 100%;
-    background-repeat: repeat, no-repeat, no-repeat;
-    background-position: 0 0, center, center;
-    /* Softer blend mode for less contrast */
-    background-blend-mode: normal, normal, soft-light;
+    background-color: #0D674E;
   }
 
   .pattern-light {
-    /* Base cream gradient */
     background-color: rgba(250, 248, 243, 1);
-    /* Subtle basket-weave + subtle dotted overlay */
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(44, 62, 80, 0.04) 1px, transparent 0),
-      url("/patterns/basket-weave-light.png");
-    /* Dots tile, weave image covers fully */
-    background-size: 18px 18px, 100% 100%;
-    background-repeat: repeat, no-repeat;
-    background-position: 0 0, center;
-    /* Softer blend mode for subtle pattern visibility */
-    background-blend-mode: normal, overlay;
   }
 }
 

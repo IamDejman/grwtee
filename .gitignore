@@ -38,3 +38,6 @@ next-env.d.ts
 
 # prisma
 /prisma/migrations
+
+# large source video files
+public/closet-restyling.mov
