@@ -1,50 +1,58 @@
-import { ButtonLink } from "@/components/ui/Button";
-import Image from "next/image";
-import { getFeaturedGalleryImages } from "@/lib/cached";
+"use client";
 
-// Unsplash Source placeholder images - fashion/styling focused
-const placeholderImages = [
-  "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=400&h=600&fit=crop"
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
+import { ButtonLink } from "@/components/ui/Button";
+
+const slides = [
+  {
+    src: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1400&h=800&fit=crop",
+    alt: "Styled Look"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1400&h=800&fit=crop",
+    alt: "Styled Look"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1400&h=800&fit=crop",
+    alt: "Styled Look"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1400&h=800&fit=crop",
+    alt: "Styled Look"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=1400&h=800&fit=crop",
+    alt: "Styled Look"
+  }
 ];
 
-const placeholders = Array.from({ length: 12 }).map((_, i) => ({
-  id: `ph-${i}`,
-  title: "Featured Styling Work",
-  imageUrl: placeholderImages[i % placeholderImages.length]
-}));
+const INTERVAL = 5000;
 
-export async function GalleryPreview() {
-  let items: Array<{ id: string; title: string; imageUrl: string; cloudinaryId?: string | null }> =
-    placeholders;
-  try {
-    const featured = await getFeaturedGalleryImages(12);
-    if (featured.length) items = featured;
-  } catch {
-    // DB not configured yet; keep placeholders.
-  }
+export function GalleryPreview() {
+  const [current, setCurrent] = useState(0);
+
+  const advance = useCallback(() => {
+    setCurrent((prev) => (prev + 1) % slides.length);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(advance, INTERVAL);
+    return () => clearInterval(timer);
+  }, [advance]);
 
   return (
-    <section className="pattern-light py-16">
+    <section className="py-16">
       <div className="container-shell">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div>
             <h2 className="font-heading text-[28px] font-semibold leading-[36px] text-purple-dark md:text-[40px] md:leading-[48px]">
-              Portfolio Preview
+              Our Styled Looks
             </h2>
             <p className="mt-2 max-w-2xl font-body text-base text-gray-dark/80">
-              A curated glimpse into recent work. Once your admin gallery is live,
-              this section will automatically pull featured images.
+              A showcase of curated styling — from everyday wardrobes to red
+              carpet moments.
             </p>
           </div>
           <ButtonLink href="/gallery" variant="primary">
@@ -52,36 +60,69 @@ export async function GalleryPreview() {
           </ButtonLink>
         </div>
 
-        <div className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3">
-          {items.map((img) => (
-            <div
-              key={img.id}
-              className="group mb-4 break-inside-avoid overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-gray-medium/40"
+        <div className="relative mt-10 aspect-[16/9] overflow-hidden rounded-2xl md:aspect-[21/9]">
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={current}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1, ease: "easeInOut" }}
+              className="absolute inset-0"
             >
-              <div className="relative aspect-[3/4] overflow-hidden">
-                <Image
-                  src={img.imageUrl}
-                  alt={img.title}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  placeholder="empty"
-                />
-              </div>
-              <div className="p-4">
-                <p className="font-accent text-xs font-semibold tracking-wide text-green-dark">
-                  Featured
-                </p>
-                <p className="mt-1 font-body text-sm text-gray-dark/80">
-                  {img.title}
-                </p>
-              </div>
-            </div>
-          ))}
+              <Image
+                src={slides[current].src}
+                alt={slides[current].alt}
+                fill
+                className="object-cover"
+                sizes="100vw"
+                priority={current === 0}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Subtle gradient overlay at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent" />
+
+          {/* Navigation dots */}
+          <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  i === current
+                    ? "w-8 bg-gold"
+                    : "w-2 bg-white/60 hover:bg-white/90"
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+
+          {/* Prev / Next arrows */}
+          <button
+            onClick={() =>
+              setCurrent((prev) => (prev - 1 + slides.length) % slides.length)
+            }
+            className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur transition hover:bg-black/50"
+            aria-label="Previous slide"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={advance}
+            className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur transition hover:bg-black/50"
+            aria-label="Next slide"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
       </div>
     </section>
   );
 }
-
-

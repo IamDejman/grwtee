@@ -69,12 +69,18 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <div className="mt-12 flex justify-center">
+        <div className="mt-12 flex justify-center gap-4">
           <a
             href="/services"
-            className="inline-flex rounded-full bg-green-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
+            className="inline-flex rounded-full bg-purple-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
           >
             View Our Services
+          </a>
+          <a
+            href="/book"
+            className="inline-flex rounded-full bg-gold px-8 py-3 font-accent font-semibold text-white transition hover:bg-gold-light"
+          >
+            Book Now
           </a>
         </div>
       </div>

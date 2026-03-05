@@ -25,10 +25,10 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const quickLinks = [
+  { href: "/about", label: "About Us" },
   { href: "/services", label: "Services" },
-  { href: "/gallery", label: "Gallery" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/contact", label: "Contact" }
+  { href: "/book", label: "Book Now" },
+  { href: "/faq", label: "FAQ" }
 ];
 
 const legalLinks = [
@@ -45,7 +45,7 @@ export function Footer() {
       <div className="container-shell py-14">
         <div className="grid gap-12 md:grid-cols-3">
           <div className="space-y-4">
-            <Image src="/logo.svg" alt="GRWTEE" width={150} height={36} style={{ width: "auto", height: "auto" }} />
+            <Image src="/logo.svg" alt="GRWTEE" width={150} height={28} className="brightness-0 invert" style={{ width: 150, height: "auto" }} />
             <p className="max-w-xs text-sm leading-6 text-cream/90">
               Get Ready With Tee — premium styling services crafted with taste,
               precision, and confidence.

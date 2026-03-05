@@ -11,8 +11,8 @@ export function CallToAction() {
           Book a consultation today and discover your signature look.
         </p>
         <div className="mt-8 flex justify-center">
-          <ButtonLink href="/contact" variant="secondary" size="lg">
-            Book a Consultation
+          <ButtonLink href="/book" variant="secondary" size="lg">
+            Book Now
           </ButtonLink>
         </div>
       </div>

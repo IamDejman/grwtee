@@ -3,13 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { ButtonLink } from "@/components/ui/Button";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 
 const nav = [
-  { href: "/", label: "Home" },
-  { href: "/about", label: "About" },
+  { href: "/about", label: "About Us" },
   { href: "/services", label: "Services" },
-  { href: "/contact", label: "Contact" }
+  { href: "/book", label: "Book Now", cta: true }
 ];
 
 function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -53,8 +53,8 @@ export function Header() {
       className={[
         "sticky top-0 z-50 w-full border-b transition-colors",
         scrolled
-          ? "border-gray-medium/60 bg-cream-light/80 backdrop-blur"
-          : "border-transparent bg-transparent"
+          ? "border-transparent bg-[#422064]/95 backdrop-blur"
+          : "border-transparent bg-[#422064]"
       ].join(" ")}
     >
       <div className="container-shell flex h-16 items-center justify-between">
@@ -67,23 +67,34 @@ export function Header() {
             src="/logo.svg"
             alt="GRWTEE"
             width={132}
-            height={32}
-            style={{ width: "auto", height: "auto" }}
+            height={24}
+            className="brightness-0 invert"
+            style={{ width: 132, height: "auto" }}
             priority
           />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="relative font-accent text-sm font-semibold tracking-wide text-gray-dark transition hover:text-green-dark"
-            >
-              {item.label}
-              <span className="absolute -bottom-2 left-0 h-[2px] w-0 bg-gold transition-all duration-300 group-hover:w-full" />
-            </Link>
-          ))}
+          {nav.map((item) =>
+            item.cta ? (
+              <ButtonLink
+                key={item.href}
+                href={item.href}
+                variant="secondary"
+                size="sm"
+              >
+                {item.label}
+              </ButtonLink>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="relative font-accent text-sm font-semibold tracking-wide text-white/90 transition hover:text-gold-light"
+              >
+                {item.label}
+              </Link>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -91,7 +102,7 @@ export function Header() {
             href={instagramUrl}
             target="_blank"
             rel="noreferrer"
-            className="hidden rounded-full p-2 text-green-dark transition hover:bg-green-dark/10 md:inline-flex"
+            className="hidden rounded-full p-2 text-white/80 transition hover:text-gold-light md:inline-flex"
             aria-label="Visit GRWTEE on Instagram"
           >
             <InstagramIcon className="h-5 w-5" />

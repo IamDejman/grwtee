@@ -4,21 +4,18 @@ import { ButtonLink } from "@/components/ui/Button";
 const services = [
   {
     name: "Virtual Personal Styling",
-    price: "Starting at: $155 / ₦195,000",
     description:
       "Curated looks tailored to your body type, lifestyle, and personal style.",
     href: "/services"
   },
   {
     name: "Wardrobe Revamp",
-    price: "Starting at: $540 / ₦450,000",
     description:
       "A complete refresh of your closet to build a functional, signature wardrobe.",
     href: "/services"
   },
   {
     name: "Event Styling",
-    price: "Starting at: $250 / ₦250,000",
     description:
       "Custom looks for birthdays, launches, red carpet moments, and private events.",
     href: "/services"
@@ -51,9 +48,6 @@ export function FeaturedServices() {
                 <h3 className="font-heading text-2xl font-medium text-purple-medium">
                   {s.name}
                 </h3>
-                <p className="mt-2 font-accent text-sm font-semibold text-gold">
-                  {s.price}
-                </p>
               </CardHeader>
               <CardContent>
                 <p className="font-body text-sm leading-6 text-gray-dark/80">

@@ -34,7 +34,7 @@ export function MobileMenu({
   nav,
   instagramUrl
 }: {
-  nav: Array<{ href: string; label: string }>;
+  nav: Array<{ href: string; label: string; cta?: boolean }>;
   instagramUrl: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +43,7 @@ export function MobileMenu({
     <>
       <button
         type="button"
-        className="inline-flex items-center justify-center rounded-full p-2 text-gray-dark transition hover:bg-gray-dark/5 md:hidden"
+        className="inline-flex items-center justify-center rounded-full p-2 text-white transition hover:bg-white/10 md:hidden"
         aria-label="Open navigation menu"
         onClick={() => setOpen(true)}
       >
@@ -70,16 +70,27 @@ export function MobileMenu({
               </div>
 
               <nav className="mt-8 space-y-5" aria-label="Mobile">
-                {nav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className="block font-accent text-lg font-semibold tracking-wide text-gray-dark transition hover:text-green-dark"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                {nav.map((item) =>
+                  item.cta ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="mt-4 block rounded-full bg-gold px-6 py-3 text-center font-accent text-lg font-semibold tracking-wide text-white transition hover:bg-gold-light"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="block font-accent text-lg font-semibold tracking-wide text-gray-dark transition hover:text-green-dark"
+                    >
+                      {item.label}
+                    </Link>
+                  )
+                )}
               </nav>
 
               <div className="mt-10 border-t border-gray-medium/60 pt-6">

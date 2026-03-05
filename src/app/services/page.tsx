@@ -70,16 +70,16 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        <div className="mt-12 rounded-xl bg-green-dark p-8 text-center text-white">
+        <div className="mt-12 rounded-xl bg-purple-dark p-8 text-center text-white">
           <h2 className="font-heading text-2xl font-semibold">
             Ready to Get Started?
           </h2>
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
-              href="/contact"
-              className="rounded-full border border-white px-8 py-3 font-accent font-semibold transition hover:bg-white hover:text-green-dark"
+              href="/book"
+              className="rounded-full border border-white px-8 py-3 font-accent font-semibold transition hover:bg-white hover:text-purple-dark"
             >
-              Book a Consultation for Rates
+              Book Now
             </a>
           </div>
         </div>
