@@ -4,7 +4,18 @@
       "Bash(brew install poppler)",
       "Bash(pdftoppm -v)",
       "Bash(pdfinfo \"/Users/ayodejieluwande/Downloads/GRWTEE_BRAND PRESENTATION-1-1.pdf\")",
-      "Bash(pdftoppm -png -r 150 -f 1 -l 1 \"/Users/ayodejieluwande/Downloads/GRWTEE_BRAND PRESENTATION-1-1.pdf\" /tmp/grwtee_brand)"
+      "Bash(pdftoppm -png -r 150 -f 1 -l 1 \"/Users/ayodejieluwande/Downloads/GRWTEE_BRAND PRESENTATION-1-1.pdf\" /tmp/grwtee_brand)",
+      "Bash(ls -la /Users/ayodejieluwande/grwtee/grwtee/public/logo.*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "WebFetch(domain:vvsstyling.com)",
+      "WebFetch(domain:docs.google.com)",
+      "Bash(lsof -ti:3000)",
+      "Bash(git add src/components/layout/Header.tsx src/components/layout/MobileMenu.tsx src/components/layout/Footer.tsx src/components/sections/Hero.tsx src/components/sections/GalleryPreview.tsx src/components/sections/CallToAction.tsx src/components/sections/FeaturedServices.tsx src/components/ui/Button.tsx src/app/about/page.tsx src/app/services/page.tsx src/app/book/page.tsx src/styles/globals.css public/logo.svg public/logo.png)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ]
   }
 }
