@@ -186,9 +186,9 @@ export default function ContactPage() {
                   Email:{" "}
                   <a
                     className="font-semibold text-green-dark"
-                    href="mailto:grwteee@gmail.com"
+                    href="mailto:book@grwtee.com"
                   >
-                    grwteee@gmail.com
+                    book@grwtee.com
                   </a>
                 </li>
                 <li>
@@ -202,7 +202,7 @@ export default function ContactPage() {
                     @grwtee
                   </a>
                 </li>
-                <li>Location: Lagos, Nigeria</li>
+                <li>Location: Lagos, Nigeria, Styling Clients Worldwide</li>
                 <li>Response Time: We typically respond within 24–48 hours</li>
               </ul>
             </div>
@@ -223,17 +223,6 @@ export default function ContactPage() {
               >
                 View Our Services
               </a>
-            </div>
-            <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-              <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
-                Office Hours
-              </h2>
-              <ul className="mt-3 text-sm text-gray-dark/85">
-                <li>Mon–Fri: 9:00 AM – 6:00 PM WAT</li>
-                <li>Saturday: By Appointment Only</li>
-                <li>Sunday: Closed</li>
-                <li>Note: Virtual consultations available outside standard hours</li>
-              </ul>
             </div>
           </div>
         </div>

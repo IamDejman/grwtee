@@ -34,8 +34,7 @@ export default function AboutPage() {
             <p className="mt-2 text-gray-dark/90">
               Our mission is to help you discover and express your personal style
               through curated looks tailored to your body type, lifestyle, and
-              preferences. We style across both local and international brands,
-              with a passion for promoting African designers.
+              preferences.
             </p>
           </section>
 
@@ -54,20 +53,6 @@ export default function AboutPage() {
           </section>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <div className="aspect-[3/2] rounded-lg bg-cream" />
-            <p className="mt-3 text-sm text-gray-dark/70">
-              Replace with professional styling images grid.
-            </p>
-          </div>
-          <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-            <p className="text-gray-dark/90">
-              “GRWTEE helped me define my signature look — effortless and elevated.
-              The virtual process was seamless.” — Client
-            </p>
-          </div>
-        </div>
 
         <div className="mt-12 flex justify-center gap-4">
           <a

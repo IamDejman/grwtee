@@ -27,8 +27,7 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 const quickLinks = [
   { href: "/about", label: "About Us" },
   { href: "/services", label: "Services" },
-  { href: "/book", label: "Book Now" },
-  { href: "/faq", label: "FAQ" }
+  { href: "/book", label: "Book Now" }
 ];
 
 const legalLinks = [
@@ -50,6 +49,14 @@ export function Footer() {
               Get Ready With Tee — premium styling services crafted with taste,
               precision, and confidence.
             </p>
+            <div className="space-y-1 text-sm text-cream/80">
+              <p>
+                <a href="mailto:book@grwtee.com" className="transition hover:text-gold-light">
+                  book@grwtee.com
+                </a>
+              </p>
+              <p>Lagos, Nigeria, Styling Clients Worldwide</p>
+            </div>
             <a
               href={instagramUrl}
               target="_blank"

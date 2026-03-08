@@ -10,12 +10,29 @@ export function Hero() {
     const video = videoRef.current;
     if (!video) return;
 
+    function seekAndPlay() {
+      video!.currentTime = 7;
+      video!.play().catch(() => {});
+    }
+
+    function handleEnded() {
+      video!.currentTime = 7;
+      video!.play().catch(() => {});
+    }
+
     video.muted = true;
-    video
-      .play()
-      .catch(() => {
-        // Autoplay may still be blocked; fail silently
-      });
+    video.addEventListener("ended", handleEnded);
+
+    if (video.readyState >= 1) {
+      seekAndPlay();
+    } else {
+      video.addEventListener("loadedmetadata", seekAndPlay, { once: true });
+    }
+
+    return () => {
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("loadedmetadata", seekAndPlay);
+    };
   }, []);
 
   return (
@@ -23,9 +40,7 @@ export function Hero() {
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
         muted
-        loop
         playsInline
         preload="auto"
         aria-hidden="true"

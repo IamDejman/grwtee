@@ -36,9 +36,9 @@ const services = [
       "Head-to-toe looks for your trip — travel days, excursions, dinners, and beach-wear — tailored to destination and itinerary."
   },
   {
-    name: "Personal Shopping (NEW)",
+    name: "Contract Styling",
     description:
-      "We source and purchase pieces based on curated looks. Styling fees are discussed during your consultation."
+      "Ongoing styling support for brands, creatives, and public figures. Retain a dedicated stylist for consistent, on-brand looks across campaigns, appearances, and content."
   }
 ];
 
