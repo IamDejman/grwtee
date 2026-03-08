@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -85,12 +86,12 @@ export default function BookPage() {
             Your booking request has been submitted. We&apos;ll reach out within
             24–48 hours to get you started.
           </p>
-          <a
+          <Link
             href="/"
             className="mt-8 inline-flex rounded-full bg-purple-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
           >
             Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     );
