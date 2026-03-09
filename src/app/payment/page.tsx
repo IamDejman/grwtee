@@ -34,7 +34,7 @@ export default function PaymentPage() {
               </div>
             </div>
             <p className="mt-3 text-sm text-gray-dark/85">
-              Contact: <a className="font-semibold text-green-dark" href="mailto:grwteee@gmail.com">grwteee@gmail.com</a>
+              Contact: <a className="font-semibold text-green-dark" href="mailto:book@grwtee.com">book@grwtee.com</a>
             </p>
           </section>
 
