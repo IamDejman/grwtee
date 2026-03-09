@@ -15,7 +15,7 @@ const serviceOptions = [
   { value: "photoshoot-styling", label: "Photoshoot Styling" },
   { value: "virtual-vacation-styling", label: "Virtual Vacation Styling" },
   { value: "personal-shopping", label: "Personal Shopping" },
-  { value: "contract-styling", label: "Contract Styling" }
+  { value: "retainer-styling", label: "Retainer Styling" }
 ];
 
 type FormState = "idle" | "submitting" | "success" | "error";

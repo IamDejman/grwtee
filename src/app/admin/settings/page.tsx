@@ -29,6 +29,7 @@ export default function AdminSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [envVars, setEnvVars] = useState<Record<string, EnvVar> | null>(null);
   const [showEnvVars, setShowEnvVars] = useState(false);
+  const [showInstagramGuide, setShowInstagramGuide] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -248,6 +249,70 @@ export default function AdminSettingsPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+        <button
+          type="button"
+          onClick={() => setShowInstagramGuide(!showInstagramGuide)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <h2 className="font-heading text-xl font-semibold text-purple-dark">
+            Instagram feed setup
+          </h2>
+          <span className="text-gray-dark/60">
+            {showInstagramGuide ? "▼ Hide guide" : "▶ Show guide"}
+          </span>
+        </button>
+        <p className="mt-2 text-sm text-gray-dark/80">
+          To show your latest Instagram posts on the homepage, the account owner needs to add <strong>INSTAGRAM_ACCESS_TOKEN</strong> and <strong>INSTAGRAM_USER_ID</strong> below. Expand this guide to share with them.
+        </p>
+        {showInstagramGuide && (
+          <div className="mt-4 space-y-3 rounded-lg border border-gray-medium/50 bg-gray-50/50 p-4 text-sm text-gray-dark/90">
+            <p className="font-semibold">Steps for the Instagram account owner:</p>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>
+                Go to{" "}
+                <a
+                  href="https://developers.facebook.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-green-dark underline hover:text-purple-dark"
+                >
+                  developers.facebook.com
+                </a>{" "}
+                and sign in with the Facebook account that owns or can manage the Instagram account.
+              </li>
+              <li>
+                Create an app (or use an existing one): <strong>My Apps → Create App → Business</strong>. In the app, add the <strong>Instagram Graph API</strong> product.
+              </li>
+              <li>
+                The Instagram account must be a <strong>Business or Creator</strong> account and linked to a <strong>Facebook Page</strong>. Connect it in Meta Business Suite if needed.
+              </li>
+              <li>
+                Get the <strong>Instagram User ID</strong>: in the app go to Instagram Graph API, or use{" "}
+                <a
+                  href="https://developers.facebook.com/tools/explorer"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-green-dark underline hover:text-purple-dark"
+                >
+                  Graph API Explorer
+                </a>
+                . Call <code className="rounded bg-gray-200 px-1">me/accounts</code> and find the Page’s <code className="rounded bg-gray-200 px-1">instagram_business_account.id</code> — that’s the User ID.
+              </li>
+              <li>
+                Generate a <strong>User access token</strong> with <code className="rounded bg-gray-200 px-1">instagram_basic</code> (and <code className="rounded bg-gray-200 px-1">pages_show_list</code> if needed). Prefer a long‑lived token so it doesn’t expire in an hour.
+              </li>
+              <li>
+                Add <strong>INSTAGRAM_USER_ID</strong> and <strong>INSTAGRAM_ACCESS_TOKEN</strong> in the Environment Variables section below, then Save. The homepage feed will update within about an hour (or after a refresh if cache is cleared).
+              </li>
+            </ol>
+            <p className="text-xs text-gray-dark/70">
+              The account owner can follow these steps and send you the two values to paste here, or do it themselves if they have access to this admin.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">

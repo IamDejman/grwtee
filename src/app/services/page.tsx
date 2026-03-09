@@ -36,9 +36,9 @@ const services = [
       "Head-to-toe looks for your trip — travel days, excursions, dinners, and beach-wear — tailored to destination and itinerary."
   },
   {
-    name: "Contract Styling",
+    name: "Retainer Styling",
     description:
-      "Ongoing styling support for brands, creatives, and public figures. Retain a dedicated stylist for consistent, on-brand looks across campaigns, appearances, and content."
+      "Become a Grwtee Retainer and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish—without the stress of deciding what to wear."
   }
 ];
 
