@@ -11,17 +11,15 @@ type Slide =
 
 const slides: Slide[] = [
   { type: "image", src: "/slideshow/005353F3-B82C-464A-AFE3-8AB9F61E57DB.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/1AC2776A-9030-4C8C-BB57-FDABFAA2B2AA.jpeg", alt: "Styled Look" },
   { type: "image", src: "/slideshow/524B424F-2713-4F70-8B6F-3B24632AD5EB.jpeg", alt: "Styled Look" },
   { type: "image", src: "/slideshow/58EC7F53-EC7B-4852-B11B-7EFAD73428EB.jpeg", alt: "Styled Look" },
   { type: "image", src: "/slideshow/768DE20C-075C-4C39-BC0D-B5DBE5BDF695.jpeg", alt: "Styled Look" },
   { type: "image", src: "/slideshow/8E80C382-A5CB-40E8-849E-53E60E78E247.jpeg", alt: "Styled Look" },
   { type: "video", src: "/slideshow/slideshow-video.mp4", alt: "Styling Session" },
-  { type: "image", src: "/slideshow/A8C8323D-7DA8-488E-9C9E-B90CD8AB7CBC.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/B8050626-4171-445C-AB78-BB522BBE1DD2.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/BAE85DBB-6551-4236-8DEE-87A13D1D4CA0.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/C7AEB60E-1E99-4A64-B0EF-4C5158C358C9.jpeg", alt: "Styled Look" },
   { type: "image", src: "/slideshow/F43DC580-D67E-4AE2-B6A5-732EBEB1289E.jpeg", alt: "Styled Look" },
+  { type: "image", src: "/slideshow/IMG_9925.jpeg", alt: "Styled Look" },
+  { type: "image", src: "/slideshow/d2de7734-13a0-4251-ba0c-c21b08124766.jpeg", alt: "Styled Look" },
+  { type: "video", src: "/slideshow/IMG_0391.MP4", alt: "Styling Session" },
 ];
 
 const IMAGE_INTERVAL = 5000;

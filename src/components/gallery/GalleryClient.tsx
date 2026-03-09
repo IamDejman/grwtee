@@ -13,9 +13,10 @@ export type GalleryImage = {
   category: string;
 };
 
-const GalleryLightbox = dynamic(() => import("@/components/gallery/GalleryLightbox"), {
-  ssr: false
-});
+const GalleryLightbox = dynamic(
+  () => import("@/components/gallery/GalleryLightbox").then((m) => ({ default: m.default })),
+  { ssr: false }
+);
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: "All",

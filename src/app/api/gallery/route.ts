@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
   const data = await prisma.galleryImage.create({ data: parsed.data });
-  revalidateTag("gallery");
+  revalidateTag("gallery", "max");
   return NextResponse.json({ success: true, data });
 }
 

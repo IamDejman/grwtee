@@ -113,6 +113,15 @@ export function Footer() {
             Designed with intention — luxury, clarity, and speed.
           </p>
         </div>
+
+        <blockquote className="mt-8 border-t border-cream/15 pt-6 text-center">
+          <p className="text-sm italic leading-relaxed text-cream/80">
+            &ldquo;The least of you will become a thousand, the smallest a mighty nation. I am the Lord; in its time I will do this swiftly.&rdquo;
+          </p>
+          <cite className="mt-2 block not-italic text-xs text-gold-light/90">
+            — Isaiah 60:22 NIV
+          </cite>
+        </blockquote>
       </div>
     </footer>
   );

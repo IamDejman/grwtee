@@ -11,12 +11,12 @@ export function Hero() {
     if (!video) return;
 
     function seekAndPlay() {
-      video!.currentTime = 7;
+      video!.currentTime = 24;
       video!.play().catch(() => {});
     }
 
     function handleEnded() {
-      video!.currentTime = 7;
+      video!.currentTime = 24;
       video!.play().catch(() => {});
     }
 

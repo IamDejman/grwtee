@@ -35,7 +35,7 @@ export async function PUT(
     where: { id },
     data: parsed.data
   });
-  revalidateTag("services");
+  revalidateTag("services", "max");
   return NextResponse.json({ success: true, data });
 }
 
@@ -49,7 +49,7 @@ export async function DELETE(
   }
   const { id } = await params;
   await prisma.service.delete({ where: { id } });
-  revalidateTag("services");
+  revalidateTag("services", "max");
   return NextResponse.json({ success: true, message: "Service deleted" });
 }
 

@@ -21,9 +21,15 @@ async function getConfigMap(): Promise<Record<string, string>> {
     }
     return map;
   } catch (error: any) {
-    // If DB is not available (e.g., during build or tables don't exist), return empty map
-    // Only log if it's not a table missing error (P2021)
-    if (error?.code !== "P2021") {
+    // If DB is not available (build, tables missing, or DB unreachable), return empty map; use env fallbacks
+    if (error?.code === "P2021") return {}; // Table does not exist
+    const isConnectionError =
+      error?.message?.includes("Can't reach database") ||
+      error?.message?.includes("connect ECONNREFUSED") ||
+      error?.name === "PrismaClientInitializationError";
+    if (isConnectionError) {
+      console.warn("Config: database unreachable, using environment variables.");
+    } else {
       console.warn("Failed to load config from database:", error);
     }
     return {};

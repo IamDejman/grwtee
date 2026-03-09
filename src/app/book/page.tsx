@@ -38,15 +38,6 @@ export default function BookPage() {
       service: fd.get("service") as string,
       message: JSON.stringify({
         city: fd.get("city"),
-        dressSize: fd.get("dressSize"),
-        topSize: fd.get("topSize"),
-        pantsSize: fd.get("pantsSize"),
-        shoeSize: fd.get("shoeSize"),
-        favoriteBrands: fd.get("favoriteBrands"),
-        favoriteAccessories: fd.get("favoriteAccessories"),
-        favoriteColors: fd.get("favoriteColors"),
-        likes: fd.get("likes"),
-        dislikes: fd.get("dislikes"),
         additionalNotes: fd.get("additionalNotes")
       })
     };
@@ -101,7 +92,7 @@ export default function BookPage() {
     <div className="pattern-light">
       <div className="container-shell py-16">
         <h1 className="font-heading text-[28px] font-semibold leading-[36px] text-purple-dark md:text-[40px] md:leading-[48px]">
-          Book Your Styling Session
+          Hey Muse!
         </h1>
         <p className="mt-2 font-body text-base text-gray-dark/80">
           Fill out the form below and we&apos;ll reach out within 24–48 hours to
@@ -162,33 +153,6 @@ export default function BookPage() {
                 options={serviceOptions}
                 placeholder="Select a service"
               />
-            </div>
-          </fieldset>
-
-          {/* Sizing Information */}
-          <fieldset className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-gray-medium/40 md:p-8">
-            <legend className="font-heading text-xl font-semibold text-purple-dark">
-              Sizing Information
-            </legend>
-            <div className="mt-4 grid gap-5 md:grid-cols-2">
-              <Input label="Dress Size" name="dressSize" required placeholder="e.g. UK 10, US 6" />
-              <Input label="Top Size" name="topSize" required placeholder="e.g. M, L" />
-              <Input label="Pants Size" name="pantsSize" required placeholder="e.g. 32, UK 12" />
-              <Input label="Shoe Size" name="shoeSize" required placeholder="e.g. EU 39, US 8" />
-            </div>
-          </fieldset>
-
-          {/* Style Preferences */}
-          <fieldset className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-gray-medium/40 md:p-8">
-            <legend className="font-heading text-xl font-semibold text-purple-dark">
-              Style Preferences
-            </legend>
-            <div className="mt-4 space-y-5">
-              <Textarea label="Favorite Brands" name="favoriteBrands" required rows={2} placeholder="e.g. Zara, COS, Aje, Reformation" />
-              <Textarea label="Favorite Accessories" name="favoriteAccessories" required rows={2} placeholder="e.g. Statement earrings, minimal gold jewelry" />
-              <Textarea label="Favorite Colors" name="favoriteColors" required rows={2} placeholder="e.g. Earth tones, emerald green, cream" />
-              <Textarea label="Likes" name="likes" required rows={2} placeholder="Styles, silhouettes, or details you love" />
-              <Textarea label="Dislikes" name="dislikes" required rows={2} placeholder="Styles, fabrics, or details you want to avoid" />
             </div>
           </fieldset>
 

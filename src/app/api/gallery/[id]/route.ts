@@ -32,7 +32,7 @@ export async function PUT(
     where: { id },
     data: parsed.data
   });
-  revalidateTag("gallery");
+  revalidateTag("gallery", "max");
   return NextResponse.json({ success: true, data });
 }
 
@@ -49,7 +49,7 @@ export async function DELETE(
   if (image?.cloudinaryId) {
     await deleteImage(image.cloudinaryId);
   }
-  revalidateTag("gallery");
+  revalidateTag("gallery", "max");
   return NextResponse.json({ success: true, message: "Image deleted" });
 }
 
