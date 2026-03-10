@@ -5,10 +5,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 
-const schema = z.object({
-  currentPassword: z.string().min(6),
-  newPassword: z.string().min(8)
-});
+const schema = z
+  .object({
+    currentPassword: z.string().min(6),
+    newPassword: z.string().min(8),
+    confirmNewPassword: z.string().min(8)
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "New password and confirm password do not match.",
+    path: ["confirmNewPassword"]
+  });
 
 export async function PUT(req: Request) {
   const session = await getServerSession(await getAuthOptions());

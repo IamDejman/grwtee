@@ -27,6 +27,10 @@ export default function AdminSettingsPage() {
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [envVars, setEnvVars] = useState<Record<string, EnvVar> | null>(null);
   const [showEnvVars, setShowEnvVars] = useState(false);
 
@@ -108,6 +112,10 @@ export default function AdminSettingsPage() {
   };
 
   const changePassword = async () => {
+    if (newPassword !== confirmNewPassword) {
+      setError("New password and confirm password do not match.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -115,15 +123,16 @@ export default function AdminSettingsPage() {
       const res = await fetch("/api/admin/password", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword })
+        body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed");
       setCurrentPassword("");
       setNewPassword("");
+      setConfirmNewPassword("");
       setSuccess("Password updated.");
-    } catch (e: any) {
-      setError(typeof e?.message === "string" ? e.message : "Failed to change password.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to change password.");
     } finally {
       setLoading(false);
     }
@@ -226,23 +235,115 @@ export default function AdminSettingsPage() {
             Change password (recommended after initial seed).
           </p>
           <div className="mt-4 space-y-4">
-            <Input
-              type="password"
-              label="Current password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-            <Input
-              type="password"
-              label="New password (min 8 chars)"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
+            <div>
+              <label className="block text-sm font-semibold text-gray-dark" htmlFor="current-password">
+                Current password
+              </label>
+              <div className="relative mt-1">
+                <input
+                  id="current-password"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full rounded-md border border-gray-medium px-3 py-2 pr-10 outline-none ring-0 transition focus:border-green-dark"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-gray-dark/70 transition hover:bg-gray-medium/30 hover:text-gray-dark"
+                  aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                >
+                  {showCurrentPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-dark" htmlFor="new-password">
+                New password (min 8 chars)
+              </label>
+              <div className="relative mt-1">
+                <input
+                  id="new-password"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-md border border-gray-medium px-3 py-2 pr-10 outline-none ring-0 transition focus:border-green-dark"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-gray-dark/70 transition hover:bg-gray-medium/30 hover:text-gray-dark"
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showNewPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-dark" htmlFor="confirm-new-password">
+                Confirm new password
+              </label>
+              <div className="relative mt-1">
+                <input
+                  id="confirm-new-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className="w-full rounded-md border border-gray-medium px-3 py-2 pr-10 outline-none ring-0 transition focus:border-green-dark"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-gray-dark/70 transition hover:bg-gray-medium/30 hover:text-gray-dark"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
             <Button
               variant="secondary"
               onClick={changePassword}
               loading={loading}
-              disabled={!currentPassword || newPassword.length < 8}
+              disabled={
+                !currentPassword ||
+                newPassword.length < 8 ||
+                confirmNewPassword.length < 8 ||
+                newPassword !== confirmNewPassword
+              }
             >
               Update Password
             </Button>
