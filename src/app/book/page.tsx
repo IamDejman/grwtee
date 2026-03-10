@@ -23,6 +23,16 @@ type FormState = "idle" | "submitting" | "success" | "error";
 export default function BookPage() {
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [service, setService] = useState("");
+
+  const isFormValid =
+    name.trim() !== "" &&
+    email.trim() !== "" &&
+    phone.trim() !== "" &&
+    service.trim() !== "";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -133,9 +143,29 @@ export default function BookPage() {
               Personal Information
             </legend>
             <div className="mt-4 grid gap-5 md:grid-cols-2">
-              <Input label="Full Name" name="name" required />
-              <Input label="Email" name="email" type="email" required />
-              <Input label="Phone Number" name="phone" type="tel" required />
+              <Input
+                label="Full Name"
+                name="name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Input
+                label="Phone Number"
+                name="phone"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
               <Input label="City" name="city" />
             </div>
           </fieldset>
@@ -150,7 +180,10 @@ export default function BookPage() {
                 label="Which service are you booking?"
                 name="service"
                 required
+                placeholder="Select a service"
                 options={serviceOptions}
+                value={service}
+                onChange={(e) => setService(e.target.value)}
               />
             </div>
           </fieldset>
@@ -174,7 +207,13 @@ export default function BookPage() {
           )}
 
           <div className="flex justify-center">
-            <Button type="submit" variant="primary" size="lg" loading={state === "submitting"}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              loading={state === "submitting"}
+              disabled={!isFormValid}
+            >
               Submit Booking Request
             </Button>
           </div>

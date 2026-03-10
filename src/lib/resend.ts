@@ -37,7 +37,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
   });
 
   if (error) {
-    console.error("[Resend] Send failed to=%s subject=%s error=%s", options.to, options.subject, String(error?.message ?? error));
+    const message = String((error as { message?: string })?.message ?? error);
+    console.error("[Resend] Send failed to=%s subject=%s error=%s", options.to, options.subject, message);
+    if (message.includes("domain is not verified")) {
+      console.error(
+        "[Resend] Fix: verify your domain at https://resend.com/domains or set RESEND_FROM to GRWTEE <onboarding@resend.dev> (admin Settings → Env Vars)"
+      );
+    }
     return { error };
   }
 
