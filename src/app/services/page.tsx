@@ -38,7 +38,7 @@ const services = [
   {
     name: "Contract Styling",
     description:
-      "Become a Grwtee Retainer and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish—without the stress of deciding what to wear."
+      "Become a Grwtee contract client and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish—without the stress of deciding what to wear."
   }
 ];
 
