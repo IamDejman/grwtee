@@ -314,5 +314,3 @@ export default function AdminBookingsPage() {
     </div>
   );
 }
-
-
