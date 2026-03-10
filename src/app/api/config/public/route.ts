@@ -8,7 +8,7 @@ import { getConfig } from "@/lib/config";
 export async function GET() {
   const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
   const instagramUrl = await getConfig("NEXT_PUBLIC_INSTAGRAM_URL", process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee");
-  const contactEmail = await getConfig("NEXT_PUBLIC_CONTACT_EMAIL", process.env.NEXT_PUBLIC_CONTACT_EMAIL || "grwteee@gmail.com");
+  const contactEmail = await getConfig("NEXT_PUBLIC_CONTACT_EMAIL", process.env.NEXT_PUBLIC_CONTACT_EMAIL || "book@grwtee.com");
   const cloudinaryCloudName = await getConfig("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
 
   return NextResponse.json({

@@ -3,24 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-
-
-type Slide =
-  | { type: "image"; src: string; alt: string }
-  | { type: "video"; src: string; alt: string };
-
-const slides: Slide[] = [
-  { type: "image", src: "/slideshow/005353F3-B82C-464A-AFE3-8AB9F61E57DB.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/524B424F-2713-4F70-8B6F-3B24632AD5EB.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/58EC7F53-EC7B-4852-B11B-7EFAD73428EB.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/768DE20C-075C-4C39-BC0D-B5DBE5BDF695.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/8E80C382-A5CB-40E8-849E-53E60E78E247.jpeg", alt: "Styled Look" },
-  { type: "video", src: "/slideshow/slideshow-video.mp4", alt: "Styling Session" },
-  { type: "image", src: "/slideshow/F43DC580-D67E-4AE2-B6A5-732EBEB1289E.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/IMG_9925.jpeg", alt: "Styled Look" },
-  { type: "image", src: "/slideshow/d2de7734-13a0-4251-ba0c-c21b08124766.jpeg", alt: "Styled Look" },
-  { type: "video", src: "/slideshow/IMG_0391.MP4", alt: "Styling Session" },
-];
+import { slides } from "@/lib/slideshow-data";
 
 const IMAGE_INTERVAL = 5000;
 
@@ -30,6 +13,8 @@ function SlideVideo({ src, isActive, onEnded }: { src: string; isActive: boolean
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
+    video.muted = true;
+    video.volume = 0;
     if (isActive) {
       video.currentTime = 0;
       video.play().catch(() => {});
@@ -78,7 +63,12 @@ export function GalleryPreview() {
   return (
     <section className="py-16">
       <div className="container-shell">
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.5 }}
+        >
           <h2 className="font-heading text-[28px] font-semibold leading-[36px] text-purple-dark md:text-[40px] md:leading-[48px]">
             Our Styled Looks
           </h2>
@@ -86,7 +76,7 @@ export function GalleryPreview() {
             A showcase of curated styling — from everyday wardrobes to red
             carpet moments.
           </p>
-        </div>
+        </motion.div>
 
         <div className="relative mt-10 aspect-[9/16] overflow-hidden rounded-2xl sm:aspect-[2/3] md:aspect-[3/4]">
           <AnimatePresence mode="popLayout">

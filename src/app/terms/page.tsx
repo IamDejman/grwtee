@@ -106,8 +106,8 @@ export default function TermsPage() {
             </p>
             <p className="text-sm text-gray-dark/70">
               Contact for Questions:{" "}
-              <a className="font-semibold text-green-dark" href="mailto:grwteee@gmail.com">
-                grwteee@gmail.com
+              <a className="font-semibold text-green-dark" href="mailto:book@grwtee.com">
+                book@grwtee.com
               </a>
             </p>
           </div>

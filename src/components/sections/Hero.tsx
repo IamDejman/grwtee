@@ -1,6 +1,7 @@
 "use client";
 
 import { ButtonLink } from "@/components/ui/Button";
+import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
 export function Hero() {
@@ -21,6 +22,8 @@ export function Hero() {
     }
 
     video.muted = true;
+    video.volume = 0;
+    video.setAttribute("muted", "");
     video.addEventListener("ended", handleEnded);
 
     if (video.readyState >= 1) {
@@ -48,24 +51,46 @@ export function Hero() {
         <source src="/hero-bg.mp4" type="video/mp4" />
       </video>
 
-
-
       <div className="container-shell relative z-10 flex min-h-[78vh] flex-col items-center justify-center py-20 text-center">
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <ButtonLink href="/services" variant="primary" size="lg">
-            Explore Services
-          </ButtonLink>
-          <ButtonLink
-            href="/book"
-            variant="outline"
-            size="lg"
-            className="border-cream/70 text-white hover:bg-cream hover:text-purple-dark"
+        <motion.div
+          className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
           >
-            Book Now
-          </ButtonLink>
-        </div>
+            <ButtonLink href="/services" variant="primary" size="lg">
+              Explore Services
+            </ButtonLink>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
+            <ButtonLink
+              href="/book"
+              variant="outline"
+              size="lg"
+              className="border-cream/70 text-white hover:bg-cream hover:text-purple-dark"
+            >
+              Book Now
+            </ButtonLink>
+          </motion.div>
+        </motion.div>
 
-        <div className="mt-14 h-px w-24 bg-gold/70" aria-hidden="true" />
+        <motion.div
+          className="mt-14 h-px w-24 bg-gold/70"
+          aria-hidden="true"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.5, delay: 0.6, ease: "easeOut" }}
+          style={{ transformOrigin: "center" }}
+        />
       </div>
     </section>
   );

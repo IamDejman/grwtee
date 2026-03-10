@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
               </label>
               <a
                 className="text-sm font-semibold text-green-dark hover:text-purple-dark"
-                href="mailto:grwteee@gmail.com?subject=GRWTEE%20Admin%20Password%20Reset"
+                href="mailto:book@grwtee.com?subject=GRWTEE%20Admin%20Password%20Reset"
               >
                 Forgot password?
               </a>

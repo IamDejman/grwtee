@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const smtpPort = Number(await getConfig("SMTP_PORT", process.env.SMTP_PORT || "587"));
     const smtpUser = await getConfig("SMTP_USER", process.env.SMTP_USER);
     const smtpPassword = await getConfig("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
-    const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "grwteee@gmail.com");
+    const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "book@grwtee.com");
     const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com");
 
     if (!smtpHost || !smtpUser || !smtpPassword) {

@@ -25,9 +25,9 @@ export default function PricingPage() {
               Email:{" "}
               <a
                 className="font-semibold text-green-dark"
-                href="mailto:grwteee@gmail.com"
+                href="mailto:book@grwtee.com"
               >
-                grwteee@gmail.com
+                book@grwtee.com
               </a>
             </p>
             <a

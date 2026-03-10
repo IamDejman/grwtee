@@ -27,11 +27,11 @@ SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="..."
 SMTP_PASSWORD="..."
-CONTACT_EMAIL="grwteee@gmail.com"
+CONTACT_EMAIL="book@grwtee.com"
 
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 NEXT_PUBLIC_INSTAGRAM_URL="https://instagram.com/grwtee"
-NEXT_PUBLIC_CONTACT_EMAIL="grwteee@gmail.com"
+NEXT_PUBLIC_CONTACT_EMAIL="book@grwtee.com"
 
 # Required for seeding the first admin user (admin@grwtee.com)
 ADMIN_SEED_PASSWORD="set-a-strong-password"

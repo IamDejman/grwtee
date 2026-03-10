@@ -125,7 +125,7 @@ export async function GET() {
     
     const footerY = pageHeight - margin;
     doc.text(`Last Updated: ${new Date().toLocaleDateString()}`, margin, footerY - 10);
-    doc.text("Contact for Questions: grwteee@gmail.com", margin, footerY - 6);
+    doc.text("Contact for Questions: book@grwtee.com", margin, footerY - 6);
     doc.text(`Website: ${process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com"}`, margin, footerY - 2);
 
     // Generate PDF buffer

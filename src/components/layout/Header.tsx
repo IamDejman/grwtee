@@ -3,11 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { ButtonLink } from "@/components/ui/Button";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 
 const nav = [
   { href: "/about", label: "About Us" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/services", label: "Services" },
   { href: "/book", label: "Book Now", cta: true }
 ];
@@ -49,13 +51,17 @@ export function Header() {
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";
 
   return (
-    <header
+    <motion.header
       className={[
-        "sticky top-0 z-50 w-full border-b transition-colors",
+        "sticky top-0 z-50 w-full border-b transition-colors duration-300",
         scrolled
           ? "border-transparent bg-[#422064]/95 backdrop-blur"
           : "border-transparent bg-[#422064]"
       ].join(" ")}
+      animate={{
+        boxShadow: scrolled ? "0 4px 12px rgba(0,0,0,0.08)" : "0 0 0 transparent"
+      }}
+      transition={{ duration: 0.3 }}
     >
       <div className="container-shell flex h-16 items-center justify-between">
         <Link
@@ -77,40 +83,65 @@ export function Header() {
         <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
           {nav.map((item) =>
             item.cta ? (
-              <ButtonLink
+              <motion.div
                 key={item.href}
-                href={item.href}
-                variant="secondary"
-                size="sm"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {item.label}
-              </ButtonLink>
+                <ButtonLink
+                  href={item.href}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {item.label}
+                </ButtonLink>
+              </motion.div>
             ) : (
-              <Link
+              <motion.div
                 key={item.href}
-                href={item.href}
-                className="relative font-accent text-sm font-semibold tracking-wide text-white/90 transition hover:text-gold-light"
+                className="relative"
+                initial="rest"
+                whileHover="hover"
+                variants={{
+                  rest: {},
+                  hover: {}
+                }}
               >
-                {item.label}
-              </Link>
+                <Link
+                  href={item.href}
+                  className="relative font-accent text-sm font-semibold tracking-wide text-white/90 transition-colors hover:text-gold-light"
+                >
+                  {item.label}
+                </Link>
+                <motion.span
+                  className="absolute -bottom-0.5 left-0 h-px w-full origin-left bg-gold-light"
+                  variants={{
+                    rest: { scaleX: 0 },
+                    hover: { scaleX: 1 }
+                  }}
+                  transition={{ duration: 0.2 }}
+                />
+              </motion.div>
             )
           )}
         </nav>
 
         <div className="flex items-center gap-3">
-          <a
+          <motion.a
             href={instagramUrl}
             target="_blank"
             rel="noreferrer"
             className="hidden rounded-full p-2 text-white/80 transition hover:text-gold-light md:inline-flex"
             aria-label="Visit GRWTEE on Instagram"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
             <InstagramIcon className="h-5 w-5" />
-          </a>
+          </motion.a>
           <MobileMenu nav={nav} instagramUrl={instagramUrl} />
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
 

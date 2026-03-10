@@ -133,10 +133,10 @@ export default function BookPage() {
               Personal Information
             </legend>
             <div className="mt-4 grid gap-5 md:grid-cols-2">
-              <Input label="Full Name" name="name" required placeholder="Jane Doe" />
-              <Input label="Email" name="email" type="email" required placeholder="jane@example.com" />
-              <Input label="Phone Number" name="phone" type="tel" required placeholder="+234 800 000 0000" />
-              <Input label="City" name="city" placeholder="Lagos" />
+              <Input label="Full Name" name="name" required />
+              <Input label="Email" name="email" type="email" required />
+              <Input label="Phone Number" name="phone" type="tel" required />
+              <Input label="City" name="city" />
             </div>
           </fieldset>
 
@@ -151,7 +151,6 @@ export default function BookPage() {
                 name="service"
                 required
                 options={serviceOptions}
-                placeholder="Select a service"
               />
             </div>
           </fieldset>
@@ -166,7 +165,6 @@ export default function BookPage() {
                 label="Anything else we should know?"
                 name="additionalNotes"
                 rows={3}
-                placeholder="Special occasions, budget range, inspiration links, etc."
               />
             </div>
           </fieldset>

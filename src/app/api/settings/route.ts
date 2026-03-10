@@ -27,14 +27,14 @@ export async function GET() {
   }
   const map = await getSettingsMap();
   const instagramUrl = map.instagramUrl || await getConfig("NEXT_PUBLIC_INSTAGRAM_URL", process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee");
-  const contactEmail = map.contactEmail || await getConfig("NEXT_PUBLIC_CONTACT_EMAIL", process.env.NEXT_PUBLIC_CONTACT_EMAIL || "grwteee@gmail.com");
+  const contactEmail = map.contactEmail || await getConfig("NEXT_PUBLIC_CONTACT_EMAIL", process.env.NEXT_PUBLIC_CONTACT_EMAIL || "book@grwtee.com");
   
   return NextResponse.json({
     success: true,
     data: {
       siteTitle: map.siteTitle || "GRWTEE",
       instagramUrl: instagramUrl || "https://instagram.com/grwtee",
-      contactEmail: contactEmail || "grwteee@gmail.com",
+      contactEmail: contactEmail || "book@grwtee.com",
       businessHours: map.businessHours || "Mon–Fri: 9:00 AM – 6:00 PM WAT\nSaturday: By Appointment Only\nSunday: Closed",
       adminEmailNotifications: map.adminEmailNotifications
         ? map.adminEmailNotifications === "true"

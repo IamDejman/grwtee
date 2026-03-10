@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -26,6 +29,7 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 
 const quickLinks = [
   { href: "/about", label: "About Us" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/services", label: "Services" },
   { href: "/book", label: "Book Now" }
 ];
@@ -57,15 +61,17 @@ export function Footer() {
               </p>
               <p>Lagos, Nigeria, Styling Clients Worldwide</p>
             </div>
-            <a
+            <motion.a
               href={instagramUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center rounded-full p-2 text-cream transition hover:bg-cream/10 hover:text-gold-light"
               aria-label="Visit GRWTEE on Instagram"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
             >
               <InstagramIcon className="h-5 w-5" />
-            </a>
+            </motion.a>
           </div>
 
           <div>
