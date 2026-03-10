@@ -16,6 +16,17 @@ model Admin {
   updatedAt DateTime @updatedAt
 }
 
+model PasswordResetOtp {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model GalleryImage {
   id           String   @id @default(cuid())
   title        String

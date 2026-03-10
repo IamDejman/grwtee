@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -18,7 +19,15 @@ type FormData = z.infer<typeof schema>;
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("reset") === "success") {
+      setSuccessMsg("Password updated. You can sign in with your new password.");
+    }
+  }, [searchParams]);
   const {
     register,
     handleSubmit,
@@ -83,15 +92,20 @@ export default function AdminLoginPage() {
                 <input type="checkbox" className="h-4 w-4 rounded border-gray-medium" {...register("remember")} />
                 <span className="text-sm text-gray-dark/80">Remember me</span>
               </label>
-              <a
+              <Link
+                href="/admin/forgot-password"
                 className="text-sm font-semibold text-green-dark hover:text-purple-dark"
-                href="mailto:book@grwtee.com?subject=GRWTEE%20Admin%20Password%20Reset"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
           </div>
 
+          {successMsg ? (
+            <p className="mt-3 rounded-md bg-green-dark/10 px-3 py-2 text-sm text-green-dark" role="status">
+              {successMsg}
+            </p>
+          ) : null}
           {error ? (
             <p className="mt-3 text-sm font-medium text-red-600" role="alert">
               {error}
