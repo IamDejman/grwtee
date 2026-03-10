@@ -34,6 +34,8 @@ export async function POST(req: Request) {
     const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "book@grwtee.com");
     const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com");
 
+    console.log("[Contact] Sending notification to %s and confirmation to %s", contactEmail, data.email);
+
     const notificationText = [
       "New booking request received:",
       "",
@@ -57,12 +59,15 @@ export async function POST(req: Request) {
         <p style="color:#555">View in admin: <a href="${siteUrl}/admin/bookings">${siteUrl}/admin/bookings</a></p>
       </div>
     `;
-    await sendEmail({
-      to: contactEmail,
+    const notifResult = await sendEmail({
+      to: contactEmail ?? "book@grwtee.com",
       subject: "New Contact / Booking Request",
       html: notificationHtml,
       text: notificationText
     });
+    if (notifResult.error) {
+      console.error("[Contact] Notification email failed:", notifResult.error);
+    }
 
     const confirmationText = [
       `Hi ${data.name},`,
@@ -85,14 +90,17 @@ export async function POST(req: Request) {
         <p style="margin-top:18px">Warm regards,<br/>GRWTEE</p>
       </div>
     `;
-    await sendEmail({
+    const confirmResult = await sendEmail({
       to: data.email,
       subject: "We received your message — GRWTEE",
       html: confirmationHtml,
       text: confirmationText
     });
+    if (confirmResult.error) {
+      console.error("[Contact] Confirmation email failed:", confirmResult.error);
+    }
   } catch (e) {
-    console.error("Email send failed", e);
+    console.error("[Contact] Email error:", e);
   }
 
   return NextResponse.json({

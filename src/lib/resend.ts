@@ -20,18 +20,27 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
   );
 
   if (!apiKey) {
+    console.error("[Resend] RESEND_API_KEY is not set");
     return { error: new Error("RESEND_API_KEY is not set") };
   }
 
+  const fromAddress = from ?? "GRWTEE <onboarding@resend.dev>";
+  console.log("[Resend] Sending email to=%s subject=%s", options.to, options.subject);
+
   const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
     to: options.to,
     subject: options.subject,
     html: options.html,
     text: options.text
   });
 
-  if (error) return { error };
+  if (error) {
+    console.error("[Resend] Send failed to=%s subject=%s error=%s", options.to, options.subject, String(error?.message ?? error));
+    return { error };
+  }
+
+  console.log("[Resend] Sent successfully to=%s id=%s", options.to, (data as { id?: string })?.id ?? "—");
   return {};
 }
