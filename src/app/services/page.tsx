@@ -1,48 +1,14 @@
+import { getServicesCached } from "@/lib/cached";
+
 export const metadata = {
   title: "Styling Services",
   description:
     "Explore premium styling services: virtual personal styling, wardrobe revamp, event styling, vacation styling, photoshoot styling, and more."
 };
 
-const services = [
-  {
-    name: "Virtual Personal Styling",
-    description:
-      "Curated looks tailored to your body type, lifestyle, and personal style. Ideal for everyday outfits, professional wear, or style upgrades."
-  },
-  {
-    name: "Virtual Wardrobe Styling",
-    description:
-      "New looks styled using your existing wardrobe to create fresh, cohesive outfits without purchasing new items."
-  },
-  {
-    name: "Wardrobe Revamp (In-person)",
-    description:
-      "Comprehensive review and refresh of your closet. Discover your style, edit your wardrobe, and identify essentials to fill gaps."
-  },
-  {
-    name: "Virtual Event Styling",
-    description:
-      "Custom looks for special occasions — birthdays, launches, red carpet events, or private functions."
-  },
-  {
-    name: "Photoshoot Styling",
-    description:
-      "Looks for birthday shoots, brand shoots, pre-wedding shoots, and more, tailored to your creative direction."
-  },
-  {
-    name: "Virtual Vacation Styling",
-    description:
-      "Head-to-toe looks for your trip — travel days, excursions, dinners, and beach-wear — tailored to destination and itinerary."
-  },
-  {
-    name: "Contract Styling",
-    description:
-      "Become a Grwtee contract client and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish—without the stress of deciding what to wear."
-  }
-];
+export default async function ServicesPage() {
+  const services = await getServicesCached();
 
-export default function ServicesPage() {
   return (
     <div className="pattern-light">
       <div className="container-shell py-16">
@@ -56,7 +22,7 @@ export default function ServicesPage() {
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           {services.map((s) => (
             <div
-              key={s.name}
+              key={s.id}
               className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60"
             >
               <h3 className="font-heading text-2xl font-medium text-purple-medium">
@@ -64,7 +30,15 @@ export default function ServicesPage() {
               </h3>
               <p className="mt-3 text-gray-dark/85">{s.description}</p>
               <p className="mt-3 text-sm font-semibold text-green-dark">
-                Rates are available on request.
+                {s.priceNote ??
+                  (s.priceUSD != null || s.priceNGN != null
+                    ? [
+                        s.priceUSD != null && `From $${s.priceUSD}`,
+                        s.priceNGN != null && `From ₦${Number(s.priceNGN).toLocaleString()}`
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Rates are available on request."
+                    : "Rates are available on request.")}
               </p>
             </div>
           ))}

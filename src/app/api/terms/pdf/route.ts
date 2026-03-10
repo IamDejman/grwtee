@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsPDF } from "jspdf";
+import { formatDate } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -124,7 +125,7 @@ export async function GET() {
     doc.setFont("helvetica", "normal");
     
     const footerY = pageHeight - margin;
-    doc.text(`Last Updated: ${new Date().toLocaleDateString()}`, margin, footerY - 10);
+    doc.text(`Last Updated: ${formatDate(new Date())}`, margin, footerY - 10);
     doc.text("Contact for Questions: book@grwtee.com", margin, footerY - 6);
     doc.text(`Website: ${process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com"}`, margin, footerY - 2);
 

@@ -46,7 +46,8 @@ export async function DELETE(
   }
   const { id } = await params;
   const image = await prisma.galleryImage.delete({ where: { id } });
-  if (image?.cloudinaryId) {
+  // Only delete from Cloudinary if this was an uploaded asset (not a seed/local placeholder)
+  if (image?.cloudinaryId && !image.cloudinaryId.startsWith("local/")) {
     await deleteImage(image.cloudinaryId);
   }
   revalidateTag("gallery", "max");

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
+import { formatBookingMessage, formatDateTime, formatServiceLabel } from "@/lib/utils";
 
 type Booking = {
   id: string;
@@ -204,14 +205,14 @@ export default function AdminBookingsPage() {
               {filtered.map((b) => (
                 <tr key={b.id}>
                   <td className="py-3 pr-4 text-gray-dark/80">
-                    {new Date(b.createdAt).toLocaleString()}
+                    {formatDateTime(b.createdAt)}
                   </td>
                   <td className="py-3 pr-4 font-semibold text-purple-medium">
                     {b.name}
                   </td>
                   <td className="py-3 pr-4">{b.email}</td>
                   <td className="py-3 pr-4">{b.phone}</td>
-                  <td className="py-3 pr-4">{b.service}</td>
+                  <td className="py-3 pr-4">{formatServiceLabel(b.service)}</td>
                   <td className="py-3 pr-4">
                     <span
                       className={[
@@ -225,29 +226,16 @@ export default function AdminBookingsPage() {
                               : "bg-green-600/10 text-green-700"
                       ].join(" ")}
                     >
-                      {b.status}
+                      {statusOptions.find((o) => o.value === b.status)?.label ?? b.status}
                     </span>
                   </td>
                   <td className="py-3 pr-4">
-                    <div className="flex gap-3">
-                      <button
-                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                        onClick={() => setDetail(b)}
-                      >
-                        View
-                      </button>
-                      <Select
-                        aria-label="Update status"
-                        options={[
-                          { value: "pending", label: "Pending" },
-                          { value: "contacted", label: "Contacted" },
-                          { value: "confirmed", label: "Confirmed" },
-                          { value: "completed", label: "Completed" }
-                        ]}
-                        value={b.status}
-                        onChange={(e) => updateStatus(b.id, e.target.value as Booking["status"])}
-                      />
-                    </div>
+                    <button
+                      className="text-xs font-semibold text-green-dark hover:text-purple-dark"
+                      onClick={() => setDetail(b)}
+                    >
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -267,12 +255,12 @@ export default function AdminBookingsPage() {
         {detail ? (
           <div>
             <h3 className="font-heading text-xl font-semibold text-purple-dark">
-              Booking Detail
+              Booking detail
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="rounded-lg bg-cream-light p-4">
                 <p className="text-xs font-semibold tracking-wider text-green-dark">
-                  CONTACT
+                  Contact
                 </p>
                 <p className="mt-2 text-sm text-gray-dark/85">
                   <span className="font-semibold">Name:</span> {detail.name}
@@ -283,20 +271,24 @@ export default function AdminBookingsPage() {
                 <p className="text-sm text-gray-dark/85">
                   <span className="font-semibold">Phone:</span> {detail.phone}
                 </p>
-                <p className="mt-3 text-sm text-gray-dark/85">
-                  <span className="font-semibold">Service:</span> {detail.service}
+                <p className="text-sm text-gray-dark/85">
+                  <span className="font-semibold">Service:</span> {formatServiceLabel(detail.service)}
+                </p>
+                <p className="text-sm text-gray-dark/85">
+                  <span className="font-semibold">Status:</span>{" "}
+                  {statusOptions.find((o) => o.value === detail.status)?.label ?? detail.status}
                 </p>
                 <p className="text-sm text-gray-dark/85">
                   <span className="font-semibold">Submitted:</span>{" "}
-                  {new Date(detail.createdAt).toLocaleString()}
+                  {formatDateTime(detail.createdAt)}
                 </p>
               </div>
               <div className="rounded-lg bg-white p-4 ring-1 ring-gray-medium/60">
                 <p className="text-xs font-semibold tracking-wider text-green-dark">
-                  MESSAGE
+                  Message
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-gray-dark/85">
-                  {detail.message}
+                  {formatBookingMessage(detail.message)}
                 </p>
               </div>
             </div>

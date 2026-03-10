@@ -1,3 +1,32 @@
+/** Format: "Thu, 14 May 2026" */
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** Format: "03:24 PM" */
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+});
+
+export function formatDate(date: Date | string | number): string {
+  return dateFormatter.format(new Date(date));
+}
+
+export function formatTime(date: Date | string | number): string {
+  return timeFormatter.format(new Date(date));
+}
+
+/** Format: "Thu, 14 May 2026, 03:24 PM" */
+export function formatDateTime(date: Date | string | number): string {
+  const d = new Date(date);
+  return `${dateFormatter.format(d)}, ${timeFormatter.format(d)}`;
+}
+
 export function slugify(input: string): string {
   return input
     .toLowerCase()

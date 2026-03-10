@@ -296,6 +296,18 @@ export default function AdminGalleryPage() {
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {!loading && !items.length ? (
+              <div className="col-span-full flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-medium/60 bg-cream-light/50 px-6 py-12 text-center">
+                <p className="font-heading text-lg font-semibold text-purple-dark">
+                  No gallery images yet
+                </p>
+                <p className="mt-2 max-w-sm text-sm text-gray-dark/80">
+                  Upload your first image using the form on the left. Images you add here can be used for the portfolio and other parts of the site.
+                </p>
+              </div>
+            ) : !filtered.length ? (
+              <p className="col-span-full text-sm text-gray-dark/70">No images match your search or filter.</p>
+            ) : null}
             {filtered.map((img) => (
               <div
                 key={img.id}
@@ -338,9 +350,6 @@ export default function AdminGalleryPage() {
                 </div>
               </div>
             ))}
-            {!filtered.length ? (
-              <p className="text-sm text-gray-dark/70">No images found.</p>
-            ) : null}
           </div>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/utils";
+
 export const metadata = {
   title: "Service Agreement & Terms",
   description: "Full service agreement and terms for GRWTEE."
@@ -102,7 +104,7 @@ export default function TermsPage() {
               Download PDF Version
             </a>
             <p className="text-sm text-gray-dark/70">
-              Last Updated: {new Date().toLocaleDateString()}
+              Last Updated: {formatDate(new Date())}
             </p>
             <p className="text-sm text-gray-dark/70">
               Contact for Questions:{" "}
