@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display, Poppins } from "next/font/google";
 import "@/styles/globals.css";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { Footer } from "@/components/layout/Footer";
 import { FooterLoader } from "@/components/layout/FooterLoader";
 import { Header } from "@/components/layout/Header";
 import { StructuredData } from "@/components/StructuredData";
+import { getConfig } from "@/lib/config";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -75,7 +77,12 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const gaId = await getConfig(
+    "NEXT_PUBLIC_GA_MEASUREMENT_ID",
+    process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+  );
+
   return (
     <html
       lang="en"
@@ -83,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <StructuredData />
+        <AnalyticsProvider gaId={gaId} />
         <a href="#main-content" className="sr-only focus:not-sr-only">
           Skip to main content
         </a>

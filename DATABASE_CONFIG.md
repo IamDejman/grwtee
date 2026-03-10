@@ -25,7 +25,7 @@ Your application now supports storing environment variables in the database inst
    - After first deployment, log into the admin panel at `/admin/login`
    - Go to Settings (`/admin/settings`)
    - Click "Show Env Vars" to see all environment variables
-   - Fill in the values you need (Cloudinary, SMTP, etc.)
+   - Fill in the values you need (Cloudinary, Resend, etc.)
    - Click "Save Env Vars"
 
 3. **Alternative: Use seed script**:
@@ -41,14 +41,13 @@ The following variables can be managed through the database:
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` - Cloudinary cloud name
 - `CLOUDINARY_API_KEY` - Cloudinary API key
 - `CLOUDINARY_API_SECRET` - Cloudinary API secret
-- `SMTP_HOST` - SMTP server host
-- `SMTP_PORT` - SMTP server port
-- `SMTP_USER` - SMTP username
-- `SMTP_PASSWORD` - SMTP password
-- `CONTACT_EMAIL` - Contact email address
+- `RESEND_API_KEY` - Resend API key (https://resend.com/api-keys)
+- `RESEND_FROM` - Sender address, e.g. `GRWTEE <book@grwtee.com>` (use verified domain or `onboarding@resend.dev`)
+- `CONTACT_EMAIL` - Inbox for booking/contact notifications (e.g. book@grwtee.com)
 - `NEXT_PUBLIC_SITE_URL` - Public site URL
 - `NEXT_PUBLIC_INSTAGRAM_URL` - Instagram URL
 - `NEXT_PUBLIC_CONTACT_EMAIL` - Public contact email
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID` - Google Analytics 4 Measurement ID (see ANALYTICS.md)
 
 ## Admin Interface
 

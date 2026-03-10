@@ -73,14 +73,13 @@ async function main() {
     ...(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && { NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME }),
     ...(process.env.CLOUDINARY_API_KEY && { CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY }),
     ...(process.env.CLOUDINARY_API_SECRET && { CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET }),
-    ...(process.env.SMTP_HOST && { SMTP_HOST: process.env.SMTP_HOST }),
-    ...(process.env.SMTP_PORT && { SMTP_PORT: process.env.SMTP_PORT }),
-    ...(process.env.SMTP_USER && { SMTP_USER: process.env.SMTP_USER }),
-    ...(process.env.SMTP_PASSWORD && { SMTP_PASSWORD: process.env.SMTP_PASSWORD }),
+    ...(process.env.RESEND_API_KEY && { RESEND_API_KEY: process.env.RESEND_API_KEY }),
+    ...(process.env.RESEND_FROM && { RESEND_FROM: process.env.RESEND_FROM }),
     ...(process.env.CONTACT_EMAIL && { CONTACT_EMAIL: process.env.CONTACT_EMAIL }),
     ...(process.env.NEXT_PUBLIC_SITE_URL && { NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL }),
     ...(process.env.NEXT_PUBLIC_INSTAGRAM_URL && { NEXT_PUBLIC_INSTAGRAM_URL: process.env.NEXT_PUBLIC_INSTAGRAM_URL }),
-    ...(process.env.NEXT_PUBLIC_CONTACT_EMAIL && { NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL })
+    ...(process.env.NEXT_PUBLIC_CONTACT_EMAIL && { NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL }),
+    ...(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && { NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID })
   };
 
   for (const [key, value] of Object.entries(envDefaults)) {
