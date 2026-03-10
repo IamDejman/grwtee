@@ -9,6 +9,18 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com"
+      },
+      {
+        protocol: "https",
+        hostname: "www.grwtee.com"
+      },
+      {
+        protocol: "https",
+        hostname: "grwtee.com"
+      },
+      {
+        protocol: "http",
+        hostname: "localhost"
       }
     ]
   }

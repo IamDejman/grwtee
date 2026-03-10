@@ -3,13 +3,12 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = 'force-dynamic';
 
 async function getMetrics() {
-  const [gallery, services, pendingBookings, totalBookings] = await Promise.all([
+  const [gallery, services, totalBookings] = await Promise.all([
     prisma.galleryImage.count(),
     prisma.service.count({ where: { active: true } }),
-    prisma.bookingRequest.count({ where: { status: "pending" } }),
     prisma.bookingRequest.count()
   ]);
-  return { gallery, services, pendingBookings, totalBookings };
+  return { gallery, services, totalBookings };
 }
 
 export default async function DashboardPage() {
@@ -24,11 +23,6 @@ export default async function DashboardPage() {
       title: "Active Services",
       value: m.services,
       href: "/admin/services"
-    },
-    {
-      title: "Pending Bookings",
-      value: m.pendingBookings,
-      href: "/admin/bookings"
     },
     {
       title: "Total Bookings (All Time)",
