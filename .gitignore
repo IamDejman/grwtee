@@ -36,8 +36,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
+# prisma (migrations are tracked so deploy can run prisma migrate deploy)
 
 # large source video files
 public/closet-restyling.mov

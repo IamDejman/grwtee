@@ -33,7 +33,7 @@ NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 NEXT_PUBLIC_INSTAGRAM_URL="https://instagram.com/grwtee"
 NEXT_PUBLIC_CONTACT_EMAIL="book@grwtee.com"
 
-# Required for seeding the first admin user (admin@grwtee.com)
+# Required for seeding the first admin user (book@grwtee.com)
 ADMIN_SEED_PASSWORD="set-a-strong-password"
 ```
 
@@ -46,7 +46,7 @@ npx prisma db seed
 ```
 
 Seed creates:
-- Admin: `admin@grwtee.com` (password = `ADMIN_SEED_PASSWORD`)
+- Admin: `book@grwtee.com` (password = `ADMIN_SEED_PASSWORD`)
 
 ### 4) Run
 

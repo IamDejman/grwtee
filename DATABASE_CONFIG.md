@@ -14,6 +14,15 @@ Your application now supports storing environment variables in the database inst
 
 **Only `DATABASE_URL` must remain as an environment variable** in Vercel, as it's needed to connect to the database in the first place.
 
+## Creating tables (new database or first deploy)
+
+If you see errors like "The table \`public.BookingRequest\` does not exist", the database schema hasn't been applied yet. Run one of:
+
+- **With migrations (recommended):** `npx prisma migrate deploy` — applies `prisma/migrations` to the current database.
+- **Quick sync:** `npx prisma db push` — syncs the schema without migration history (e.g. for dev or one-off DBs).
+
+Use the same `DATABASE_URL` as the running app (e.g. in Vercel env or `.env`).
+
 ## Setup for Vercel Deployment
 
 1. **Set only DATABASE_URL in Vercel**:

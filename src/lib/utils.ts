@@ -8,7 +8,7 @@ export function slugify(input: string): string {
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {
-  return !!email && email.toLowerCase() === "admin@grwtee.com";
+  return !!email && email.toLowerCase() === "book@grwtee.com";
 }
 
 

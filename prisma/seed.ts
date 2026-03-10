@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "admin@grwtee.com";
+  const email = "book@grwtee.com";
   const password = process.env.ADMIN_SEED_PASSWORD;
   if (!password || password.length < 8) {
     throw new Error(

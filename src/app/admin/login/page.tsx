@@ -23,7 +23,7 @@ export default function AdminLoginPage() {
     register,
     handleSubmit,
     formState: { isSubmitting }
-  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { email: "admin@grwtee.com" } });
+  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { email: "book@grwtee.com" } });
 
   const onSubmit = async (data: FormData) => {
     setError(null);
@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
                 id="email"
                 type="email"
                 className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-green-dark"
-                placeholder="admin@grwtee.com"
+                placeholder="book@grwtee.com"
                 {...register("email")}
               />
             </div>

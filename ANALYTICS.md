@@ -41,3 +41,24 @@ Examples of events you might add:
 - `gallery_image_open` – gallery lightbox opened
 
 Events only send when GA is loaded (i.e. when `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set).
+
+## Troubleshooting: “Data collection isn’t active”
+
+If Google Analytics shows this after 48+ hours:
+
+1. **Measurement ID is correct and set in production**
+   - Use a real GA4 Measurement ID (e.g. `G-XXXXXXXXXX`) from [Google Analytics](https://analytics.google.com/) → Admin → Data streams → your Web stream.
+   - **Production**: Set `NEXT_PUBLIC_GA_MEASUREMENT_ID` in your host’s env (e.g. Vercel) or in **Settings → Show Env Vars** in the admin. The value is read at runtime from the DB or env.
+
+2. **GA4 Web stream URL**
+   - In GA4: Admin → Data streams → your Web stream. Ensure **Website URL** matches your live site (e.g. `https://grwtee.com`). Wrong or `localhost` can cause “data collection isn’t active”.
+
+3. **Confirm the tag loads**
+   - On the live site, open DevTools → Network, filter by “google” or “gtag”. Reload and check that `gtag/js?id=G-XXXXXXXXXX` is requested and returns 200.
+   - In the page source, search for your Measurement ID to confirm the script is present.
+
+4. **Ad blockers and privacy**
+   - Test in a private/incognito window with extensions disabled; ad blockers often block gtag.
+
+5. **Don’t use a placeholder ID**
+   - Never use `G-w` or other fake IDs. Leave the variable empty to disable analytics, or use the exact ID from your GA4 property.
