@@ -57,8 +57,13 @@ export async function POST(req: Request) {
   const data = parsed.data;
   try {
     await prisma.bookingRequest.create({ data });
-  } catch (err) {
-    console.error("[Bookings POST] create failed:", err);
+  } catch (err: unknown) {
+    const prismaErr = err as { code?: string; message?: string };
+    console.error(
+      "[Bookings POST] create failed:",
+      prismaErr?.code ?? "unknown",
+      prismaErr?.message ?? err
+    );
     return NextResponse.json(
       { success: false, error: "Failed to save booking request" },
       { status: 500 }
