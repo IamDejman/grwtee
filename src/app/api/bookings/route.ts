@@ -1,7 +1,9 @@
 import { getAuthOptions } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
+import { bookingConfirmationHtml, bookingNotificationHtml, escapeHtml } from "@/lib/email-templates";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
+import { formatBookingMessage, formatServiceLabel } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -78,28 +80,24 @@ export async function POST(req: Request) {
     console.log("[Bookings] Sending notification to %s and confirmation to %s", contactEmail, data.email);
 
     const notificationText = [
-      "New booking request received:",
-      "",
       `Name: ${data.name}`,
       `Email: ${data.email}`,
       `Phone: ${data.phone}`,
-      `Service: ${data.service}`,
+      `Service: ${formatServiceLabel(data.service)}`,
       "",
       "Message:",
-      data.message
+      formatBookingMessage(data.message)
     ].join("\n");
-    const notificationHtml = `
-      <div style="font-family:Arial,sans-serif;line-height:1.6">
-        <h2 style="margin:0 0 12px 0">New booking request</h2>
-        <p><b>Name:</b> ${data.name}</p>
-        <p><b>Email:</b> ${data.email}</p>
-        <p><b>Phone:</b> ${data.phone}</p>
-        <p><b>Service:</b> ${data.service}</p>
-        <p><b>Message:</b><br/>${String(data.message).replace(/\n/g, "<br/>")}</p>
-        <hr/>
-        <p style="color:#555">View in admin: <a href="${siteUrl}/admin/bookings">${siteUrl}/admin/bookings</a></p>
-      </div>
-    `;
+    const messageFormatted = formatBookingMessage(data.message);
+    const messageHtml = escapeHtml(messageFormatted).replace(/\n/g, "<br/>");
+    const notificationHtml = bookingNotificationHtml({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      serviceLabel: formatServiceLabel(data.service),
+      messageHtml,
+      siteUrl: siteUrl ?? "https://grwtee.com"
+    });
     const notifResult = await sendEmail({
       to: contactEmail ?? "book@grwtee.com",
       subject: "New Booking Request",
@@ -115,22 +113,15 @@ export async function POST(req: Request) {
       "",
       "Thank you for reaching out to GRWTEE. We've received your booking request and will get back to you within 24–48 hours.",
       "",
-      `Service interest: ${data.service}`,
-      "",
-      `In the meantime, you can review our policies here: ${siteUrl}/payment`,
+      `Service interest: ${formatServiceLabel(data.service)}`,
       "",
       "Warm regards,",
       "GRWTEE"
     ].join("\n");
-    const confirmationHtml = `
-      <div style="font-family:Arial,sans-serif;line-height:1.6">
-        <p>Hi ${data.name},</p>
-        <p>Thank you for reaching out to <b>GRWTEE</b>. We've received your request and will get back to you within <b>24–48 hours</b>.</p>
-        <p><b>Service interest:</b> ${data.service}</p>
-        <p style="margin-top:16px"><a href="${siteUrl}/payment">${siteUrl}/payment</a></p>
-        <p style="margin-top:18px">Warm regards,<br/>GRWTEE</p>
-      </div>
-    `;
+    const confirmationHtml = bookingConfirmationHtml({
+      name: data.name,
+      serviceLabel: formatServiceLabel(data.service)
+    });
     const confirmResult = await sendEmail({
       to: data.email,
       subject: "We received your request — GRWTEE",
