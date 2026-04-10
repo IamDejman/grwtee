@@ -6,6 +6,7 @@ export const config = {
     "/admin/gallery/:path*",
     "/admin/services/:path*",
     "/admin/bookings/:path*",
+    "/admin/invoices/:path*",
     "/admin/settings/:path*"
   ]
 };
