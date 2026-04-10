@@ -42,8 +42,19 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
+  let selectedAccountIds: string[] = [];
+  if (invoice.paymentAccountIds) {
+    try {
+      const parsed = JSON.parse(invoice.paymentAccountIds);
+      if (Array.isArray(parsed)) selectedAccountIds = parsed.filter((x): x is string => typeof x === "string");
+    } catch {
+      selectedAccountIds = [];
+    }
+  }
   const paymentAccounts = await prisma.paymentAccount.findMany({
-    where: { active: true, currency: invoice.currency },
+    where: selectedAccountIds.length
+      ? { id: { in: selectedAccountIds } }
+      : { active: true, currency: invoice.currency },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }]
   });
 

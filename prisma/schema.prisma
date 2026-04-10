@@ -83,17 +83,20 @@ model SiteSettings {
 }
 
 model Invoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String   @unique
-  clientName    String
-  clientAddress String?
-  currency      String   @default("NGN")
-  items         String
-  notes         String?
-  dueDate       DateTime
-  status        String   @default("unpaid")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  invoiceNumber      String   @unique
+  clientName         String
+  clientAddress      String?
+  currency           String   @default("NGN")
+  items              String
+  notes              String?
+  dueDate            DateTime
+  status             String   @default("unpaid")
+  // JSON array of PaymentAccount IDs selected for this invoice.
+  // Empty/null = show all active accounts matching currency.
+  paymentAccountIds  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])

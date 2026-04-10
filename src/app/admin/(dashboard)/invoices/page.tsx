@@ -9,11 +9,19 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
 
+// Stored/server format — numbers
 type LineItem = {
   description: string;
   quantity: number;
   unitPrice: number;
   vat: boolean;
+};
+
+// Form state — strings so inputs can be cleared/edited naturally
+type LineItemDraft = {
+  description: string;
+  quantity: string;
+  unitPrice: string;
 };
 
 type Invoice = {
@@ -65,12 +73,31 @@ function computeTotals(items: LineItem[]) {
   return { subtotal, vat, total: subtotal + vat };
 }
 
-const emptyItem = (): LineItem => ({
+function computeDraftTotals(drafts: LineItemDraft[], applyVat: boolean) {
+  return computeTotals(
+    drafts.map((d) => ({
+      description: d.description,
+      quantity: Number(d.quantity) || 0,
+      unitPrice: Number(d.unitPrice) || 0,
+      vat: applyVat
+    }))
+  );
+}
+
+const emptyDraft = (): LineItemDraft => ({
   description: "",
-  quantity: 1,
-  unitPrice: 0,
-  vat: false
+  quantity: "1",
+  unitPrice: ""
 });
+
+type PaymentAccountOption = {
+  id: string;
+  label: string;
+  currency: "NGN" | "USD";
+  bankName: string;
+  accountNumber: string;
+  active: boolean;
+};
 
 export default function AdminInvoicesPage() {
   const [items, setItems] = useState<Invoice[]>([]);
@@ -89,10 +116,16 @@ export default function AdminInvoicesPage() {
     d.setDate(d.getDate() + 14);
     return d.toISOString().slice(0, 10);
   });
-  const [lineItems, setLineItems] = useState<LineItem[]>([emptyItem()]);
+  const [lineDrafts, setLineDrafts] = useState<LineItemDraft[]>([emptyDraft()]);
   const [notes, setNotes] = useState("");
   // Invoice-level VAT toggle (applies 7.5% to all line items)
   const [applyVat, setApplyVat] = useState(false);
+
+  // Payment accounts (loaded once)
+  const [accounts, setAccounts] = useState<PaymentAccountOption[]>([]);
+  // Which account IDs the user has explicitly selected for this invoice.
+  // null = "use all active matching-currency accounts" (default behavior)
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[] | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -109,14 +142,33 @@ export default function AdminInvoicesPage() {
     }
   };
 
+  const loadAccounts = async () => {
+    try {
+      const res = await fetch("/api/payment-accounts");
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.data)) {
+        setAccounts(json.data);
+      }
+    } catch {
+      // Non-fatal — form still works without account selection
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadAccounts();
   }, []);
 
   // Live totals reflect the global VAT toggle
   const totals = useMemo(
-    () => computeTotals(lineItems.map((it) => ({ ...it, vat: applyVat }))),
-    [lineItems, applyVat]
+    () => computeDraftTotals(lineDrafts, applyVat),
+    [lineDrafts, applyVat]
+  );
+
+  // Active accounts matching the invoice currency (default candidates for the PDF)
+  const matchingAccounts = useMemo(
+    () => accounts.filter((a) => a.active && a.currency === currency),
+    [accounts, currency]
   );
 
   const resetForm = () => {
@@ -126,28 +178,49 @@ export default function AdminInvoicesPage() {
     const d = new Date();
     d.setDate(d.getDate() + 14);
     setDueDate(d.toISOString().slice(0, 10));
-    setLineItems([emptyItem()]);
+    setLineDrafts([emptyDraft()]);
     setNotes("");
     setApplyVat(false);
+    setSelectedAccountIds(null);
   };
 
-  const updateItem = (index: number, patch: Partial<LineItem>) => {
-    setLineItems((prev) =>
+  const updateDraft = (index: number, patch: Partial<LineItemDraft>) => {
+    setLineDrafts((prev) =>
       prev.map((it, i) => (i === index ? { ...it, ...patch } : it))
     );
   };
 
-  const addItem = () => setLineItems((prev) => [...prev, emptyItem()]);
-  const removeItem = (index: number) =>
-    setLineItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+  const addDraft = () => setLineDrafts((prev) => [...prev, emptyDraft()]);
+  const removeDraft = (index: number) =>
+    setLineDrafts((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+
+  const toggleAccount = (id: string) => {
+    setSelectedAccountIds((prev) => {
+      if (prev === null) {
+        // Switching from "all" to explicit: start with just this one
+        return [id];
+      }
+      if (prev.includes(id)) {
+        const next = prev.filter((x) => x !== id);
+        return next;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const resetAccountSelection = () => setSelectedAccountIds(null);
 
   const create = async () => {
     if (!clientName.trim()) {
       setError("Client name is required.");
       return;
     }
-    if (!lineItems.length || lineItems.some((i) => !i.description.trim())) {
+    if (!lineDrafts.length || lineDrafts.some((i) => !i.description.trim())) {
       setError("All line items need a description.");
+      return;
+    }
+    if (lineDrafts.some((i) => !(Number(i.unitPrice) > 0))) {
+      setError("Each line item needs a unit price greater than 0.");
       return;
     }
     setSubmitting(true);
@@ -162,17 +235,18 @@ export default function AdminInvoicesPage() {
           currency,
           dueDate,
           notes: notes || null,
-          items: lineItems.map((i) => ({
-            description: i.description,
+          items: lineDrafts.map((i) => ({
+            description: i.description.trim(),
             quantity: Number(i.quantity) || 0,
             unitPrice: Number(i.unitPrice) || 0,
             vat: applyVat
-          }))
+          })),
+          paymentAccountIds: selectedAccountIds ?? undefined
         })
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Failed");
+        throw new Error(typeof j?.error === "string" ? j.error : "Failed");
       }
       setShowForm(false);
       resetForm();
@@ -447,66 +521,72 @@ export default function AdminInvoicesPage() {
           <div className="mt-6">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-dark">Line items</p>
-              <Button variant="outline" size="sm" onClick={addItem} type="button">
+              <Button variant="outline" size="sm" onClick={addDraft} type="button">
                 Add row
               </Button>
             </div>
-            <div className="mt-3 space-y-3">
-              {lineItems.map((it, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg bg-cream-light p-3"
-                >
-                  {/* Mobile: stacked with labels. Desktop: grid row */}
+
+            {/* Desktop column headers */}
+            <div className="mt-3 hidden grid-cols-12 gap-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-dark/70 md:grid">
+              <div className="col-span-6">Description</div>
+              <div className="col-span-2">Quantity</div>
+              <div className="col-span-3">Unit price</div>
+              <div className="col-span-1 text-right">&nbsp;</div>
+            </div>
+
+            <div className="mt-2 space-y-3">
+              {lineDrafts.map((it, idx) => (
+                <div key={idx} className="rounded-lg bg-cream-light p-3">
                   <div className="grid gap-3 md:grid-cols-12 md:gap-2">
-                    <div className="md:col-span-7">
+                    <div className="md:col-span-6">
                       <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
                         Description
                       </label>
                       <Input
                         placeholder="Description"
                         value={it.description}
-                        onChange={(e) => updateItem(idx, { description: e.target.value })}
+                        onChange={(e) => updateDraft(idx, { description: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3 md:col-span-4 md:grid-cols-2 md:gap-2">
-                      <div>
+                    <div className="grid grid-cols-2 gap-3 md:col-span-5 md:grid-cols-5 md:gap-2">
+                      <div className="md:col-span-2">
                         <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
                           Quantity
                         </label>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           step="1"
-                          placeholder="Qty"
+                          placeholder="1"
                           value={it.quantity}
-                          onChange={(e) =>
-                            updateItem(idx, { quantity: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => updateDraft(idx, { quantity: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                         />
                       </div>
-                      <div>
+                      <div className="md:col-span-3">
                         <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
-                          Unit price
+                          Unit price ({currencySymbol(currency)})
                         </label>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           min={0}
                           step="0.01"
-                          placeholder="Unit price"
+                          placeholder="0.00"
                           value={it.unitPrice}
-                          onChange={(e) =>
-                            updateItem(idx, { unitPrice: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => updateDraft(idx, { unitPrice: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                         />
                       </div>
                     </div>
                     <div className="flex items-end justify-end md:col-span-1">
                       <button
                         type="button"
-                        className="min-h-[40px] rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-40"
-                        onClick={() => removeItem(idx)}
-                        disabled={lineItems.length <= 1}
+                        className="min-h-[40px] w-full rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 md:w-auto"
+                        onClick={() => removeDraft(idx)}
+                        disabled={lineDrafts.length <= 1}
+                        aria-label="Remove line item"
                       >
                         Remove
                       </button>
@@ -514,6 +594,72 @@ export default function AdminInvoicesPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Payment account selector */}
+          <div className="mt-6 rounded-lg bg-white p-4 ring-1 ring-gray-medium/60">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-dark">
+                  Payment accounts on this invoice
+                </p>
+                <p className="mt-1 text-xs text-gray-dark/70">
+                  By default, all active {currency} accounts will be shown on the
+                  PDF. Check specific ones below to override.
+                </p>
+              </div>
+              {selectedAccountIds !== null ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-green-dark underline hover:text-purple-dark"
+                  onClick={resetAccountSelection}
+                >
+                  Use all ({currency})
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-2">
+              {matchingAccounts.length === 0 ? (
+                <p className="rounded-md border border-dashed border-gray-medium/60 p-3 text-xs text-gray-dark/70">
+                  No active {currency} accounts. Add one in{" "}
+                  <Link
+                    href="/admin/settings"
+                    className="font-semibold text-green-dark underline"
+                  >
+                    Settings
+                  </Link>
+                  .
+                </p>
+              ) : (
+                matchingAccounts.map((acc) => {
+                  const isChecked =
+                    selectedAccountIds === null
+                      ? true
+                      : selectedAccountIds.includes(acc.id);
+                  return (
+                    <label
+                      key={acc.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-medium/40 bg-cream-light p-3 hover:border-purple-dark/40"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4"
+                        checked={isChecked}
+                        onChange={() => toggleAccount(acc.id)}
+                      />
+                      <div className="min-w-0 flex-1 text-sm">
+                        <div className="font-semibold text-purple-dark">
+                          {acc.label}
+                        </div>
+                        <div className="mt-0.5 text-xs text-gray-dark/80">
+                          {acc.bankName} · <span className="font-mono">{acc.accountNumber}</span>
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
             </div>
           </div>
 

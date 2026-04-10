@@ -17,7 +17,8 @@ const createSchema = z.object({
   currency: z.enum(["NGN", "USD"]).default("NGN"),
   items: z.array(lineItemSchema).min(1),
   notes: z.string().optional().nullable(),
-  dueDate: z.string().min(1)
+  dueDate: z.string().min(1),
+  paymentAccountIds: z.array(z.string()).optional().nullable()
 });
 
 async function requireAdmin() {
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
   }
   try {
     const invoiceNumber = await nextInvoiceNumber();
+    const selectedIds = data.paymentAccountIds?.filter((id) => id && id.length > 0) ?? [];
     const created = await prisma.invoice.create({
       data: {
         invoiceNumber,
@@ -99,7 +101,8 @@ export async function POST(req: Request) {
         currency: data.currency,
         items: JSON.stringify(data.items),
         notes: data.notes ?? null,
-        dueDate
+        dueDate,
+        paymentAccountIds: selectedIds.length ? JSON.stringify(selectedIds) : null
       }
     });
     return NextResponse.json({ success: true, data: created });
