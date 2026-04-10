@@ -93,11 +93,26 @@ const emptyDraft = (): LineItemDraft => ({
 type PaymentAccountOption = {
   id: string;
   label: string;
-  currency: "NGN" | "USD";
-  bankName: string;
-  accountNumber: string;
+  type: "bank" | "paypal" | "wise" | "other";
+  currency: "NGN" | "USD" | "GBP" | "EUR";
+  bankName: string | null;
+  accountNumber: string | null;
+  email: string | null;
+  notes: string | null;
   active: boolean;
 };
+
+function accountSecondaryLine(acc: PaymentAccountOption): string {
+  if (acc.type === "bank") {
+    const parts: string[] = [];
+    if (acc.bankName) parts.push(acc.bankName);
+    if (acc.accountNumber) parts.push(acc.accountNumber);
+    return parts.join(" · ");
+  }
+  if (acc.type === "paypal") return `PayPal: ${acc.email || "—"}`;
+  if (acc.type === "wise") return `Wise: ${acc.email || "—"}`;
+  return acc.notes?.split("\n")[0] || "—";
+}
 
 export default function AdminInvoicesPage() {
   const [items, setItems] = useState<Invoice[]>([]);
@@ -697,6 +712,14 @@ export default function AdminInvoicesPage() {
                     selectedAccountIds === null
                       ? true
                       : selectedAccountIds.includes(acc.id);
+                  const typeLabel =
+                    acc.type === "paypal"
+                      ? "PayPal"
+                      : acc.type === "wise"
+                        ? "Wise"
+                        : acc.type === "other"
+                          ? "Other"
+                          : "Bank";
                   return (
                     <label
                       key={acc.id}
@@ -709,11 +732,16 @@ export default function AdminInvoicesPage() {
                         onChange={() => toggleAccount(acc.id)}
                       />
                       <div className="min-w-0 flex-1 text-sm">
-                        <div className="font-semibold text-purple-dark">
-                          {acc.label}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-purple-dark">
+                            {acc.label}
+                          </span>
+                          <span className="rounded-full bg-gray-medium/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-dark">
+                            {typeLabel}
+                          </span>
                         </div>
-                        <div className="mt-0.5 text-xs text-gray-dark/80">
-                          {acc.bankName} · <span className="font-mono">{acc.accountNumber}</span>
+                        <div className="mt-0.5 truncate text-xs text-gray-dark/80">
+                          {accountSecondaryLine(acc)}
                         </div>
                       </div>
                     </label>

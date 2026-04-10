@@ -105,13 +105,19 @@ model Invoice {
 model PaymentAccount {
   id            String   @id @default(cuid())
   label         String
+  // Type: "bank" | "paypal" | "wise" | "other"
+  type          String   @default("bank")
   currency      String
-  bankName      String
-  accountName   String
-  accountNumber String
+  // Bank-specific fields (required for type=bank, nullable for others)
+  bankName      String?
+  accountName   String?
+  accountNumber String?
   swiftCode     String?
   iban          String?
   sortCode      String?
+  // Email-based fields (PayPal, Wise)
+  email         String?
+  // Generic fields
   notes         String?
   active        Boolean  @default(true)
   order         Int      @default(0)
@@ -121,6 +127,7 @@ model PaymentAccount {
   @@index([currency])
   @@index([active])
   @@index([order])
+  @@index([type])
 }
 
 

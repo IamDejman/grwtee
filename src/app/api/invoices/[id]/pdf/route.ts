@@ -198,18 +198,33 @@ export async function GET(
     for (const acc of paymentAccounts) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(`${acc.label} (${acc.currency})`, marginX, y);
+      const typeLabel =
+        acc.type === "paypal"
+          ? "PayPal"
+          : acc.type === "wise"
+            ? "Wise"
+            : acc.type === "other"
+              ? "Other"
+              : "Bank";
+      doc.text(`${acc.label} — ${typeLabel} (${acc.currency})`, marginX, y);
       y += 12;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
 
       const lines: string[] = [];
-      lines.push(`Bank: ${acc.bankName}`);
-      lines.push(`Account Name: ${acc.accountName}`);
-      lines.push(`Account Number: ${acc.accountNumber}`);
-      if (acc.swiftCode) lines.push(`SWIFT/BIC: ${acc.swiftCode}`);
-      if (acc.iban) lines.push(`IBAN: ${acc.iban}`);
-      if (acc.sortCode) lines.push(`Sort Code: ${acc.sortCode}`);
+      if (acc.type === "bank") {
+        if (acc.bankName) lines.push(`Bank: ${acc.bankName}`);
+        if (acc.accountName) lines.push(`Account Name: ${acc.accountName}`);
+        if (acc.accountNumber) lines.push(`Account Number: ${acc.accountNumber}`);
+        if (acc.swiftCode) lines.push(`SWIFT/BIC: ${acc.swiftCode}`);
+        if (acc.iban) lines.push(`IBAN: ${acc.iban}`);
+        if (acc.sortCode) lines.push(`Sort Code: ${acc.sortCode}`);
+      } else if (acc.type === "paypal") {
+        if (acc.email) lines.push(`PayPal: ${acc.email}`);
+      } else if (acc.type === "wise") {
+        if (acc.email) lines.push(`Wise: ${acc.email}`);
+      }
+      // For "other" the notes field carries the full instructions; it's appended below.
       if (acc.notes) lines.push(acc.notes);
 
       for (const line of lines) {
