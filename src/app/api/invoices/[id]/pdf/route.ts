@@ -6,7 +6,7 @@ import { jsPDF } from "jspdf";
 import { readFileSync } from "fs";
 import path from "path";
 
-// Run this route on Node.js (jsPDF + fs need it, not Edge runtime)
+// Run this route on Node.js (jsPDF + fs need it, not Edge runtime).
 export const runtime = "nodejs";
 
 type LineItem = {
