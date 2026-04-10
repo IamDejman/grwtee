@@ -82,4 +82,21 @@ model SiteSettings {
   updatedAt DateTime @updatedAt
 }
 
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  clientName    String
+  clientAddress String?
+  currency      String   @default("NGN")
+  items         String
+  notes         String?
+  dueDate       DateTime
+  status        String   @default("unpaid")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
 
