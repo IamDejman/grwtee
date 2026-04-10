@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ButtonLink } from "@/components/ui/Button";
@@ -38,6 +39,7 @@ function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export function Header() {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -46,6 +48,9 @@ export function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Hide the public site header on admin routes — admin has its own chrome.
+  if (pathname?.startsWith("/admin")) return null;
 
   const instagramUrl =
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";

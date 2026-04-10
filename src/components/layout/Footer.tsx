@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
 function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -40,8 +41,12 @@ const legalLinks = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
   const instagramUrl =
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";
+
+  // Hide the public footer on admin routes.
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <footer className="pattern-dark">
