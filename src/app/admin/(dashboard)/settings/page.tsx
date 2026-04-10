@@ -14,11 +14,20 @@ type Settings = {
   invoicePaymentDetails: string;
 };
 
+const DEFAULT_SETTINGS: Settings = {
+  siteTitle: "",
+  instagramUrl: "",
+  contactEmail: "",
+  businessHours: "",
+  adminEmailNotifications: true,
+  invoicePaymentDetails: ""
+};
+
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -35,7 +44,7 @@ export default function AdminSettingsPage() {
       const res = await fetch("/api/settings");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
-      setSettings(json.data);
+      setSettings({ ...DEFAULT_SETTINGS, ...json.data });
     } catch {
       setError("Failed to load settings.");
     } finally {
@@ -48,7 +57,6 @@ export default function AdminSettingsPage() {
   }, []);
 
   const save = async () => {
-    if (!settings) return;
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -109,7 +117,7 @@ export default function AdminSettingsPage() {
           <Button variant="outline" onClick={load} disabled={loading}>
             Refresh
           </Button>
-          <Button onClick={save} loading={loading} disabled={!settings}>
+          <Button onClick={save} loading={loading}>
             Save
           </Button>
         </div>
@@ -134,47 +142,42 @@ export default function AdminSettingsPage() {
           <div className="mt-4 space-y-4">
             <Input
               label="Site title"
-              value={settings?.siteTitle || ""}
+              value={settings.siteTitle}
               onChange={(e) =>
-                setSettings((s) => (s ? { ...s, siteTitle: e.target.value } : s))
+                setSettings((s) => ({ ...s, siteTitle: e.target.value }))
               }
             />
             <Input
               label="Instagram URL"
-              value={settings?.instagramUrl || ""}
+              value={settings.instagramUrl}
               onChange={(e) =>
-                setSettings((s) =>
-                  s ? { ...s, instagramUrl: e.target.value } : s
-                )
+                setSettings((s) => ({ ...s, instagramUrl: e.target.value }))
               }
             />
             <Input
               label="Contact email"
-              value={settings?.contactEmail || ""}
+              value={settings.contactEmail}
               onChange={(e) =>
-                setSettings((s) =>
-                  s ? { ...s, contactEmail: e.target.value } : s
-                )
+                setSettings((s) => ({ ...s, contactEmail: e.target.value }))
               }
             />
             <Textarea
               label="Business hours"
               rows={6}
-              value={settings?.businessHours || ""}
+              value={settings.businessHours}
               onChange={(e) =>
-                setSettings((s) =>
-                  s ? { ...s, businessHours: e.target.value } : s
-                )
+                setSettings((s) => ({ ...s, businessHours: e.target.value }))
               }
             />
             <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
               <input
                 type="checkbox"
-                checked={!!settings?.adminEmailNotifications}
+                checked={settings.adminEmailNotifications}
                 onChange={(e) =>
-                  setSettings((s) =>
-                    s ? { ...s, adminEmailNotifications: e.target.checked } : s
-                  )
+                  setSettings((s) => ({
+                    ...s,
+                    adminEmailNotifications: e.target.checked
+                  }))
                 }
                 className="h-4 w-4 rounded border-gray-medium"
               />
@@ -195,11 +198,12 @@ export default function AdminSettingsPage() {
               label="Payment details"
               rows={8}
               placeholder={"Bank: Example Bank\nAccount Name: GRWTEE\nAccount Number: 0123456789\n\nUSD wire:\nBank: ..."}
-              value={settings?.invoicePaymentDetails || ""}
+              value={settings.invoicePaymentDetails}
               onChange={(e) =>
-                setSettings((s) =>
-                  s ? { ...s, invoicePaymentDetails: e.target.value } : s
-                )
+                setSettings((s) => ({
+                  ...s,
+                  invoicePaymentDetails: e.target.value
+                }))
               }
             />
             <p className="mt-2 text-xs text-gray-dark/70">
