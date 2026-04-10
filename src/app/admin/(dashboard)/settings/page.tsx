@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { PaymentAccountsManager } from "@/components/admin/PaymentAccountsManager";
 
 type Settings = {
   siteTitle: string;
@@ -11,7 +12,6 @@ type Settings = {
   contactEmail: string;
   businessHours: string;
   adminEmailNotifications: boolean;
-  invoicePaymentDetails: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -19,8 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   instagramUrl: "",
   contactEmail: "",
   businessHours: "",
-  adminEmailNotifications: true,
-  invoicePaymentDetails: ""
+  adminEmailNotifications: true
 };
 
 export default function AdminSettingsPage() {
@@ -186,38 +185,8 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-          <h2 className="font-heading text-xl font-semibold text-purple-dark">
-            Invoice Settings
-          </h2>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Bank/payment details shown in the footer of every invoice PDF.
-            You can list multiple accounts (NGN and USD) — separate them
-            with a blank line.
-          </p>
-          <div className="mt-4">
-            <Textarea
-              label="Payment details"
-              rows={10}
-              placeholder={"NGN account:\nBank: GTBank\nAccount Name: GRWTEE\nAccount Number: 0123456789\n\nUSD account:\nBank: Access Bank\nAccount Name: GRWTEE\nAccount Number: 9876543210\nSwift: ABNGNGLA"}
-              value={settings.invoicePaymentDetails}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  invoicePaymentDetails: e.target.value
-                }))
-              }
-            />
-            <p className="mt-2 text-xs text-gray-dark/70">
-              Plain text. Line breaks are preserved in the PDF. Click{" "}
-              <strong>Save</strong> at the top of the page when done.
-            </p>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button onClick={save} loading={loading} size="sm">
-              Save invoice settings
-            </Button>
-          </div>
+        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-2">
+          <PaymentAccountsManager />
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">

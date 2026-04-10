@@ -42,10 +42,10 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
-  const paymentDetailsSetting = await prisma.siteSettings.findUnique({
-    where: { key: "invoicePaymentDetails" }
+  const paymentAccounts = await prisma.paymentAccount.findMany({
+    where: { active: true, currency: invoice.currency },
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }]
   });
-  const paymentDetails = paymentDetailsSetting?.value?.trim() || "";
 
   let items: LineItem[] = [];
   try {
@@ -177,16 +177,38 @@ export async function GET(
 
   y += 24;
 
-  // Payment details (from site settings)
-  if (paymentDetails) {
+  // Payment accounts (filtered by invoice currency, active only)
+  if (paymentAccounts.length) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("PAYMENT DETAILS", marginX, y);
-    y += 12;
-    doc.setFont("helvetica", "normal");
-    const payLines = doc.splitTextToSize(paymentDetails, pageWidth - marginX * 2);
-    doc.text(payLines, marginX, y);
-    y += payLines.length * 12 + 8;
+    y += 14;
+
+    for (const acc of paymentAccounts) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`${acc.label} (${acc.currency})`, marginX, y);
+      y += 12;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+
+      const lines: string[] = [];
+      lines.push(`Bank: ${acc.bankName}`);
+      lines.push(`Account Name: ${acc.accountName}`);
+      lines.push(`Account Number: ${acc.accountNumber}`);
+      if (acc.swiftCode) lines.push(`SWIFT/BIC: ${acc.swiftCode}`);
+      if (acc.iban) lines.push(`IBAN: ${acc.iban}`);
+      if (acc.sortCode) lines.push(`Sort Code: ${acc.sortCode}`);
+      if (acc.notes) lines.push(acc.notes);
+
+      for (const line of lines) {
+        const wrapped = doc.splitTextToSize(line, pageWidth - marginX * 2);
+        doc.text(wrapped, marginX, y);
+        y += wrapped.length * 11;
+      }
+      y += 6;
+    }
+    y += 2;
   }
 
   // Notes

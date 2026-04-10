@@ -99,4 +99,25 @@ model Invoice {
   @@index([createdAt])
 }
 
+model PaymentAccount {
+  id            String   @id @default(cuid())
+  label         String
+  currency      String
+  bankName      String
+  accountName   String
+  accountNumber String
+  swiftCode     String?
+  iban          String?
+  sortCode      String?
+  notes         String?
+  active        Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([currency])
+  @@index([active])
+  @@index([order])
+}
+
 
