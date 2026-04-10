@@ -239,12 +239,14 @@ export async function GET(
 
   // ---------- Items table ----------
   // A4 usable width = 595 - 48*2 = 499pt. Column layout (x positions):
-  //   DESCRIPTION   QTY   UNIT PRICE   VAT   AMOUNT
-  //   left          right right        right right
+  //   DESCRIPTION      QTY       UNIT PRICE    AMOUNT (NGN)
+  //   left             right     right         right
+  // No per-line VAT column — VAT is applied at the invoice level and the
+  // totals row already shows it when non-zero. Per-line VAT status was
+  // overlapping the AMOUNT column at A4 width, so it was removed.
   const colDescLeft = marginX;
   const colQtyRight = marginX + 310;
   const colUnitRight = marginX + 410;
-  const colVatRight = marginX + 455;
   const colAmtRight = pageWidth - marginX;
   const descMaxWidth = 250;
 
@@ -257,7 +259,6 @@ export async function GET(
   doc.text("DESCRIPTION", colDescLeft, y);
   doc.text("QTY", colQtyRight, y, { align: "right" });
   doc.text("UNIT PRICE", colUnitRight, y, { align: "right" });
-  doc.text("VAT", colVatRight, y, { align: "right" });
   doc.text(`AMOUNT (${invoice.currency})`, colAmtRight, y, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
@@ -278,7 +279,6 @@ export async function GET(
     doc.text(descLines, colDescLeft, y);
     doc.text(String(item.quantity), colQtyRight, y, { align: "right" });
     doc.text(formatAmount(item.unitPrice), colUnitRight, y, { align: "right" });
-    doc.text(item.vat ? "Yes" : "No", colVatRight, y, { align: "right" });
     doc.text(formatAmount(lineAmount), colAmtRight, y, { align: "right" });
 
     y += Math.max(18, descLines.length * 14);
