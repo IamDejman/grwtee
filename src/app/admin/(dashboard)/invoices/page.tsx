@@ -526,20 +526,21 @@ export default function AdminInvoicesPage() {
               </Button>
             </div>
 
-            {/* Desktop column headers */}
-            <div className="mt-3 hidden grid-cols-12 gap-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-dark/70 md:grid">
-              <div className="col-span-6">Description</div>
-              <div className="col-span-2">Quantity</div>
-              <div className="col-span-3">Unit price</div>
-              <div className="col-span-1 text-right">&nbsp;</div>
+            {/* Desktop column headers — use flex with fixed widths matching the rows */}
+            <div className="mt-3 hidden items-center gap-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-dark/70 md:flex">
+              <div className="flex-1">Description</div>
+              <div className="w-24">Quantity</div>
+              <div className="w-40">Unit price</div>
+              <div className="w-10" aria-hidden="true" />
             </div>
 
             <div className="mt-2 space-y-3">
               {lineDrafts.map((it, idx) => (
                 <div key={idx} className="rounded-lg bg-cream-light p-3">
-                  <div className="grid gap-3 md:grid-cols-12 md:gap-2">
-                    <div className="md:col-span-6">
-                      <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                  {/* Mobile: stacked grid. Desktop: flex row with fixed widths. */}
+                  <div className="grid gap-3 md:hidden">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-gray-dark">
                         Description
                       </label>
                       <Input
@@ -548,9 +549,9 @@ export default function AdminInvoicesPage() {
                         onChange={(e) => updateDraft(idx, { description: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3 md:col-span-5 md:grid-cols-5 md:gap-2">
-                      <div className="md:col-span-2">
-                        <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-dark">
                           Quantity
                         </label>
                         <Input
@@ -564,8 +565,8 @@ export default function AdminInvoicesPage() {
                           onFocus={(e) => e.target.select()}
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-dark">
                           Unit price ({currencySymbol(currency)})
                         </label>
                         <Input
@@ -580,15 +581,74 @@ export default function AdminInvoicesPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-end justify-end md:col-span-1">
+                    <button
+                      type="button"
+                      className="min-h-[40px] rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                      onClick={() => removeDraft(idx)}
+                      disabled={lineDrafts.length <= 1}
+                      aria-label="Remove line item"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="hidden items-start gap-3 md:flex">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Description"
+                        value={it.description}
+                        onChange={(e) => updateDraft(idx, { description: e.target.value })}
+                      />
+                    </div>
+                    <div className="w-24 shrink-0">
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step="1"
+                        placeholder="1"
+                        value={it.quantity}
+                        onChange={(e) => updateDraft(idx, { quantity: e.target.value })}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </div>
+                    <div className="w-40 shrink-0">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        placeholder="0.00"
+                        value={it.unitPrice}
+                        onChange={(e) => updateDraft(idx, { unitPrice: e.target.value })}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </div>
+                    <div className="w-10 shrink-0 pt-1">
                       <button
                         type="button"
-                        className="min-h-[40px] w-full rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 md:w-auto"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-red-600 text-red-600 transition hover:bg-red-50 disabled:opacity-40"
                         onClick={() => removeDraft(idx)}
                         disabled={lineDrafts.length <= 1}
                         aria-label="Remove line item"
+                        title="Remove line item"
                       >
-                        Remove
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        </svg>
                       </button>
                     </div>
                   </div>
