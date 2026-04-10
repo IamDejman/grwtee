@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -90,6 +91,8 @@ export default function AdminInvoicesPage() {
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyItem()]);
   const [notes, setNotes] = useState("");
+  // Invoice-level VAT toggle (applies 7.5% to all line items)
+  const [applyVat, setApplyVat] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -110,7 +113,11 @@ export default function AdminInvoicesPage() {
     void load();
   }, []);
 
-  const totals = useMemo(() => computeTotals(lineItems), [lineItems]);
+  // Live totals reflect the global VAT toggle
+  const totals = useMemo(
+    () => computeTotals(lineItems.map((it) => ({ ...it, vat: applyVat }))),
+    [lineItems, applyVat]
+  );
 
   const resetForm = () => {
     setClientName("");
@@ -121,6 +128,7 @@ export default function AdminInvoicesPage() {
     setDueDate(d.toISOString().slice(0, 10));
     setLineItems([emptyItem()]);
     setNotes("");
+    setApplyVat(false);
   };
 
   const updateItem = (index: number, patch: Partial<LineItem>) => {
@@ -158,7 +166,7 @@ export default function AdminInvoicesPage() {
             description: i.description,
             quantity: Number(i.quantity) || 0,
             unitPrice: Number(i.unitPrice) || 0,
-            vat: !!i.vat
+            vat: applyVat
           }))
         })
       });
@@ -223,6 +231,16 @@ export default function AdminInvoicesPage() {
           <p className="mt-2 text-sm text-gray-dark/80">
             Create and manage client invoices. Download as PDF.
           </p>
+          <p className="mt-1 text-xs text-gray-dark/70">
+            Bank/payment details shown on invoices are managed in{" "}
+            <Link
+              href="/admin/settings"
+              className="font-semibold text-green-dark underline hover:text-purple-dark"
+            >
+              Settings
+            </Link>
+            .
+          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={load} disabled={loading}>
@@ -238,7 +256,78 @@ export default function AdminInvoicesPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+      {/* Mobile card list */}
+      <div className="mt-6 space-y-3 md:hidden">
+        {items.map((inv) => {
+          const parsed = parseItems(inv.items);
+          const t = computeTotals(parsed);
+          return (
+            <div
+              key={inv.id}
+              className="rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-purple-medium">{inv.invoiceNumber}</p>
+                  <p className="mt-0.5 truncate text-sm text-gray-dark">{inv.clientName}</p>
+                </div>
+                <span
+                  className={[
+                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+                    inv.status === "paid"
+                      ? "bg-green-600/10 text-green-700"
+                      : "bg-gold/20 text-gray-dark"
+                  ].join(" ")}
+                >
+                  {inv.status === "paid" ? "Paid" : "Unpaid"}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-dark/80">
+                <div>
+                  <p className="uppercase tracking-wider text-gray-dark/60">Total</p>
+                  <p className="text-sm font-semibold text-gray-dark">
+                    {formatMoney(t.total, inv.currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="uppercase tracking-wider text-gray-dark/60">Due</p>
+                  <p className="text-sm font-semibold text-gray-dark">
+                    {formatDate(inv.dueDate)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  className="min-h-[40px] rounded-md bg-purple-dark px-3 py-2 text-xs font-semibold text-white"
+                  onClick={() => downloadPdf(inv)}
+                >
+                  PDF
+                </button>
+                <button
+                  className="min-h-[40px] rounded-md border border-purple-dark px-3 py-2 text-xs font-semibold text-purple-dark"
+                  onClick={() => toggleStatus(inv)}
+                >
+                  {inv.status === "paid" ? "Mark unpaid" : "Mark paid"}
+                </button>
+                <button
+                  className="min-h-[40px] rounded-md border border-red-600 px-3 py-2 text-xs font-semibold text-red-600"
+                  onClick={() => remove(inv)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {!items.length && !loading ? (
+          <p className="rounded-xl bg-white p-4 text-sm text-gray-dark/70 ring-1 ring-gray-medium/60">
+            No invoices yet.
+          </p>
+        ) : null}
+      </div>
+
+      {/* Desktop table */}
+      <div className="mt-6 hidden rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead>
@@ -282,21 +371,21 @@ export default function AdminInvoicesPage() {
                       </span>
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                      <div className="flex flex-wrap gap-2">
                         <button
-                          className="text-green-dark hover:text-purple-dark"
+                          className="rounded-md bg-purple-dark px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-medium"
                           onClick={() => downloadPdf(inv)}
                         >
                           PDF
                         </button>
                         <button
-                          className="text-green-dark hover:text-purple-dark"
+                          className="rounded-md border border-purple-dark px-3 py-1.5 text-xs font-semibold text-purple-dark hover:bg-purple-dark/10"
                           onClick={() => toggleStatus(inv)}
                         >
                           {inv.status === "paid" ? "Mark unpaid" : "Mark paid"}
                         </button>
                         <button
-                          className="text-red-600 hover:text-red-700"
+                          className="rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
                           onClick={() => remove(inv)}
                         >
                           Delete
@@ -358,7 +447,7 @@ export default function AdminInvoicesPage() {
           <div className="mt-6">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-dark">Line items</p>
-              <Button variant="outline" onClick={addItem} type="button">
+              <Button variant="outline" size="sm" onClick={addItem} type="button">
                 Add row
               </Button>
             </div>
@@ -366,58 +455,62 @@ export default function AdminInvoicesPage() {
               {lineItems.map((it, idx) => (
                 <div
                   key={idx}
-                  className="grid gap-2 rounded-lg bg-cream-light p-3 md:grid-cols-12"
+                  className="rounded-lg bg-cream-light p-3"
                 >
-                  <div className="md:col-span-5">
-                    <Input
-                      placeholder="Description"
-                      value={it.description}
-                      onChange={(e) => updateItem(idx, { description: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="1"
-                      placeholder="Qty"
-                      value={it.quantity}
-                      onChange={(e) =>
-                        updateItem(idx, { quantity: Number(e.target.value) || 0 })
-                      }
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="Unit price"
-                      value={it.unitPrice}
-                      onChange={(e) =>
-                        updateItem(idx, { unitPrice: Number(e.target.value) || 0 })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center md:col-span-2">
-                    <label className="flex items-center gap-2 text-sm text-gray-dark">
-                      <input
-                        type="checkbox"
-                        checked={it.vat}
-                        onChange={(e) => updateItem(idx, { vat: e.target.checked })}
+                  {/* Mobile: stacked with labels. Desktop: grid row */}
+                  <div className="grid gap-3 md:grid-cols-12 md:gap-2">
+                    <div className="md:col-span-7">
+                      <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                        Description
+                      </label>
+                      <Input
+                        placeholder="Description"
+                        value={it.description}
+                        onChange={(e) => updateItem(idx, { description: e.target.value })}
                       />
-                      VAT
-                    </label>
-                  </div>
-                  <div className="flex items-center justify-end md:col-span-1">
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-red-600 hover:text-red-700"
-                      onClick={() => removeItem(idx)}
-                      disabled={lineItems.length <= 1}
-                    >
-                      Remove
-                    </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 md:col-span-4 md:grid-cols-2 md:gap-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                          Quantity
+                        </label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="1"
+                          placeholder="Qty"
+                          value={it.quantity}
+                          onChange={(e) =>
+                            updateItem(idx, { quantity: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-dark md:hidden">
+                          Unit price
+                        </label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="Unit price"
+                          value={it.unitPrice}
+                          onChange={(e) =>
+                            updateItem(idx, { unitPrice: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-end justify-end md:col-span-1">
+                      <button
+                        type="button"
+                        className="min-h-[40px] rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-40"
+                        onClick={() => removeItem(idx)}
+                        disabled={lineItems.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -425,17 +518,30 @@ export default function AdminInvoicesPage() {
           </div>
 
           <div className="mt-4 rounded-lg bg-white p-4 ring-1 ring-gray-medium/60">
-            <div className="flex justify-between text-sm">
-              <span>Subtotal</span>
-              <span>{formatMoney(totals.subtotal, currency)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>VAT (7.5%)</span>
-              <span>{formatMoney(totals.vat, currency)}</span>
-            </div>
-            <div className="mt-2 flex justify-between border-t border-gray-medium/60 pt-2 text-base font-semibold text-purple-dark">
-              <span>Total</span>
-              <span>{formatMoney(totals.total, currency)}</span>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={applyVat}
+                onChange={(e) => setApplyVat(e.target.checked)}
+              />
+              <span className="text-sm font-semibold text-gray-dark">
+                Apply VAT (7.5%) to this invoice
+              </span>
+            </label>
+            <div className="mt-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatMoney(totals.subtotal, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>VAT (7.5%)</span>
+                <span>{formatMoney(totals.vat, currency)}</span>
+              </div>
+              <div className="mt-2 flex justify-between border-t border-gray-medium/60 pt-2 text-base font-semibold text-purple-dark">
+                <span>Total</span>
+                <span>{formatMoney(totals.total, currency)}</span>
+              </div>
             </div>
           </div>
 
@@ -448,7 +554,7 @@ export default function AdminInvoicesPage() {
             />
           </div>
 
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <Button variant="outline" onClick={() => setShowForm(false)} type="button">
               Cancel
             </Button>

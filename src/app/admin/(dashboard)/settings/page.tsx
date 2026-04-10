@@ -11,6 +11,7 @@ type Settings = {
   contactEmail: string;
   businessHours: string;
   adminEmailNotifications: boolean;
+  invoicePaymentDetails: string;
 };
 
 export default function AdminSettingsPage() {
@@ -179,6 +180,31 @@ export default function AdminSettingsPage() {
               />
               Admin email notifications
             </label>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+          <h2 className="font-heading text-xl font-semibold text-purple-dark">
+            Invoice Settings
+          </h2>
+          <p className="mt-2 text-sm text-gray-dark/80">
+            Bank/payment details shown in the footer of every invoice PDF.
+          </p>
+          <div className="mt-4">
+            <Textarea
+              label="Payment details"
+              rows={8}
+              placeholder={"Bank: Example Bank\nAccount Name: GRWTEE\nAccount Number: 0123456789\n\nUSD wire:\nBank: ..."}
+              value={settings?.invoicePaymentDetails || ""}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s ? { ...s, invoicePaymentDetails: e.target.value } : s
+                )
+              }
+            />
+            <p className="mt-2 text-xs text-gray-dark/70">
+              Plain text. Line breaks are preserved in the PDF.
+            </p>
           </div>
         </div>
 

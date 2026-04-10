@@ -10,7 +10,8 @@ const schema = z.object({
   instagramUrl: z.string().url().optional(),
   contactEmail: z.string().email().optional(),
   businessHours: z.string().optional(),
-  adminEmailNotifications: z.boolean().optional()
+  adminEmailNotifications: z.boolean().optional(),
+  invoicePaymentDetails: z.string().optional()
 });
 
 async function getSettingsMap() {
@@ -38,7 +39,8 @@ export async function GET() {
       businessHours: map.businessHours || "Mon–Fri: 9:00 AM – 6:00 PM WAT\nSaturday: By Appointment Only\nSunday: Closed",
       adminEmailNotifications: map.adminEmailNotifications
         ? map.adminEmailNotifications === "true"
-        : true
+        : true,
+      invoicePaymentDetails: map.invoicePaymentDetails || ""
     }
   });
 }
@@ -62,6 +64,8 @@ export async function PUT(req: Request) {
   if (data.businessHours !== undefined) entries.push(["businessHours", data.businessHours]);
   if (data.adminEmailNotifications !== undefined)
     entries.push(["adminEmailNotifications", String(data.adminEmailNotifications)]);
+  if (data.invoicePaymentDetails !== undefined)
+    entries.push(["invoicePaymentDetails", data.invoicePaymentDetails]);
 
   for (const [key, value] of entries) {
     await prisma.siteSettings.upsert({

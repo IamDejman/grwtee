@@ -42,6 +42,10 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
+  const paymentDetailsSetting = await prisma.siteSettings.findUnique({
+    where: { key: "invoicePaymentDetails" }
+  });
+  const paymentDetails = paymentDetailsSetting?.value?.trim() || "";
 
   let items: LineItem[] = [];
   try {
@@ -172,6 +176,18 @@ export async function GET(
   doc.setTextColor(0, 0, 0);
 
   y += 24;
+
+  // Payment details (from site settings)
+  if (paymentDetails) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("PAYMENT DETAILS", marginX, y);
+    y += 12;
+    doc.setFont("helvetica", "normal");
+    const payLines = doc.splitTextToSize(paymentDetails, pageWidth - marginX * 2);
+    doc.text(payLines, marginX, y);
+    y += payLines.length * 12 + 8;
+  }
 
   // Notes
   if (invoice.notes) {
