@@ -192,12 +192,14 @@ export default function AdminSettingsPage() {
           </h2>
           <p className="mt-2 text-sm text-gray-dark/80">
             Bank/payment details shown in the footer of every invoice PDF.
+            You can list multiple accounts (NGN and USD) — separate them
+            with a blank line.
           </p>
           <div className="mt-4">
             <Textarea
               label="Payment details"
-              rows={8}
-              placeholder={"Bank: Example Bank\nAccount Name: GRWTEE\nAccount Number: 0123456789\n\nUSD wire:\nBank: ..."}
+              rows={10}
+              placeholder={"NGN account:\nBank: GTBank\nAccount Name: GRWTEE\nAccount Number: 0123456789\n\nUSD account:\nBank: Access Bank\nAccount Name: GRWTEE\nAccount Number: 9876543210\nSwift: ABNGNGLA"}
               value={settings.invoicePaymentDetails}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -207,8 +209,14 @@ export default function AdminSettingsPage() {
               }
             />
             <p className="mt-2 text-xs text-gray-dark/70">
-              Plain text. Line breaks are preserved in the PDF.
+              Plain text. Line breaks are preserved in the PDF. Click{" "}
+              <strong>Save</strong> at the top of the page when done.
             </p>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={save} loading={loading} size="sm">
+              Save invoice settings
+            </Button>
           </div>
         </div>
 
