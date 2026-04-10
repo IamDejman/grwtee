@@ -90,6 +90,7 @@ model Invoice {
   currency           String   @default("NGN")
   items              String
   notes              String?
+  reference          String?
   dueDate            DateTime
   status             String   @default("unpaid")
   // JSON array of PaymentAccount IDs selected for this invoice.

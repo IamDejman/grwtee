@@ -17,6 +17,7 @@ const createSchema = z.object({
   currency: z.enum(["NGN", "USD"]).default("NGN"),
   items: z.array(lineItemSchema).min(1),
   notes: z.string().optional().nullable(),
+  reference: z.string().optional().nullable(),
   dueDate: z.string().min(1),
   paymentAccountIds: z.array(z.string()).optional().nullable()
 });
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
         currency: data.currency,
         items: JSON.stringify(data.items),
         notes: data.notes ?? null,
+        reference: data.reference?.trim() || null,
         dueDate,
         paymentAccountIds: selectedIds.length ? JSON.stringify(selectedIds) : null
       }

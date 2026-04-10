@@ -10,7 +10,12 @@ const schema = z.object({
   instagramUrl: z.string().url().optional(),
   contactEmail: z.string().email().optional(),
   businessHours: z.string().optional(),
-  adminEmailNotifications: z.boolean().optional()
+  adminEmailNotifications: z.boolean().optional(),
+  // Invoice-specific
+  invoiceBusinessName: z.string().optional(),
+  invoiceBusinessAddress: z.string().optional(),
+  invoiceVatNumber: z.string().optional(),
+  invoiceFooterTerms: z.string().optional()
 });
 
 async function getSettingsMap() {
@@ -38,7 +43,11 @@ export async function GET() {
       businessHours: map.businessHours || "Mon–Fri: 9:00 AM – 6:00 PM WAT\nSaturday: By Appointment Only\nSunday: Closed",
       adminEmailNotifications: map.adminEmailNotifications
         ? map.adminEmailNotifications === "true"
-        : true
+        : true,
+      invoiceBusinessName: map.invoiceBusinessName || "",
+      invoiceBusinessAddress: map.invoiceBusinessAddress || "",
+      invoiceVatNumber: map.invoiceVatNumber || "",
+      invoiceFooterTerms: map.invoiceFooterTerms || ""
     }
   });
 }
@@ -62,6 +71,14 @@ export async function PUT(req: Request) {
   if (data.businessHours !== undefined) entries.push(["businessHours", data.businessHours]);
   if (data.adminEmailNotifications !== undefined)
     entries.push(["adminEmailNotifications", String(data.adminEmailNotifications)]);
+  if (data.invoiceBusinessName !== undefined)
+    entries.push(["invoiceBusinessName", data.invoiceBusinessName]);
+  if (data.invoiceBusinessAddress !== undefined)
+    entries.push(["invoiceBusinessAddress", data.invoiceBusinessAddress]);
+  if (data.invoiceVatNumber !== undefined)
+    entries.push(["invoiceVatNumber", data.invoiceVatNumber]);
+  if (data.invoiceFooterTerms !== undefined)
+    entries.push(["invoiceFooterTerms", data.invoiceFooterTerms]);
 
   for (const [key, value] of entries) {
     await prisma.siteSettings.upsert({

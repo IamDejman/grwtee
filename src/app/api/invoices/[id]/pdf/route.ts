@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { jsPDF } from "jspdf";
+import { readFileSync } from "fs";
+import path from "path";
+
+// Run this route on Node.js (jsPDF + fs need it, not Edge runtime)
+export const runtime = "nodejs";
 
 type LineItem = {
   description: string;
@@ -13,13 +18,22 @@ type LineItem = {
 
 const VAT_RATE = 0.075; // 7.5% (Nigeria default)
 
+// Currency rendering in the PDF.
+// jsPDF's built-in Helvetica uses WinAnsi encoding which does NOT include the
+// Naira (₦, U+20A6) glyph — it renders as a broken "¦" character. To stay
+// 100% safe for all currencies we emit the ISO code (NGN, USD, GBP, EUR) as a
+// text prefix instead of a symbol. This works for every Helvetica glyph on
+// every platform without embedding a custom TTF.
 function formatCurrency(amount: number, currency: string) {
-  const symbol = currency === "USD" ? "$" : "\u20A6"; // ₦
-  return `${symbol}${amount.toLocaleString("en-US", {
+  return `${currency} ${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
 }
+
+// Totals are the same format; kept as a separate helper so we can tweak the
+// totals row independently later if needed.
+const formatTotal = formatCurrency;
 
 function formatDate(date: Date) {
   return date.toLocaleDateString("en-GB", {
@@ -27,6 +41,32 @@ function formatDate(date: Date) {
     month: "short",
     year: "numeric"
   });
+}
+
+// Read a site setting (key/value table) once per request.
+async function getSetting(key: string): Promise<string> {
+  const row = await prisma.siteSettings.findUnique({ where: { key } });
+  return row?.value?.trim() || "";
+}
+
+// Load the logo from /public/logo.png. Returns null if the file isn't present
+// so the PDF gracefully falls back to a text header.
+function loadLogoDataUrl(): { dataUrl: string; width: number; height: number } | null {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const buf = readFileSync(logoPath);
+    const base64 = buf.toString("base64");
+    return {
+      dataUrl: `data:image/png;base64,${base64}`,
+      // Native dimensions of public/logo.png (2787 x 517). We scale this to
+      // fit the header; aspect ratio is preserved by jsPDF if we compute it.
+      width: 2787,
+      height: 517
+    };
+  } catch (e) {
+    console.warn("[Invoice PDF] Failed to load logo:", e);
+    return null;
+  }
 }
 
 export async function GET(
@@ -42,11 +82,26 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
+
+  // Load business settings once
+  const [businessName, businessEmail, businessAddress, businessVatNumber, footerTerms] =
+    await Promise.all([
+      getSetting("invoiceBusinessName"),
+      getSetting("contactEmail"),
+      getSetting("invoiceBusinessAddress"),
+      getSetting("invoiceVatNumber"),
+      getSetting("invoiceFooterTerms")
+    ]);
+
+  const resolvedName = businessName || "GRWTEE";
+  const resolvedEmail = businessEmail || "book@grwtee.com";
+
   let selectedAccountIds: string[] = [];
   if (invoice.paymentAccountIds) {
     try {
       const parsed = JSON.parse(invoice.paymentAccountIds);
-      if (Array.isArray(parsed)) selectedAccountIds = parsed.filter((x): x is string => typeof x === "string");
+      if (Array.isArray(parsed))
+        selectedAccountIds = parsed.filter((x): x is string => typeof x === "string");
     } catch {
       selectedAccountIds = [];
     }
@@ -67,57 +122,112 @@ export async function GET(
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 40;
   let y = 56;
 
-  // Header — "INVOICE" left
+  // ---------- Header row ----------
+  // Left: "INVOICE" heading. Right: logo (if available) above business info.
   doc.setFont("helvetica", "bold");
   doc.setFontSize(26);
   doc.text("INVOICE", marginX, y);
 
-  // GRWTEE business info (right)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("GRWTEE", pageWidth - marginX, y - 10, { align: "right" });
+  const rightEdge = pageWidth - marginX;
+  let rightY = y - 14;
+
+  const logo = loadLogoDataUrl();
+  if (logo) {
+    // Fit logo within a max width of 120pt, preserving aspect ratio
+    const maxLogoWidth = 120;
+    const aspect = logo.width / logo.height;
+    const drawWidth = Math.min(maxLogoWidth, 120);
+    const drawHeight = drawWidth / aspect;
+    try {
+      doc.addImage(
+        logo.dataUrl,
+        "PNG",
+        rightEdge - drawWidth,
+        rightY - drawHeight + 10,
+        drawWidth,
+        drawHeight
+      );
+    } catch (e) {
+      console.warn("[Invoice PDF] addImage failed:", e);
+    }
+    rightY += 14;
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(resolvedName, rightEdge, rightY + 10, { align: "right" });
+    rightY += 18;
+  }
+
+  // Business address + email + VAT number, right-aligned under logo
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("book@grwtee.com", pageWidth - marginX, y + 4, { align: "right" });
+  doc.setTextColor(90, 90, 90);
+  let rightCursor = rightY + 18;
+  if (businessAddress) {
+    const addrLines = doc.splitTextToSize(businessAddress, 220);
+    for (const line of addrLines) {
+      doc.text(line, rightEdge, rightCursor, { align: "right" });
+      rightCursor += 11;
+    }
+  }
+  doc.text(resolvedEmail, rightEdge, rightCursor, { align: "right" });
+  rightCursor += 11;
+  if (businessVatNumber) {
+    doc.text(`VAT Number: ${businessVatNumber}`, rightEdge, rightCursor, {
+      align: "right"
+    });
+    rightCursor += 11;
+  }
+  doc.setTextColor(0, 0, 0);
 
-  y += 32;
+  // Move the main cursor below whichever side is taller
+  y = Math.max(y + 40, rightCursor + 10);
 
-  // Bill-to block
+  // ---------- Bill-to block (left) ----------
+  const billBlockY = y;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("BILL TO", marginX, y);
+  doc.text("BILL TO", marginX, billBlockY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(invoice.clientName, marginX, y + 14);
+  doc.text(invoice.clientName, marginX, billBlockY + 14);
   if (invoice.clientAddress) {
     const lines = doc.splitTextToSize(invoice.clientAddress, 240);
     doc.setFontSize(9);
-    doc.text(lines, marginX, y + 28);
+    doc.text(lines, marginX, billBlockY + 28);
   }
 
-  // Invoice meta (right)
+  // ---------- Invoice meta (right) ----------
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   const metaX = pageWidth - marginX - 160;
   const metaValX = pageWidth - marginX;
-  doc.text("Invoice No.", metaX, y);
-  doc.text("Date", metaX, y + 14);
-  doc.text("Due Date", metaX, y + 28);
-  doc.setFont("helvetica", "normal");
-  doc.text(invoice.invoiceNumber, metaValX, y, { align: "right" });
-  doc.text(formatDate(new Date(invoice.createdAt)), metaValX, y + 14, { align: "right" });
-  doc.text(formatDate(new Date(invoice.dueDate)), metaValX, y + 28, { align: "right" });
+  const metaLines: Array<[string, string]> = [
+    ["Invoice No.", invoice.invoiceNumber],
+    ["Date", formatDate(new Date(invoice.createdAt))]
+  ];
+  if (invoice.reference) metaLines.push(["Reference", invoice.reference]);
 
-  y += 80;
+  let metaY = billBlockY;
+  for (const [label, value] of metaLines) {
+    doc.setFont("helvetica", "bold");
+    doc.text(label, metaX, metaY);
+    doc.setFont("helvetica", "normal");
+    doc.text(value, metaValX, metaY, { align: "right" });
+    metaY += 14;
+  }
 
-  // Items table
+  y = Math.max(billBlockY + 60, metaY + 20);
+
+  // ---------- Items table ----------
   const colDesc = marginX;
   const colQty = marginX + 260;
   const colUnit = marginX + 320;
-  const colVat = marginX + 400;
+  const colVat = marginX + 420;
   const colAmt = pageWidth - marginX;
 
   doc.setFillColor(240, 240, 240);
@@ -128,7 +238,7 @@ export async function GET(
   doc.text("QTY", colQty, y);
   doc.text("UNIT PRICE", colUnit, y);
   doc.text("VAT", colVat, y);
-  doc.text("AMOUNT", colAmt, y, { align: "right" });
+  doc.text(`AMOUNT (${invoice.currency})`, colAmt, y, { align: "right" });
 
   y += 18;
 
@@ -157,38 +267,37 @@ export async function GET(
   doc.line(marginX, y, pageWidth - marginX, y);
   y += 16;
 
-  // Totals
+  // ---------- Totals ----------
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  const totalsLabelX = pageWidth - marginX - 140;
+  const totalsLabelX = pageWidth - marginX - 160;
   doc.text("Subtotal", totalsLabelX, y);
   doc.text(formatCurrency(subtotal, invoice.currency), colAmt, y, { align: "right" });
   y += 14;
-  doc.text("VAT (7.5%)", totalsLabelX, y);
-  doc.text(formatCurrency(vatTotal, invoice.currency), colAmt, y, { align: "right" });
-  y += 18;
+  if (vatTotal > 0) {
+    doc.text("VAT (7.5%)", totalsLabelX, y);
+    doc.text(formatCurrency(vatTotal, invoice.currency), colAmt, y, { align: "right" });
+    y += 14;
+  }
+  y += 4;
+  doc.setDrawColor(180);
+  doc.line(totalsLabelX, y - 2, pageWidth - marginX, y - 2);
+  y += 10;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("TOTAL", totalsLabelX, y);
-  doc.text(formatCurrency(subtotal + vatTotal, invoice.currency), colAmt, y, { align: "right" });
+  doc.text(`TOTAL ${invoice.currency}`, totalsLabelX, y);
+  doc.text(formatTotal(subtotal + vatTotal, invoice.currency), colAmt, y, { align: "right" });
 
   y += 32;
 
-  // Status badge
+  // ---------- Due date (bold, above payment details) ----------
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  const statusText = invoice.status === "paid" ? "PAID" : "UNPAID";
-  if (invoice.status === "paid") {
-    doc.setTextColor(22, 122, 67);
-  } else {
-    doc.setTextColor(180, 50, 50);
-  }
-  doc.text(`Status: ${statusText}`, marginX, y);
   doc.setTextColor(0, 0, 0);
+  doc.text(`Due Date: ${formatDate(new Date(invoice.dueDate))}`, marginX, y);
+  y += 20;
 
-  y += 24;
-
-  // Payment accounts (filtered by invoice currency, active only)
+  // ---------- Payment accounts ----------
   if (paymentAccounts.length) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -224,7 +333,6 @@ export async function GET(
       } else if (acc.type === "wise") {
         if (acc.email) lines.push(`Wise: ${acc.email}`);
       }
-      // For "other" the notes field carries the full instructions; it's appended below.
       if (acc.notes) lines.push(acc.notes);
 
       for (const line of lines) {
@@ -237,7 +345,7 @@ export async function GET(
     y += 2;
   }
 
-  // Notes
+  // ---------- Notes ----------
   if (invoice.notes) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -246,17 +354,33 @@ export async function GET(
     doc.setFont("helvetica", "normal");
     const notesLines = doc.splitTextToSize(invoice.notes, pageWidth - marginX * 2);
     doc.text(notesLines, marginX, y);
-    y += notesLines.length * 12;
+    y += notesLines.length * 12 + 6;
   }
 
-  // Footer
+  // ---------- Footer terms (from site settings) ----------
+  if (footerTerms) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(90, 90, 90);
+    const termsLines = doc.splitTextToSize(footerTerms, pageWidth - marginX * 2);
+    // Make sure we don't overlap the very bottom footer
+    const maxY = pageHeight - 50;
+    for (const line of termsLines) {
+      if (y > maxY) break;
+      doc.text(line, marginX, y);
+      y += 10;
+    }
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ---------- Bottom footer (always) ----------
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
   doc.text(
-    "Thank you for your business. Please contact book@grwtee.com for any queries.",
+    `Thank you for your business. Please contact ${resolvedEmail} for any queries.`,
     pageWidth / 2,
-    doc.internal.pageSize.getHeight() - 30,
+    pageHeight - 30,
     { align: "center" }
   );
 

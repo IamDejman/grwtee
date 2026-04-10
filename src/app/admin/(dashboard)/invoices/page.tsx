@@ -133,6 +133,7 @@ export default function AdminInvoicesPage() {
   });
   const [lineDrafts, setLineDrafts] = useState<LineItemDraft[]>([emptyDraft()]);
   const [notes, setNotes] = useState("");
+  const [reference, setReference] = useState("");
   // Invoice-level VAT toggle (applies 7.5% to all line items)
   const [applyVat, setApplyVat] = useState(false);
 
@@ -195,6 +196,7 @@ export default function AdminInvoicesPage() {
     setDueDate(d.toISOString().slice(0, 10));
     setLineDrafts([emptyDraft()]);
     setNotes("");
+    setReference("");
     setApplyVat(false);
     setSelectedAccountIds(null);
   };
@@ -250,6 +252,7 @@ export default function AdminInvoicesPage() {
           currency,
           dueDate,
           notes: notes || null,
+          reference: reference || null,
           items: lineDrafts.map((i) => ({
             description: i.description.trim(),
             quantity: Number(i.quantity) || 0,
@@ -530,6 +533,12 @@ export default function AdminInvoicesPage() {
               label="Due date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
+            />
+            <Input
+              label="Reference (optional)"
+              placeholder="e.g. PO #1234, project code"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
             />
           </div>
 

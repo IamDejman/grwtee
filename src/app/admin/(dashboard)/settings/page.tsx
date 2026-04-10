@@ -12,6 +12,10 @@ type Settings = {
   contactEmail: string;
   businessHours: string;
   adminEmailNotifications: boolean;
+  invoiceBusinessName: string;
+  invoiceBusinessAddress: string;
+  invoiceVatNumber: string;
+  invoiceFooterTerms: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -19,7 +23,11 @@ const DEFAULT_SETTINGS: Settings = {
   instagramUrl: "",
   contactEmail: "",
   businessHours: "",
-  adminEmailNotifications: true
+  adminEmailNotifications: true,
+  invoiceBusinessName: "",
+  invoiceBusinessAddress: "",
+  invoiceVatNumber: "",
+  invoiceFooterTerms: ""
 };
 
 export default function AdminSettingsPage() {
@@ -182,6 +190,55 @@ export default function AdminSettingsPage() {
               />
               Admin email notifications
             </label>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+          <h2 className="font-heading text-xl font-semibold text-purple-dark">
+            Invoice Branding
+          </h2>
+          <p className="mt-2 text-sm text-gray-dark/80">
+            Business info printed on every invoice PDF. The logo comes from{" "}
+            <code className="rounded bg-cream-light px-1 text-xs">/public/logo.png</code>.
+          </p>
+          <div className="mt-4 space-y-4">
+            <Input
+              label="Business name"
+              placeholder="GRWTEE"
+              value={settings.invoiceBusinessName}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, invoiceBusinessName: e.target.value }))
+              }
+            />
+            <Textarea
+              label="Business address"
+              rows={3}
+              placeholder={"123 Main Street\nLagos, Nigeria"}
+              value={settings.invoiceBusinessAddress}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, invoiceBusinessAddress: e.target.value }))
+              }
+            />
+            <Input
+              label="VAT / Tax number"
+              placeholder="e.g. 123456789"
+              value={settings.invoiceVatNumber}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, invoiceVatNumber: e.target.value }))
+              }
+            />
+            <Textarea
+              label="Invoice footer terms"
+              rows={4}
+              placeholder={"Please quote the invoice number on all payments.\nNo refunds or exchanges on couture or special orders."}
+              value={settings.invoiceFooterTerms}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, invoiceFooterTerms: e.target.value }))
+              }
+            />
+            <p className="text-xs text-gray-dark/70">
+              These appear at the bottom of every invoice PDF.
+            </p>
           </div>
         </div>
 
