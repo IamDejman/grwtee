@@ -28,6 +28,12 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.backup
+.env.backup-*
+
+# database backups / dumps (never commit production data)
+*.sql
+!prisma/migrations/**/*.sql
 
 # vercel
 .vercel
@@ -40,3 +46,6 @@ next-env.d.ts
 
 # large source video files
 public/closet-restyling.mov
+
+# Claude session planning/lessons (kept local)
+tasks/
