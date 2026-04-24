@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display, Poppins } from "next/font/google";
 import "@/styles/globals.css";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
@@ -73,8 +73,23 @@ export const metadata: Metadata = {
     }
   },
   icons: {
-    icon: [{ url: "/favicon.svg" }]
+    icon: [
+      { url: "/favicon.svg" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "GRWTEE",
+    statusBarStyle: "black-translucent"
   }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#422064"
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
