@@ -85,6 +85,43 @@ export function bookingNotificationHtml(params: {
   `);
 }
 
+/** Newsletter — double opt-in confirmation email. */
+export function subscribeConfirmHtml(params: { confirmUrl: string }): string {
+  const { confirmUrl } = params;
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">Confirm your subscription</h1>
+    <p style="margin:0 0 20px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thanks for signing up to the <strong style="color:${BRAND.purple};">GRWTEE</strong> mailing list. Please confirm your email address to start receiving updates, new services, and styling stories.</p>
+    <p style="margin:28px 0;text-align:center;">
+      <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;padding:14px 32px;background-color:${BRAND.green};color:${BRAND.white};text-decoration:none;font-size:14px;font-weight:600;border-radius:999px;letter-spacing:0.02em;">Confirm subscription</a>
+    </p>
+    <p style="margin:0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">If the button doesn't work, paste this link into your browser:<br/><a href="${escapeHtml(confirmUrl)}" style="color:${BRAND.green};word-break:break-all;">${escapeHtml(confirmUrl)}</a></p>
+    <p style="margin:24px 0 0 0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">If you didn't sign up, you can safely ignore this email.</p>
+  </td></tr>
+  `);
+}
+
+/** Newsletter — wrap admin-authored broadcast HTML with brand header + unsubscribe footer. */
+export function broadcastWrapperHtml(params: {
+  contentHtml: string;
+  unsubscribeUrl: string;
+}): string {
+  const { contentHtml, unsubscribeUrl } = params;
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;font-size:15px;color:${BRAND.gray};line-height:1.65;">
+    ${contentHtml}
+  </td></tr>
+  <tr><td style="padding:20px 32px 28px;text-align:center;border-top:1px solid #e8e6df;">
+    <p style="margin:0;font-size:12px;color:${BRAND.grayMuted};line-height:1.6;">
+      You're receiving this because you subscribed to the GRWTEE mailing list.<br/>
+      <a href="${escapeHtml(unsubscribeUrl)}" style="color:${BRAND.grayMuted};text-decoration:underline;">Unsubscribe</a>
+    </p>
+  </td></tr>
+  `);
+}
+
 /** Customer confirmation: we received your request. */
 export function bookingConfirmationHtml(params: {
   name: string;

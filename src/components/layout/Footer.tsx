@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { NewsletterForm } from "@/components/NewsletterForm";
 
 function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -32,7 +33,8 @@ const quickLinks = [
   { href: "/about", label: "About Us" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/services", label: "Services" },
-  { href: "/book", label: "Book Now" }
+  { href: "/book", label: "Book Now" },
+  { href: "/subscribe", label: "Newsletter" }
 ];
 
 const legalLinks = [
@@ -51,7 +53,7 @@ export function Footer() {
   return (
     <footer className="pattern-dark">
       <div className="container-shell py-14">
-        <div className="grid gap-12 md:grid-cols-3">
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <Image src="/logo.svg" alt="GRWTEE" width={150} height={28} className="brightness-0 invert" style={{ width: 150, height: "auto" }} />
             <p className="max-w-xs text-sm leading-6 text-cream/90">
@@ -113,6 +115,10 @@ export function Footer() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div>
+            <NewsletterForm />
           </div>
         </div>
 

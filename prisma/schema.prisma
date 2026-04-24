@@ -131,4 +131,34 @@ model PaymentAccount {
   @@index([type])
 }
 
+model Subscriber {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  status           String    @default("pending")
+  confirmToken     String?   @unique
+  unsubscribeToken String    @unique
+  confirmedAt      DateTime?
+  unsubscribedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+  @@index([email])
+}
+
+model Broadcast {
+  id          String    @id @default(cuid())
+  subject     String
+  html        String
+  text        String?
+  sentAt      DateTime?
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([sentAt])
+  @@index([createdAt])
+}
+
 
