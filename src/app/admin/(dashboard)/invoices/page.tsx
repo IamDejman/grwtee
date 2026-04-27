@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
@@ -528,11 +529,11 @@ export default function AdminInvoicesPage() {
                 onChange={(e) => setClientAddress(e.target.value)}
               />
             </div>
-            <Input
-              type="date"
+            <DatePicker
+              mode="single"
               label="Due date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              value={dueDate || null}
+              onChange={(v) => setDueDate(v || "")}
             />
             <Input
               label="Reference (optional)"

@@ -84,6 +84,25 @@ body {
   }
 }
 
+/* react-day-picker brand overrides */
+.rdp-grwtee {
+  --rdp-accent-color: var(--purple-dark);
+  --rdp-accent-background-color: var(--cream-light);
+  --rdp-day-height: 2.25rem;
+  --rdp-day-width: 2.25rem;
+  --rdp-font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--gray-dark);
+}
+.rdp-grwtee .rdp-day_today:not(.rdp-day_selected) {
+  font-weight: 700;
+  color: var(--green-dark);
+}
+.rdp-grwtee .rdp-button_next,
+.rdp-grwtee .rdp-button_previous {
+  color: var(--purple-dark);
+}
+
 /* Hide footer until page is fully loaded */
 footer {
   opacity: 0;
