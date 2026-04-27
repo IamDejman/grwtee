@@ -102,6 +102,21 @@ export function subscribeConfirmHtml(params: { confirmUrl: string }): string {
   `);
 }
 
+/** Inner Circle waitlist - confirmation that signup was received. */
+export function waitlistConfirmHtml(params: { name?: string | null }): string {
+  const greeting = params.name ? `Hi ${escapeHtml(params.name)},` : "Hi,";
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${greeting}</p>
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">You're on the list.</h1>
+    <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thanks for joining the Inner Circle waiting list. When the doors open, you'll be among the first to know - and the first to get in.</p>
+    <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Inside, every month is sorted: your wardrobe digitised, your weekly looks pre-planned, and a stylist on call when you need one.</p>
+    <p style="margin:24px 0 0 0;font-size:15px;color:${BRAND.gray};line-height:1.6;">Style, sorted.<br/><strong style="color:${BRAND.purple};">GRWTEE</strong></p>
+  </td></tr>
+  `);
+}
+
 /** Newsletter — wrap admin-authored broadcast HTML with brand header + unsubscribe footer. */
 export function broadcastWrapperHtml(params: {
   contentHtml: string;
