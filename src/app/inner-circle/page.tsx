@@ -177,16 +177,12 @@ export default function InnerCirclePage() {
               Join the Waiting List
             </h2>
             <p className="mx-auto mt-4 max-w-md text-base leading-7 text-cream/90">
-              Be first in when the Inner Circle opens. No spam - just the
-              invitation when it's time.
+              Be first in when the Inner Circle opens.
             </p>
           </div>
 
           <div className="mx-auto mt-10 max-w-md rounded-2xl border border-white/20 bg-white/5 p-6 backdrop-blur-sm md:p-8">
             <WaitlistForm variant="dark" source="inner-circle" />
-            <p className="mt-4 text-center text-xs text-cream/70">
-              We'll email you a confirmation. Unsubscribe anytime.
-            </p>
           </div>
         </div>
       </section>

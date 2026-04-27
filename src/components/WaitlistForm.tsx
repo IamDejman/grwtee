@@ -105,14 +105,13 @@ export function WaitlistForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
         <label htmlFor={`waitlist-name-${variant}`} className={labelClass}>
-          Name <span className={isDark ? "text-white/60" : "text-gray-dark/50"}>(optional)</span>
+          Name
         </label>
         <input
           id={`waitlist-name-${variant}`}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Your first name"
           disabled={status === "loading"}
           className={`mt-1 ${inputClass}`}
         />
@@ -127,7 +126,6 @@ export function WaitlistForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
           disabled={status === "loading"}
           className={`mt-1 ${inputClass}`}
         />
