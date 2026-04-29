@@ -19,7 +19,7 @@ const faqItems = [
   },
   {
     q: "How does the digital wardrobe work?",
-    a: "Upload or snap your clothes. We tag, organise, and make every piece searchable so you can build outfits in seconds - from your phone, anywhere."
+    a: "Send us your clothes or snap a photo. We tag, organise, and style every piece into ready-to-wear outfits you can pull up on your phone, anywhere."
   },
   {
     q: "What is the AI body model?",
