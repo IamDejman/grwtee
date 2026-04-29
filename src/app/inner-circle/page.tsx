@@ -22,10 +22,6 @@ const faqItems = [
     a: "Send us your clothes or snap a photo. We tag, organise, and style every piece into ready-to-wear outfits you can pull up on your phone, anywhere."
   },
   {
-    q: "What is the AI body model?",
-    a: "A digital model shaped to your measurements. Before you commit to an outfit (or a purchase), you see how it actually sits on your body - not a generic mannequin."
-  },
-  {
     q: "Tell me about the three tiers.",
     a: "Each tier scales how much of your styling we handle - from a self-serve digital wardrobe at the entry level, up to fully managed weekly looks and on-call stylist access at the top. Full breakdown drops when doors open. Waiting list members see it first."
   },
