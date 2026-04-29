@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     to: email,
     subject: "You're on the Inner Circle list",
     html: waitlistConfirmHtml({ name }),
-    text: `${name ? `Hi ${name},\n\n` : ""}You're on the Inner Circle waiting list. When the doors open, you'll be among the first to know.\n\nStyle, sorted.\nGRWTEE`
+    text: `${name ? `Hi ${name},\n\n` : ""}You're on the Inner Circle waiting list. When the doors open, you'll be among the first to know.\n\nOutfits sorted.\nGRWTEE`
   });
 
   if (error) {

@@ -5,7 +5,7 @@ import { FaqSection } from "@/components/faq/FaqAccordion";
 export const metadata: Metadata = {
   title: "Inner Circle by GRWTEE - Join the Waiting List",
   description:
-    "Join the Inner Circle waiting list. Your wardrobe digitised, weekly looks pre-planned, and a stylist on call. Style, sorted."
+    "Join the Inner Circle waiting list. Your wardrobe digitised, weekly looks pre-planned, and a stylist on call. Outfits sorted."
 };
 
 const faqItems = [
@@ -92,7 +92,7 @@ export default function InnerCirclePage() {
               INNER CIRCLE BY GRWTEE
             </p>
             <h1 className="mt-4 font-heading text-5xl font-semibold leading-tight md:text-6xl">
-              Style, sorted.
+              Outfits sorted.
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-cream/90">
               Join the Inner Circle where your wardrobe is digitised, your
