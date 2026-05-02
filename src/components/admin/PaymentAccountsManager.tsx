@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { adminFetch } from "@/lib/adminFetch";
 
 export type AccountType = "bank" | "paypal" | "wise" | "other";
 export type AccountCurrency = "NGN" | "USD" | "GBP" | "EUR";
@@ -97,7 +98,7 @@ export function PaymentAccountsManager() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/payment-accounts");
+      const res = await adminFetch("/api/payment-accounts");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setAccounts(json.data || []);
@@ -193,7 +194,7 @@ export function PaymentAccountsManager() {
     try {
       const body = buildBody();
       const res = editingId
-        ? await fetch(`/api/payment-accounts/${editingId}`, {
+        ? await adminFetch(`/api/payment-accounts/${editingId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             // On edit we also need to clear fields that don't belong to the selected type
@@ -213,7 +214,7 @@ export function PaymentAccountsManager() {
                   : null
             })
           })
-        : await fetch("/api/payment-accounts", {
+        : await adminFetch("/api/payment-accounts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
@@ -236,7 +237,7 @@ export function PaymentAccountsManager() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/payment-accounts/${acc.id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/payment-accounts/${acc.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       await load();
     } catch {
@@ -250,7 +251,7 @@ export function PaymentAccountsManager() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/payment-accounts/${acc.id}`, {
+      const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !acc.active })

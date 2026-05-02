@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { slugify } from "@/lib/utils";
+import { adminFetch } from "@/lib/adminFetch";
 
 type Service = {
   id: string;
@@ -45,7 +46,7 @@ export default function AdminServicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/services");
+      const res = await adminFetch("/api/services");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
@@ -88,7 +89,7 @@ export default function AdminServicesPage() {
         ...draft,
         slug: draft.slug?.trim() ? draft.slug.trim() : slugify(draft.name)
       };
-      const res = await fetch("/api/services", {
+      const res = await adminFetch("/api/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -108,7 +109,7 @@ export default function AdminServicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/services/${editing.id}`, {
+      const res = await adminFetch(`/api/services/${editing.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +138,7 @@ export default function AdminServicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/services/${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/services/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       await load();
     } catch {
@@ -151,7 +152,7 @@ export default function AdminServicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/services/${id}`, {
+      const res = await adminFetch(`/api/services/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch)

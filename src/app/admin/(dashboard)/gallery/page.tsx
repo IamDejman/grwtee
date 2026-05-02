@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { adminFetch } from "@/lib/adminFetch";
 
 type GalleryImage = {
   id: string;
@@ -63,7 +64,7 @@ export default function AdminGalleryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gallery");
+      const res = await adminFetch("/api/gallery");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed to fetch");
       setItems(json.data || []);
@@ -93,11 +94,11 @@ export default function AdminGalleryPage() {
       const form = new FormData();
       form.append("file", file);
       form.append("folder", "grwtee");
-      const up = await fetch("/api/upload", { method: "POST", body: form });
+      const up = await adminFetch("/api/upload", { method: "POST", body: form });
       const upJson = await up.json();
       if (!up.ok) throw new Error("Upload failed");
 
-      const create = await fetch("/api/gallery", {
+      const create = await adminFetch("/api/gallery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +135,7 @@ export default function AdminGalleryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/gallery/${img.id}`, {
+      const res = await adminFetch(`/api/gallery/${img.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +160,7 @@ export default function AdminGalleryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/gallery/${img.id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/gallery/${img.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setConfirmDelete(null);
       await load();

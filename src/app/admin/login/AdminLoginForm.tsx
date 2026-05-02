@@ -27,6 +27,8 @@ export function AdminLoginForm() {
   useEffect(() => {
     if (searchParams.get("reset") === "success") {
       setSuccessMsg("Password updated. You can sign in with your new password.");
+    } else if (searchParams.get("reason") === "session_expired") {
+      setError("Your session has expired. Please sign in again.");
     }
   }, [searchParams]);
 
@@ -60,10 +62,6 @@ export function AdminLoginForm() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Admin Login
           </h1>
-          <p className="mt-1 text-sm text-gray-dark/70">
-            Enter your credentials to access the admin panel.
-          </p>
-
           <div className="mt-6 space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-dark" htmlFor="email">

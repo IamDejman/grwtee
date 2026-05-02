@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { adminFetch } from "@/lib/adminFetch";
 
 type Subscriber = {
   id: string;
@@ -50,7 +51,7 @@ export default function MailingListPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/subscribers${status ? `?status=${status}` : ""}`);
+      const res = await adminFetch(`/api/admin/subscribers${status ? `?status=${status}` : ""}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to load");
       setSubscribers(data.data);
@@ -66,7 +67,7 @@ export default function MailingListPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/broadcasts");
+      const res = await adminFetch("/api/admin/broadcasts");
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to load");
       setBroadcasts(data.data);
@@ -85,7 +86,7 @@ export default function MailingListPage() {
 
   async function deleteSubscriber(id: string) {
     if (!confirm("Delete this subscriber?")) return;
-    const res = await fetch(`/api/admin/subscribers/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/admin/subscribers/${id}`, { method: "DELETE" });
     if (res.ok) {
       setSubscribers((prev) => prev.filter((s) => s.id !== id));
     } else {

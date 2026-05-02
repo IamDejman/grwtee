@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { adminFetch } from "@/lib/adminFetch";
 
 const BRAND = {
   purple: "#422D64",
@@ -115,7 +116,7 @@ export default function NewBroadcastPage() {
     setTestSending(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/broadcasts/test", {
+      const res = await adminFetch("/api/admin/broadcasts/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,7 +155,7 @@ export default function NewBroadcastPage() {
     setSending(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/broadcasts", {
+      const res = await adminFetch("/api/admin/broadcasts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject, html })

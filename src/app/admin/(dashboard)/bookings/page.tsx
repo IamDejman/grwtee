@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { formatBookingMessage, formatDateTime, formatServiceLabel } from "@/lib/utils";
+import { adminFetch } from "@/lib/adminFetch";
 
 type Booking = {
   id: string;
@@ -68,7 +69,7 @@ export default function AdminBookingsPage() {
     try {
       const url =
         status === "all" ? "/api/bookings?limit=200" : `/api/bookings?status=${status}&limit=200`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
@@ -99,7 +100,7 @@ export default function AdminBookingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/bookings/${id}`, {
+      const res = await adminFetch(`/api/bookings/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next })
@@ -117,7 +118,7 @@ export default function AdminBookingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/bookings/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       await load();
       setDetail(null);

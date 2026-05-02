@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
+import { adminFetch } from "@/lib/adminFetch";
 
 // Stored/server format — numbers
 type LineItem = {
@@ -148,7 +149,7 @@ export default function AdminInvoicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/invoices?limit=200");
+      const res = await adminFetch("/api/invoices?limit=200");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
@@ -161,7 +162,7 @@ export default function AdminInvoicesPage() {
 
   const loadAccounts = async () => {
     try {
-      const res = await fetch("/api/payment-accounts");
+      const res = await adminFetch("/api/payment-accounts");
       const json = await res.json();
       if (res.ok && Array.isArray(json.data)) {
         setAccounts(json.data);
@@ -244,7 +245,7 @@ export default function AdminInvoicesPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/invoices", {
+      const res = await adminFetch("/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -282,7 +283,7 @@ export default function AdminInvoicesPage() {
     setLoading(true);
     try {
       const next = inv.status === "paid" ? "unpaid" : "paid";
-      const res = await fetch(`/api/invoices/${inv.id}`, {
+      const res = await adminFetch(`/api/invoices/${inv.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next })
@@ -300,7 +301,7 @@ export default function AdminInvoicesPage() {
     if (!confirm(`Delete invoice ${inv.invoiceNumber}?`)) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       await load();
     } catch {

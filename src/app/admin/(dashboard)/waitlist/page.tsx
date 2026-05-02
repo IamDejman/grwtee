@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/adminFetch";
 
 type WaitlistEntry = {
   id: string;
@@ -25,7 +26,7 @@ export default function WaitlistPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/waitlist");
+      const res = await adminFetch("/api/admin/waitlist");
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to load");
       setEntries(data.data);
@@ -43,7 +44,7 @@ export default function WaitlistPage() {
 
   async function deleteEntry(id: string) {
     if (!confirm("Remove this entry from the waitlist?")) return;
-    const res = await fetch(`/api/admin/waitlist/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/admin/waitlist/${id}`, { method: "DELETE" });
     if (res.ok) {
       setEntries((prev) => prev.filter((e) => e.id !== id));
       setTotal((t) => t - 1);

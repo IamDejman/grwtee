@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { PaymentAccountsManager } from "@/components/admin/PaymentAccountsManager";
+import { adminFetch } from "@/lib/adminFetch";
 
 type Settings = {
   siteTitle: string;
@@ -48,7 +49,7 @@ export default function AdminSettingsPage() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/settings");
+      const res = await adminFetch("/api/settings");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setSettings({ ...DEFAULT_SETTINGS, ...json.data });
@@ -68,7 +69,7 @@ export default function AdminSettingsPage() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await adminFetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings)
@@ -91,7 +92,7 @@ export default function AdminSettingsPage() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/admin/password", {
+      const res = await adminFetch("/api/admin/password", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
