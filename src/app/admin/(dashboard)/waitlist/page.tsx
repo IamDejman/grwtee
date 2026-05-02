@@ -7,7 +7,6 @@ type WaitlistEntry = {
   id: string;
   email: string;
   name: string | null;
-  source: string | null;
   createdAt: string;
 };
 
@@ -16,17 +15,20 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleString();
 }
 
+const PAGE_SIZE = 20;
+
 export default function WaitlistPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  async function load(p: number) {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminFetch("/api/admin/waitlist");
+      const res = await adminFetch(`/api/admin/waitlist?page=${p}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to load");
       setEntries(data.data);
@@ -39,19 +41,10 @@ export default function WaitlistPage() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    load(page);
+  }, [page]);
 
-  async function deleteEntry(id: string) {
-    if (!confirm("Remove this entry from the waitlist?")) return;
-    const res = await adminFetch(`/api/admin/waitlist/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setEntries((prev) => prev.filter((e) => e.id !== id));
-      setTotal((t) => t - 1);
-    } else {
-      alert("Failed to delete");
-    }
-  }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div>
@@ -90,22 +83,20 @@ export default function WaitlistPage() {
             <tr>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Source</th>
               <th className="px-4 py-3">Joined</th>
-              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-dark/60">
+                <td colSpan={3} className="px-4 py-8 text-center text-gray-dark/60">
                   Loading…
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-dark/60">
+                <td colSpan={3} className="px-4 py-8 text-center text-gray-dark/60">
                   No signups yet.
                 </td>
               </tr>
@@ -114,21 +105,36 @@ export default function WaitlistPage() {
               <tr key={e.id} className="border-t border-gray-medium/30">
                 <td className="px-4 py-3 font-medium text-gray-dark">{e.email}</td>
                 <td className="px-4 py-3 text-gray-dark/80">{e.name || "-"}</td>
-                <td className="px-4 py-3 text-gray-dark/80">{e.source || "-"}</td>
                 <td className="px-4 py-3 text-gray-dark/80">{formatDate(e.createdAt)}</td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => deleteEntry(e.id)}
-                    className="text-xs font-medium text-red-600 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-gray-dark/70">
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-full border border-gray-medium/60 bg-white px-4 py-1.5 font-medium transition hover:bg-cream-light disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-full border border-gray-medium/60 bg-white px-4 py-1.5 font-medium transition hover:bg-cream-light disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
