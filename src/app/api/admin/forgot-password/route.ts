@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 
   const { error } = await sendEmail({
     to: email,
-    subject: "GRWTEE Admin — Password reset code",
+    subject: "GRWTEE Admin: Password reset code",
     html: `
       <p>Your one-time password reset code is:</p>
       <p style="font-size:24px;font-weight:700;letter-spacing:4px;margin:16px 0;">${otp}</p>

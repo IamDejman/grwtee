@@ -341,7 +341,7 @@ export async function GET(
             : acc.type === "other"
               ? "Other"
               : "Bank";
-      doc.text(`${acc.label} — ${typeLabel} (${acc.currency})`, marginX, y);
+      doc.text(`${acc.label}: ${typeLabel} (${acc.currency})`, marginX, y);
       y += 14;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);

@@ -219,7 +219,7 @@ export default function NewBroadcastPage() {
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. New styling service — limited slots"
+              placeholder="e.g. New styling service, limited slots"
               maxLength={200}
             />
           </div>

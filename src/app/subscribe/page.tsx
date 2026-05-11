@@ -1,7 +1,7 @@
 import { SubscribePageForm } from "@/components/SubscribePageForm";
 
 export const metadata = {
-  title: "Join the mailing list — GRWTEE",
+  title: "Join the mailing list | GRWTEE",
   description:
     "Subscribe to the GRWTEE mailing list for styling stories, service drops, and exclusive updates."
 };
@@ -17,7 +17,7 @@ const perks = [
   },
   {
     title: "The occasional edit",
-    body: "Curated picks, trend reads, and practical wardrobe guidance — only when it's good."
+    body: "Curated picks, trend reads, and practical wardrobe guidance, only when it's good."
   }
 ];
 
@@ -33,7 +33,7 @@ export default function SubscribePage() {
             Join the GRWTEE mailing list
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-gray-dark/80">
-            Get ready with Tee — directly in your inbox. Styling stories, new
+            Get ready with Tee, directly in your inbox. Styling stories, new
             services, and the occasional edit. No spam, unsubscribe anytime.
           </p>
         </div>

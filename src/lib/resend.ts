@@ -47,6 +47,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
     return { error };
   }
 
-  console.log("[Resend] Sent successfully to=%s id=%s", options.to, (data as { id?: string })?.id ?? "—");
+  console.log("[Resend] Sent successfully to=%s id=%s", options.to, (data as { id?: string })?.id ?? "-");
   return {};
 }

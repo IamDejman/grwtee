@@ -58,7 +58,7 @@ async function main() {
       name: "Virtual Event Styling",
       slug: "virtual-event-styling",
       description:
-        "Custom looks for special occasions — birthdays, launches, red carpet events, or private functions.",
+        "Custom looks for special occasions: birthdays, launches, red carpet events, or private functions.",
       priceUSD: null,
       priceNGN: null,
       priceNote: "Rates are available on request.",
@@ -80,7 +80,7 @@ async function main() {
       name: "Virtual Vacation Styling",
       slug: "virtual-vacation-styling",
       description:
-        "Head-to-toe looks for your trip — travel days, excursions, dinners, and beach-wear — tailored to destination and itinerary.",
+        "Head-to-toe looks for your trip: travel days, excursions, dinners, and beach wear, tailored to destination and itinerary.",
       priceUSD: null,
       priceNGN: null,
       priceNote: "Rates are available on request.",
@@ -91,7 +91,7 @@ async function main() {
       name: "Contract Styling",
       slug: "contract-styling",
       description:
-        "Become a Grwtee contract client and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish—without the stress of deciding what to wear.",
+        "Become a Grwtee contract client and have your looks professionally planned and curated for you. With weekly or monthly styling, we make sure your outfits are always sorted for your lifestyle and everyday moments. Our team works with your personal style and preferences to keep you looking confident, consistent, and effortlessly stylish, without the stress of deciding what to wear.",
       priceUSD: null,
       priceNGN: null,
       priceNote: "Rates are available on request.",

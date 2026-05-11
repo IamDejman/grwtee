@@ -83,7 +83,7 @@ export default function PaymentPage() {
 
           <section className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
             <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
-              Physical Styling Services — Travel
+              Physical Styling Services: Travel
             </h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-dark/85">
               <li>Client bears all travel, feeding, and accommodation expenses.</li>

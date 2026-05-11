@@ -330,7 +330,7 @@ export default function AdminGalleryPage() {
                         {img.title}
                       </p>
                       <p className="mt-1 text-xs text-gray-dark/70">
-                        {img.category} • {img.featured ? "Featured" : "—"} • #{img.order}
+                        {img.category} • {img.featured ? "Featured" : "-"} • #{img.order}
                       </p>
                     </div>
                     <div className="flex gap-2">

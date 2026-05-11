@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   for (const s of subscribers) {
     const unsubscribeUrl = `${base}/api/newsletter/unsubscribe?token=${s.unsubscribeToken}`;
     const wrappedHtml = broadcastWrapperHtml({ contentHtml: html, unsubscribeUrl });
-    const wrappedText = `${text}\n\n—\nUnsubscribe: ${unsubscribeUrl}`;
+    const wrappedText = `${text}\n\n-\nUnsubscribe: ${unsubscribeUrl}`;
     const { error } = await sendEmail({
       to: s.email,
       subject,

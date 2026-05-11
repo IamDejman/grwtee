@@ -224,8 +224,8 @@ export default function AdminServicesPage() {
                     {s.name}
                   </td>
                   <td className="py-3 pr-4 text-gray-dark/80">{s.slug}</td>
-                  <td className="py-3 pr-4">{s.priceUSD ?? "—"}</td>
-                  <td className="py-3 pr-4">{s.priceNGN ?? "—"}</td>
+                  <td className="py-3 pr-4">{s.priceUSD ?? "-"}</td>
+                  <td className="py-3 pr-4">{s.priceNGN ?? "-"}</td>
                   <td className="py-3 pr-4">
                     <button
                       className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-green-dark hover:text-green-dark"

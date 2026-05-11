@@ -35,7 +35,7 @@ export function FeaturedServices() {
               Featured Services
             </h2>
             <p className="mt-2 max-w-2xl font-body text-base text-gray-dark/80">
-              Three signature offerings to elevate your style—crafted with clarity,
+              Three signature offerings to elevate your style, crafted with clarity,
               taste, and intention.
             </p>
           </div>

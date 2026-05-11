@@ -36,7 +36,7 @@ const booking = [
   },
   {
     q: "Can I retain you for regular styling?",
-    a: "Yes, through our Contract Styling service—retain us weekly or monthly for a set number of curated looks."
+    a: "Yes, through our Contract Styling service. Retain us weekly or monthly for a set number of curated looks."
   }
 ];
 

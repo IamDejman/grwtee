@@ -111,9 +111,9 @@ function accountSecondaryLine(acc: PaymentAccountOption): string {
     if (acc.accountNumber) parts.push(acc.accountNumber);
     return parts.join(" · ");
   }
-  if (acc.type === "paypal") return `PayPal: ${acc.email || "—"}`;
-  if (acc.type === "wise") return `Wise: ${acc.email || "—"}`;
-  return acc.notes?.split("\n")[0] || "—";
+  if (acc.type === "paypal") return `PayPal: ${acc.email || "-"}`;
+  if (acc.type === "wise") return `Wise: ${acc.email || "-"}`;
+  return acc.notes?.split("\n")[0] || "-";
 }
 
 export default function AdminInvoicesPage() {

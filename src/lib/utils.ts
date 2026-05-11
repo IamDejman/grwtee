@@ -58,7 +58,7 @@ export function formatBookingMessage(message: string): string {
     const notes = obj.additionalNotes != null && String(obj.additionalNotes).trim() !== "" ? String(obj.additionalNotes).trim() : null;
     const parts: string[] = [];
     if (city) parts.push(`City: ${city}`);
-    parts.push(notes ? `Additional notes: ${notes}` : "Additional notes: —");
+    parts.push(notes ? `Additional notes: ${notes}` : "Additional notes: -");
     return parts.join("\n");
   } catch {
     return message;

@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     });
     const confirmResult = await sendEmail({
       to: data.email,
-      subject: "We received your request — GRWTEE",
+      subject: "We received your request | GRWTEE",
       html: confirmationHtml,
       text: confirmationText
     });

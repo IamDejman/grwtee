@@ -5,7 +5,7 @@ type Props = {
 };
 
 export const metadata = {
-  title: "Subscription confirmed — GRWTEE",
+  title: "Subscription confirmed | GRWTEE",
   robots: { index: false }
 };
 
@@ -19,7 +19,7 @@ export default async function ConfirmedPage({ searchParams }: Props) {
     "Thanks for confirming. You'll hear from us when there's something worth opening.";
   if (already) {
     heading = "Already confirmed.";
-    body = "Your subscription is active — no further action needed.";
+    body = "Your subscription is active. No further action needed.";
   } else if (error) {
     heading = "This link is no longer valid.";
     body =

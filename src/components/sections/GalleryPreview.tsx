@@ -73,7 +73,7 @@ export function GalleryPreview() {
             Our Styled Looks
           </h2>
           <p className="mt-2 max-w-2xl font-body text-base text-gray-dark/80">
-            A showcase of curated styling — from everyday wardrobes to red
+            A showcase of curated styling, from everyday wardrobes to red
             carpet moments.
           </p>
         </motion.div>

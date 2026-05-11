@@ -76,12 +76,12 @@ const TYPE_BADGE_CLASS: Record<AccountType, string> = {
 
 function accountSummary(acc: PaymentAccount): string {
   if (acc.type === "bank") {
-    return `${acc.bankName || "—"} · ${acc.accountNumber || "—"}`;
+    return `${acc.bankName || "-"} · ${acc.accountNumber || "-"}`;
   }
   if (acc.type === "paypal" || acc.type === "wise") {
-    return acc.email || "—";
+    return acc.email || "-";
   }
-  return acc.notes?.split("\n")[0] || "—";
+  return acc.notes?.split("\n")[0] || "-";
 }
 
 export function PaymentAccountsManager() {

@@ -57,7 +57,7 @@ export function Footer() {
           <div className="space-y-4">
             <Image src="/logo.svg" alt="GRWTEE" width={150} height={28} className="brightness-0 invert" style={{ width: 150, height: "auto" }} />
             <p className="max-w-xs text-sm leading-6 text-cream/90">
-              Get Ready With Tee — premium styling services crafted with taste,
+              Get Ready With Tee: premium styling services crafted with taste,
               precision, and confidence.
             </p>
             <div className="space-y-1 text-sm text-cream/80">
@@ -127,7 +127,7 @@ export function Footer() {
             © {new Date().getFullYear()} GRWTEE. All rights reserved.
           </p>
           <p className="text-xs text-cream/60">
-            Designed with intention — luxury, clarity, and speed.
+            Designed with intention: luxury, clarity, and speed.
           </p>
         </div>
 
@@ -136,7 +136,7 @@ export function Footer() {
             &ldquo;The least of you will become a thousand, the smallest a mighty nation. I am the Lord; in its time I will do this swiftly.&rdquo;
           </p>
           <cite className="mt-2 block not-italic text-xs text-gold-light/90">
-            — Isaiah 60:22 NIV
+            Isaiah 60:22 NIV
           </cite>
         </blockquote>
       </div>

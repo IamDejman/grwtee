@@ -42,7 +42,7 @@ export function NewsletterForm() {
         JOIN THE LIST
       </label>
       <p className="text-sm text-cream/80">
-        Styling stories, service drops, and the occasional edit — in your inbox.
+        Styling stories, service drops, and the occasional edit, right in your inbox.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
