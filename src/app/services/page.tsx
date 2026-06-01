@@ -30,15 +30,7 @@ export default async function ServicesPage() {
               </h3>
               <p className="mt-3 text-gray-dark/85">{s.description}</p>
               <p className="mt-3 text-sm font-semibold text-green-dark">
-                {s.priceNote ??
-                  (s.priceUSD != null || s.priceNGN != null
-                    ? [
-                        s.priceUSD != null && `From $${s.priceUSD}`,
-                        s.priceNGN != null && `From ₦${Number(s.priceNGN).toLocaleString()}`
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "Rates are available on request."
-                    : "Rates are available on request.")}
+                Rates are available on request.
               </p>
             </div>
           ))}
