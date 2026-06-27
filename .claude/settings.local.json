@@ -15,7 +15,8 @@
       "Bash(lsof -ti:3000)",
       "Bash(git add src/components/layout/Header.tsx src/components/layout/MobileMenu.tsx src/components/layout/Footer.tsx src/components/sections/Hero.tsx src/components/sections/GalleryPreview.tsx src/components/sections/CallToAction.tsx src/components/sections/FeaturedServices.tsx src/components/ui/Button.tsx src/app/about/page.tsx src/app/services/page.tsx src/app/book/page.tsx src/styles/globals.css public/logo.svg public/logo.png)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npx prisma *)"
     ]
   }
 }
