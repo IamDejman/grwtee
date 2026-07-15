@@ -41,6 +41,15 @@ type Invoice = {
 
 const VAT_RATE = 0.075;
 
+// Tolerate thousands separators and currency symbols typed or pasted into
+// amount fields (e.g. "1,280,000.00", "₦1 280 000").
+function parseAmount(value: string | number): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = value.replace(/[^0-9.-]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function parseItems(json: string): LineItem[] {
   try {
     const parsed = JSON.parse(json);
@@ -79,8 +88,8 @@ function computeDraftTotals(drafts: LineItemDraft[], applyVat: boolean) {
   return computeTotals(
     drafts.map((d) => ({
       description: d.description,
-      quantity: Number(d.quantity) || 0,
-      unitPrice: Number(d.unitPrice) || 0,
+      quantity: parseAmount(d.quantity),
+      unitPrice: parseAmount(d.unitPrice),
       vat: applyVat
     }))
   );
@@ -149,7 +158,7 @@ export default function AdminInvoicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminFetch("/api/invoices?limit=200");
+      const res = await adminFetch("/api/invoices?limit=200&full=1");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
@@ -238,7 +247,7 @@ export default function AdminInvoicesPage() {
       setError("All line items need a description.");
       return;
     }
-    if (lineDrafts.some((i) => !(Number(i.unitPrice) > 0))) {
+    if (lineDrafts.some((i) => !(parseAmount(i.unitPrice) > 0))) {
       setError("Each line item needs a unit price greater than 0.");
       return;
     }
@@ -257,8 +266,8 @@ export default function AdminInvoicesPage() {
           reference: reference || null,
           items: lineDrafts.map((i) => ({
             description: i.description.trim(),
-            quantity: Number(i.quantity) || 0,
-            unitPrice: Number(i.unitPrice) || 0,
+            quantity: parseAmount(i.quantity),
+            unitPrice: parseAmount(i.unitPrice),
             vat: applyVat
           })),
           paymentAccountIds: selectedAccountIds ?? undefined
@@ -311,8 +320,15 @@ export default function AdminInvoicesPage() {
     }
   };
 
-  const downloadPdf = (inv: Invoice) => {
-    window.open(`/api/invoices/${inv.id}/pdf`, "_blank");
+  const downloadPdf = async (inv: Invoice) => {
+    try {
+      const res = await adminFetch(`/api/invoices/${inv.id}/pdf-link`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json?.data?.url) throw new Error("Failed");
+      window.open(json.data.url, "_blank");
+    } catch {
+      setError("Failed to generate secure PDF link.");
+    }
   };
 
   return (
@@ -596,10 +612,8 @@ export default function AdminInvoicesPage() {
                           Unit price ({currencySymbol(currency)})
                         </label>
                         <Input
-                          type="number"
+                          type="text"
                           inputMode="decimal"
-                          min={0}
-                          step="0.01"
                           placeholder="0.00"
                           value={it.unitPrice}
                           onChange={(e) => updateDraft(idx, { unitPrice: e.target.value })}
@@ -640,10 +654,8 @@ export default function AdminInvoicesPage() {
                     </div>
                     <div className="w-40 shrink-0">
                       <Input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        min={0}
-                        step="0.01"
                         placeholder="0.00"
                         value={it.unitPrice}
                         onChange={(e) => updateDraft(idx, { unitPrice: e.target.value })}
