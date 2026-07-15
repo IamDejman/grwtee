@@ -27,7 +27,9 @@ export async function createAdminSession(input: {
 }
 
 export async function isAdminSessionActive(jti: string | undefined): Promise<boolean> {
-  if (!jti) return true;
+  // Fail closed: a token without a session id, or a failed lookup, is not
+  // treated as an active session.
+  if (!jti) return false;
   try {
     const session = await prisma.adminSession.findUnique({ where: { jti } });
     if (!session) return false;
@@ -36,7 +38,7 @@ export async function isAdminSessionActive(jti: string | undefined): Promise<boo
     return true;
   } catch (err) {
     console.error("[AdminSession] lookup failed:", err);
-    return true;
+    return false;
   }
 }
 

@@ -287,10 +287,6 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
   return authOptionsCache;
 }
 
-export const authOptions: NextAuthOptions = buildAuthOptions(
-  process.env.NEXTAUTH_SECRET || "temp-secret-change-in-db"
-);
-
 export async function invalidateAdminSessions(adminId: string) {
   await revokeAllAdminSessions(adminId);
   return prisma.admin.update({
