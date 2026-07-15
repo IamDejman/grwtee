@@ -325,7 +325,10 @@ export default function AdminInvoicesPage() {
       const res = await adminFetch(`/api/invoices/${inv.id}/pdf-link`, { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json?.data?.url) throw new Error("Failed");
-      window.open(json.data.url, "_blank");
+      // The PDF route serves Content-Disposition: attachment, so navigating
+      // to the signed URL downloads without leaving the page. window.open
+      // after an await gets popup-blocked (silently, on iPad Safari).
+      window.location.assign(json.data.url);
     } catch {
       setError("Failed to generate secure PDF link.");
     }
