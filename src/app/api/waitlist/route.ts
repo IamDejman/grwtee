@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { waitlistConfirmHtml } from "@/lib/email-templates";
 
+import { parseEmail } from "@/lib/security/email-validation";
+
 const schema = z.object({
-  email: z.string().email(),
+  email: z.string(),
   name: z.string().trim().min(1).max(120).optional(),
   source: z.string().trim().max(60).optional()
 });
@@ -48,7 +50,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid email" }, { status: 400 });
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
+  const emailResult = parseEmail(parsed.data.email);
+  if (!emailResult.ok) {
+    return NextResponse.json({ success: false, error: emailResult.message }, { status: 400 });
+  }
+
+  const email = emailResult.email;
   const name = parsed.data.name?.trim() || null;
   const source = parsed.data.source?.trim() || "inner-circle";
 

@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
-
-const schema = z.object({
-  email: z.string().email()
-});
+import { parseEmail } from "@/lib/security/email-validation";
+import { safeError } from "@/lib/security/logger";
 
 const OTP_EXPIRY_MINUTES = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 3;
 const recentRequests = new Map<string, number>();
 
@@ -21,7 +20,6 @@ function isRateLimited(email: string): boolean {
 
 function recordRequest(email: string): void {
   recentRequests.set(email.toLowerCase(), Date.now());
-  // Prune old entries
   const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
   for (const [k, v] of recentRequests.entries()) {
     if (v < cutoff) recentRequests.delete(k);
@@ -32,43 +30,43 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+const GENERIC_SUCCESS =
+  "If the details provided are correct, further instructions will be sent.";
+
 export async function POST(req: Request) {
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 
-  const parsed = schema.safeParse(body);
+  const parsed = z.object({ email: z.string() }).safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "Invalid email" }, { status: 400 });
+    return NextResponse.json({ success: true, message: GENERIC_SUCCESS });
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
+  const emailResult = parseEmail(parsed.data.email);
+  const email = emailResult.ok ? emailResult.email : parsed.data.email.trim().toLowerCase();
 
   if (isRateLimited(email)) {
-    return NextResponse.json(
-      { success: false, error: "Too many requests. Please try again in 15 minutes." },
-      { status: 429 }
-    );
-  }
-
-  const admin = await prisma.admin.findUnique({ where: { email } });
-  if (!admin) {
-    // Don't reveal whether email exists; still consume rate limit
-    recordRequest(email);
-    return NextResponse.json({ success: true, message: "If that email is registered, you will receive an OTP." });
+    return NextResponse.json({ success: true, message: GENERIC_SUCCESS });
   }
 
   recordRequest(email);
 
+  const admin = await prisma.admin.findUnique({ where: { email } });
+  if (!admin) {
+    return NextResponse.json({ success: true, message: GENERIC_SUCCESS, resetToken: randomUUID() });
+  }
+
   const otp = generateOtp();
+  const resetToken = randomUUID();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   await prisma.passwordResetOtp.deleteMany({ where: { email } });
   await prisma.passwordResetOtp.create({
-    data: { email, otp, expiresAt }
+    data: { email, otp, resetToken, expiresAt, attemptCount: 0 }
   });
 
   const { error } = await sendEmail({
@@ -83,15 +81,13 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    console.error("[ForgotPassword] Send OTP failed:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to send email. Try again later." },
-      { status: 500 }
-    );
+    safeError("[ForgotPassword] Send OTP failed", error);
+    return NextResponse.json({ success: true, message: GENERIC_SUCCESS });
   }
 
   return NextResponse.json({
     success: true,
-    message: "If that email is registered, you will receive an OTP shortly."
+    message: GENERIC_SUCCESS,
+    resetToken
   });
 }

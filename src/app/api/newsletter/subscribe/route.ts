@@ -6,7 +6,9 @@ import { sendEmail } from "@/lib/resend";
 import { getConfig } from "@/lib/config";
 import { subscribeConfirmHtml } from "@/lib/email-templates";
 
-const schema = z.object({ email: z.string().email() });
+import { parseEmail } from "@/lib/security/email-validation";
+
+const schema = z.object({ email: z.string() });
 
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
@@ -46,7 +48,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid email" }, { status: 400 });
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
+  const emailResult = parseEmail(parsed.data.email);
+  if (!emailResult.ok) {
+    return NextResponse.json({ success: false, error: emailResult.message }, { status: 400 });
+  }
+
+  const email = emailResult.email;
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
@@ -71,12 +78,19 @@ export async function POST(req: Request) {
   }
 
   const confirmToken = randomUUID();
+  const confirmTokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
   const unsubscribeToken = existing?.unsubscribeToken ?? randomUUID();
 
   const subscriber = await prisma.subscriber.upsert({
     where: { email },
-    update: { status: "pending", confirmToken },
-    create: { email, status: "pending", confirmToken, unsubscribeToken }
+    update: { status: "pending", confirmToken, confirmTokenExpiresAt },
+    create: {
+      email,
+      status: "pending",
+      confirmToken,
+      confirmTokenExpiresAt,
+      unsubscribeToken
+    }
   });
 
   const siteUrl =

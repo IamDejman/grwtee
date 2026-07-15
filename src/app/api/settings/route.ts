@@ -4,6 +4,9 @@ import { getAuthOptions } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
+import { jsonUnauthorized } from "@/lib/security/api-response";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 const schema = z.object({
   siteTitle: z.string().min(1).optional(),
@@ -26,9 +29,9 @@ async function getSettingsMap() {
 }
 
 export async function GET() {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
   }
   const map = await getSettingsMap();
   const instagramUrl = map.instagramUrl || await getConfig("NEXT_PUBLIC_INSTAGRAM_URL", process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee");
@@ -53,9 +56,9 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session?.user?.email || !session.user.id) {
+    return jsonUnauthorized();
   }
   const json = await req.json();
   const parsed = schema.safeParse(json);
@@ -87,6 +90,16 @@ export async function PUT(req: Request) {
       create: { key, value }
     });
   }
+
+  const meta = requestMeta(req);
+  await writeAuditLog({
+    adminId: session.user.id,
+    action: "settings.update",
+    resource: "site_settings",
+    metadata: { keys: entries.map(([key]) => key) },
+    ip: meta.ip,
+    userAgent: meta.userAgent
+  });
 
   return NextResponse.json({ success: true });
 }

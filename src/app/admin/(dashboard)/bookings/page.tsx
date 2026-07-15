@@ -68,7 +68,9 @@ export default function AdminBookingsPage() {
     setError(null);
     try {
       const url =
-        status === "all" ? "/api/bookings?limit=200" : `/api/bookings?status=${status}&limit=200`;
+        status === "all"
+          ? "/api/bookings?full=1&limit=200"
+          : `/api/bookings?full=1&status=${status}&limit=200`;
       const res = await adminFetch(url);
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
@@ -233,7 +235,16 @@ export default function AdminBookingsPage() {
                   <td className="py-3 pr-4">
                     <button
                       className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                      onClick={() => setDetail(b)}
+                      onClick={async () => {
+                        try {
+                          const res = await adminFetch(`/api/bookings/${b.id}`);
+                          const json = await res.json();
+                          if (res.ok && json.data) setDetail(json.data);
+                          else setDetail(b);
+                        } catch {
+                          setDetail(b);
+                        }
+                      }}
                     >
                       View
                     </button>

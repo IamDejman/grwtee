@@ -1,8 +1,9 @@
-import { getAuthOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { maskInvoiceListItem } from "@/lib/security/pii-mask";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { jsonUnauthorized, jsonGenericServerError } from "@/lib/security/api-response";
 
 const lineItemSchema = z.object({
   description: z.string().min(1),
@@ -22,14 +23,6 @@ const createSchema = z.object({
   paymentAccountIds: z.array(z.string()).optional().nullable()
 });
 
-async function requireAdmin() {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return null;
-  }
-  return session;
-}
-
 async function nextInvoiceNumber(): Promise<string> {
   const last = await prisma.invoice.findFirst({
     orderBy: { createdAt: "desc" },
@@ -47,34 +40,33 @@ async function nextInvoiceNumber(): Promise<string> {
 
 export async function GET(req: Request) {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return jsonUnauthorized();
     }
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || undefined;
+    const full = searchParams.get("full") === "1";
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const where: Record<string, unknown> = {};
     if (status && status !== "all") where.status = status;
-    const data = await prisma.invoice.findMany({
+    const rows = await prisma.invoice.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: limit
     });
+    const data = full ? rows : rows.map(maskInvoiceListItem);
     return NextResponse.json({ success: true, data });
   } catch (err) {
     console.error("[Invoices GET]", err);
-    return NextResponse.json(
-      { success: false, error: "Failed to load invoices" },
-      { status: 500 }
-    );
+    return jsonGenericServerError("invoices-get");
   }
 }
 
 export async function POST(req: Request) {
-  const session = await requireAdmin();
+  const session = await requireAdminSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return jsonUnauthorized();
   }
   let json: unknown;
   try {

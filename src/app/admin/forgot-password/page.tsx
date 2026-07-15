@@ -15,8 +15,14 @@ const requestSchema = z.object({
 const resetSchema = z
   .object({
     otp: z.string().length(6, "Enter the 6-digit code"),
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Confirm your password")
+    newPassword: z
+      .string()
+      .min(12, "Password must be at least 12 characters")
+      .regex(/[a-z]/, "Include a lowercase letter")
+      .regex(/[A-Z]/, "Include an uppercase letter")
+      .regex(/[0-9]/, "Include a number")
+      .regex(/[^A-Za-z0-9]/, "Include a special character"),
+    confirmPassword: z.string().min(12, "Confirm your password")
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
@@ -30,6 +36,7 @@ export default function ForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState<"request" | "reset">("request");
   const [email, setEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -55,42 +62,47 @@ export default function ForgotPasswordPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json?.error ?? "Something went wrong. Try again.");
+        setError("If the details provided are correct, further instructions will be sent.");
         return;
       }
 
       setEmail(data.email.trim().toLowerCase());
-      setSuccessMsg("If that email is registered, you’ll receive a 6-digit code shortly.");
+      setResetToken(typeof json.resetToken === "string" ? json.resetToken : "");
+      setSuccessMsg("If the details provided are correct, further instructions will be sent.");
       setStep("reset");
       resetForm.reset({ otp: "", newPassword: "", confirmPassword: "" });
     } catch {
-      setError("Network error. Try again.");
+      setError("If the details provided are correct, further instructions will be sent.");
     }
   };
 
   const onResetSubmit = async (data: ResetFormData) => {
     setError(null);
+    if (!resetToken) {
+      setError("If the details provided are correct, further instructions will be sent.");
+      return;
+    }
     try {
       const res = await fetch("/api/admin/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
+          resetToken,
           otp: data.otp.trim(),
           newPassword: data.newPassword,
           confirmPassword: data.confirmPassword
         })
       });
-      const json = await res.json();
 
       if (!res.ok) {
-        setError(json?.error ?? "Invalid or expired code. Request a new one.");
+        setError("If the details provided are correct, further instructions will be sent.");
         return;
       }
 
       router.replace("/admin/login?reset=success");
     } catch {
-      setError("Network error. Try again.");
+      setError("If the details provided are correct, further instructions will be sent.");
     }
   };
 
@@ -224,7 +236,7 @@ export default function ForgotPasswordPage() {
               </Button>
               <button
                 type="button"
-                onClick={() => { setStep("request"); setError(null); setSuccessMsg(null); }}
+                onClick={() => { setStep("request"); setError(null); setSuccessMsg(null); setResetToken(""); }}
                 className="w-full text-center text-sm font-semibold text-green-dark hover:text-purple-dark"
               >
                 Use a different email

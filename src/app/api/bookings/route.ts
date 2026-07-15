@@ -10,9 +10,16 @@ import { z } from "zod";
 
 export const revalidate = 300;
 
+import { maskBookingListItem } from "@/lib/security/pii-mask";
+import { parseEmail } from "@/lib/security/email-validation";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
+import { requestMeta } from "@/lib/security/audit-log";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { jsonUnauthorized } from "@/lib/security/api-response";
+
 const createSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  email: z.string(),
   phone: z.string().min(6),
   service: z.string().min(2),
   message: z.string().min(2)
@@ -20,12 +27,13 @@ const createSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(await getAuthOptions());
-    if (!session?.user?.email) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    const session = await requireAdminSession();
+    if (!session) {
+      return jsonUnauthorized();
     }
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || undefined;
+    const full = searchParams.get("full") === "1";
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
@@ -35,7 +43,11 @@ export async function GET(req: Request) {
       take: limit
     });
     const total = await prisma.bookingRequest.count({ where });
-    return NextResponse.json({ success: true, data, total });
+    return NextResponse.json({
+      success: true,
+      data: full ? data : data.map(maskBookingListItem),
+      total
+    });
   } catch (err) {
     console.error("[Bookings GET]", err);
     return NextResponse.json(
@@ -56,7 +68,22 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
-  const data = parsed.data;
+
+  const emailResult = parseEmail(parsed.data.email);
+  if (!emailResult.ok) {
+    return NextResponse.json({ success: false, error: emailResult.message }, { status: 400 });
+  }
+
+  const meta = requestMeta(req);
+  const captcha = await verifyTurnstileToken(
+    (json as { turnstileToken?: string })?.turnstileToken,
+    meta.ip
+  );
+  if (!captcha.ok) {
+    return NextResponse.json({ success: false, error: captcha.message }, { status: 400 });
+  }
+
+  const data = { ...parsed.data, email: emailResult.email };
   try {
     await prisma.bookingRequest.create({ data });
   } catch (err: unknown) {
