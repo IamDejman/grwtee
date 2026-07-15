@@ -6,22 +6,46 @@ import { formatBookingMessage, formatServiceLabel } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { parseEmail } from "@/lib/security/email-validation";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
+import { requestMeta } from "@/lib/security/audit-log";
+
 const schema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  email: z.string(),
   phone: z.string().min(6),
   service: z.string().min(2),
   message: z.string().min(2)
 });
 
 export async function POST(req: Request) {
-  const json = await req.json();
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const parsed = schema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const data = parsed.data;
+  const emailResult = parseEmail(parsed.data.email);
+  if (!emailResult.ok) {
+    return NextResponse.json({ success: false, error: emailResult.message }, { status: 400 });
+  }
+
+  const meta = requestMeta(req);
+  const captcha = await verifyTurnstileToken(
+    (json as { turnstileToken?: string })?.turnstileToken,
+    meta.ip
+  );
+  if (!captcha.ok) {
+    return NextResponse.json({ success: false, error: captcha.message }, { status: 400 });
+  }
+
+  const data = { ...parsed.data, email: emailResult.email };
   await prisma.bookingRequest.create({
     data: {
       name: data.name,

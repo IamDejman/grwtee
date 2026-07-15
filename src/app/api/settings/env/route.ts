@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
-import { getConfig, setConfig } from "@/lib/config";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getConfig, setConfig } from "@/lib/config";
+import { requireStepUp } from "@/lib/security/step-up";
+import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
+import { jsonUnauthorized } from "@/lib/security/api-response";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 const envVarSchema = z.object({
   key: z.string().min(1),
@@ -11,10 +13,10 @@ const envVarSchema = z.object({
 });
 
 const updateSchema = z.object({
-  vars: z.array(envVarSchema)
+  vars: z.array(envVarSchema),
+  currentPassword: z.string().min(1)
 });
 
-// List of environment variables that can be managed
 const MANAGED_ENV_VARS = [
   "NEXTAUTH_SECRET",
   "NEXTAUTH_URL",
@@ -31,22 +33,21 @@ const MANAGED_ENV_VARS = [
 ];
 
 export async function GET() {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
   }
 
-  // Get all env vars from DB, fallback to env vars
   const vars: Record<string, { value: string; source: "database" | "environment" }> = {};
-  
+
   for (const key of MANAGED_ENV_VARS) {
     const dbValue = await getConfig(key);
     const envValue = process.env[key];
-    
+
     if (dbValue) {
-      vars[key] = { value: dbValue, source: "database" };
+      vars[key] = { value: "[configured]", source: "database" };
     } else if (envValue) {
-      vars[key] = { value: envValue, source: "environment" };
+      vars[key] = { value: "[configured]", source: "environment" };
     } else {
       vars[key] = { value: "", source: "environment" };
     }
@@ -59,32 +60,47 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session?.user?.email || !session.user.id) {
+    return jsonUnauthorized();
   }
 
-  const json = await req.json();
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+  }
+
   const parsed = updateSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 
-  // Validate that all keys are in the managed list
+  const stepUp = await requireStepUp(session.user.email, parsed.data.currentPassword);
+  if (!stepUp.ok) {
+    return NextResponse.json({ success: false, error: stepUp.message }, { status: 403 });
+  }
+
   for (const { key } of parsed.data.vars) {
     if (!MANAGED_ENV_VARS.includes(key)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `Environment variable ${key} is not managed through this API` 
-      }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     }
   }
 
-  // Save to database
   for (const { key, value } of parsed.data.vars) {
     await setConfig(key, value);
   }
 
+  const meta = requestMeta(req);
+  await writeAuditLog({
+    adminId: session.user.id,
+    action: "settings.env.update",
+    resource: "site_settings",
+    metadata: { keys: parsed.data.vars.map((v) => v.key) },
+    ip: meta.ip,
+    userAgent: meta.userAgent
+  });
+
   return NextResponse.json({ success: true });
 }
-

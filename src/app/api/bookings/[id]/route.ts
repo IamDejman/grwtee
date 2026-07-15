@@ -3,10 +3,29 @@ import { getServerSession } from "next-auth";
 import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { jsonUnauthorized } from "@/lib/security/api-response";
 
 const statusSchema = z.object({
   status: z.enum(["pending", "contacted", "confirmed", "completed"])
 });
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
+  }
+
+  const { id } = await params;
+  const data = await prisma.bookingRequest.findUnique({ where: { id } });
+  if (!data) {
+    return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json({ success: true, data });
+}
 
 export async function PUT(
   req: Request,
@@ -14,7 +33,7 @@ export async function PUT(
 ) {
   const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return jsonUnauthorized();
   }
   const { id } = await params;
   const json = await req.json();
@@ -35,11 +54,9 @@ export async function DELETE(
 ) {
   const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return jsonUnauthorized();
   }
   const { id } = await params;
   await prisma.bookingRequest.delete({ where: { id } });
   return NextResponse.json({ success: true, message: "Booking deleted" });
 }
-
-

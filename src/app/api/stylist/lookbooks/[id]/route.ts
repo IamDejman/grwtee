@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function getStylistId(request: NextRequest) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-  if (!token?.email) return null
-  const admin = createAdminClient()
-  const { data } = await admin.from('profiles').select('id').eq('email', token.email as string).single()
-  return data?.id ?? null
-}
+import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const ownerId = await getStylistId(request)
-  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ownerId = await requireStylistId(request)
+  if (!ownerId) return stylistUnauthorized()
 
   const { id } = await params
   const body = await request.json()
-  const { items, ...lookbookData } = body
+  const { items, owner_id: _ignored, ...lookbookData } = body
   const admin = createAdminClient()
 
   const { data: lookbook, error } = await admin
@@ -24,7 +16,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     .update({ ...lookbookData, updated_at: new Date().toISOString() })
     .eq('id', id).eq('owner_id', ownerId).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return stylistError(error.message, 500)
 
   if (items !== undefined) {
     await admin.from('lookbook_items').delete().eq('lookbook_id', id)
@@ -42,12 +34,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const ownerId = await getStylistId(request)
-  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ownerId = await requireStylistId(request)
+  if (!ownerId) return stylistUnauthorized()
 
   const { id } = await params
   const admin = createAdminClient()
   const { error } = await admin.from('lookbooks').delete().eq('id', id).eq('owner_id', ownerId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return stylistError(error.message, 500)
   return NextResponse.json({ success: true })
 }

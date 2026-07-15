@@ -9,23 +9,78 @@ datasource db {
 }
 
 model Admin {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  password            String
+  name                String
+  passwordChangedAt   DateTime  @default(now())
+  mustChangePassword  Boolean   @default(false)
+  tokenVersion        Int       @default(0)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  mfaEnabled          Boolean   @default(false)
+  mfaSecret           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  auditLogs    AdminAuditLog[]
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String    @id @default(cuid())
+  adminId   String
+  jti       String    @unique
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  admin     Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model SecurityEvent {
   id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
+  category  String
+  action    String
+  metadata  String?
+  ip        String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([createdAt])
 }
 
 model PasswordResetOtp {
-  id        String   @id @default(cuid())
-  email     String
-  otp       String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String
+  otp          String
+  resetToken   String   @unique @default(cuid())
+  attemptCount Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 
   @@index([email])
   @@index([expiresAt])
+}
+
+model AdminAuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  resource  String?
+  metadata  String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model GalleryImage {
@@ -133,15 +188,16 @@ model PaymentAccount {
 }
 
 model Subscriber {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  status           String    @default("pending")
-  confirmToken     String?   @unique
-  unsubscribeToken String    @unique
-  confirmedAt      DateTime?
-  unsubscribedAt   DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  status                String    @default("pending")
+  confirmToken          String?   @unique
+  confirmTokenExpiresAt DateTime?
+  unsubscribeToken      String    @unique
+  confirmedAt           DateTime?
+  unsubscribedAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([status])
   @@index([email])

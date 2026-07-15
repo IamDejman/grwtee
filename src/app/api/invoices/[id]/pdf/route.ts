@@ -1,10 +1,11 @@
-import { getAuthOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { jsPDF } from "jspdf";
 import { readFileSync } from "fs";
 import path from "path";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { verifySignedAccessToken } from "@/lib/security/signed-access";
+import { decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
 
 // Run this route on Node.js (jsPDF + fs need it, not Edge runtime).
 export const runtime = "nodejs";
@@ -71,14 +72,31 @@ function loadLogoDataUrl(): { dataUrl: string; width: number; height: number } |
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-  }
   const { id } = await params;
+  const url = new URL(req.url);
+  const sig = url.searchParams.get("sig");
+  const exp = url.searchParams.get("exp");
+
+  let authorized = false;
+  if (sig && exp) {
+    authorized = verifySignedAccessToken({
+      resource: "invoice-pdf",
+      id,
+      token: sig,
+      exp: parseInt(exp, 10)
+    });
+  }
+
+  if (!authorized) {
+    const session = await requireAdminSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   const invoice = await prisma.invoice.findUnique({ where: { id } });
   if (!invoice) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
@@ -107,12 +125,14 @@ export async function GET(
       selectedAccountIds = [];
     }
   }
-  const paymentAccounts = await prisma.paymentAccount.findMany({
-    where: selectedAccountIds.length
-      ? { id: { in: selectedAccountIds } }
-      : { active: true, currency: invoice.currency },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }]
-  });
+  const paymentAccounts = decryptPaymentAccounts(
+    await prisma.paymentAccount.findMany({
+      where: selectedAccountIds.length
+        ? { id: { in: selectedAccountIds } }
+        : { active: true, currency: invoice.currency },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }]
+    })
+  );
 
   let items: LineItem[] = [];
   try {

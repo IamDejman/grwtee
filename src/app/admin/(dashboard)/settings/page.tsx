@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { PaymentAccountsManager } from "@/components/admin/PaymentAccountsManager";
+import { SecuritySettingsPanel } from "@/components/admin/SecuritySettingsPanel";
+import { EnvSettingsPanel } from "@/components/admin/EnvSettingsPanel";
 import { adminFetch } from "@/lib/adminFetch";
+import { validatePassword } from "@/lib/security/password-policy";
 
 type Settings = {
   siteTitle: string;
@@ -102,13 +106,21 @@ export default function AdminSettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-      setSuccess("Password updated.");
+      setSuccess("Password updated. Signing you out on all devices...");
+      await signOut({ callbackUrl: "/admin/login?reset=success" });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to change password.");
     } finally {
       setLoading(false);
     }
   };
+
+  const passwordValidation = validatePassword(newPassword);
+  const passwordReady =
+    Boolean(currentPassword) &&
+    passwordValidation.ok &&
+    confirmNewPassword.length >= 12 &&
+    newPassword === confirmNewPassword;
 
   return (
     <div>
@@ -247,6 +259,8 @@ export default function AdminSettingsPage() {
           <PaymentAccountsManager />
         </div>
 
+        <EnvSettingsPanel />
+
         <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Admin Profile
@@ -290,7 +304,7 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-dark" htmlFor="new-password">
-                New password (min 8 chars)
+                New password (min 12 chars, mixed case, number, symbol)
               </label>
               <div className="relative mt-1">
                 <input
@@ -354,22 +368,24 @@ export default function AdminSettingsPage() {
                 </button>
               </div>
             </div>
+            {!passwordValidation.ok && newPassword.length > 0 ? (
+              <p className="text-sm text-red-600" role="alert">
+                {!passwordValidation.ok ? passwordValidation.message : null}
+              </p>
+            ) : null}
             <Button
               variant="secondary"
               onClick={changePassword}
               loading={loading}
-              disabled={
-                !currentPassword ||
-                newPassword.length < 8 ||
-                confirmNewPassword.length < 8 ||
-                newPassword !== confirmNewPassword
-              }
+              disabled={!passwordReady}
             >
               Update Password
             </Button>
           </div>
         </div>
       </div>
+
+      <SecuritySettingsPanel />
     </div>
   );
 }

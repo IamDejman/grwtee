@@ -1,17 +1,22 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+import { hashPassword } from "../src/lib/security/password-hash";
+import { validatePassword } from "../src/lib/security/password-policy";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const email = "book@grwtee.com";
   const password = process.env.ADMIN_SEED_PASSWORD;
-  if (!password || password.length < 8) {
+  if (!password) {
     throw new Error(
-      "Missing ADMIN_SEED_PASSWORD (min 8 chars). Set it in your environment before running `npx prisma db seed`."
+      "Missing ADMIN_SEED_PASSWORD. Set it in your environment before running `npx prisma db seed`."
     );
   }
-  const hashed = await bcrypt.hash(password, 10);
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    throw new Error(`ADMIN_SEED_PASSWORD invalid: ${policy.message}`);
+  }
+  const hashed = await hashPassword(password);
 
   await prisma.admin.upsert({
     where: { email },
@@ -19,7 +24,8 @@ async function main() {
     create: {
       email,
       password: hashed,
-      name: "GRWTEE Admin"
+      name: "GRWTEE Admin",
+      mustChangePassword: true
     }
   });
 

@@ -93,6 +93,8 @@ export function PaymentAccountsManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [stepUpPassword, setStepUpPassword] = useState("");
+  const [reencryptMsg, setReencryptMsg] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -189,25 +191,26 @@ export function PaymentAccountsManager() {
       setError(validationError);
       return;
     }
+    if (!stepUpPassword) {
+      setError("Enter your current password to confirm this change.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      const body = buildBody();
+      const body = { ...buildBody(), currentPassword: stepUpPassword };
       const res = editingId
         ? await adminFetch(`/api/payment-accounts/${editingId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            // On edit we also need to clear fields that don't belong to the selected type
             body: JSON.stringify({
               ...body,
-              // Clear bank fields for non-bank types
               bankName: form.type === "bank" ? form.bankName.trim() : null,
               accountName: form.type === "bank" ? form.accountName.trim() : null,
               accountNumber: form.type === "bank" ? form.accountNumber.trim() : null,
               swiftCode: form.type === "bank" ? form.swiftCode.trim() || null : null,
               iban: form.type === "bank" ? form.iban.trim() || null : null,
               sortCode: form.type === "bank" ? form.sortCode.trim() || null : null,
-              // Clear email for non-email types
               email:
                 form.type === "paypal" || form.type === "wise"
                   ? form.email.trim()
@@ -234,10 +237,16 @@ export function PaymentAccountsManager() {
 
   const remove = async (acc: PaymentAccount) => {
     if (!confirm(`Delete "${acc.label}"?`)) return;
+    const currentPassword = prompt("Enter your current password to confirm deletion:");
+    if (!currentPassword) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await adminFetch(`/api/payment-accounts/${acc.id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword })
+      });
       if (!res.ok) throw new Error("Failed");
       await load();
     } catch {
@@ -248,18 +257,49 @@ export function PaymentAccountsManager() {
   };
 
   const toggleActive = async (acc: PaymentAccount) => {
+    if (!stepUpPassword) {
+      setError("Enter your current password below before toggling account status.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !acc.active })
+        body: JSON.stringify({ active: !acc.active, currentPassword: stepUpPassword })
       });
       if (!res.ok) throw new Error("Failed");
       await load();
     } catch {
       setError("Failed to update account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reencryptAll = async () => {
+    if (!stepUpPassword) {
+      setError("Enter your current password before re-encrypting.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setReencryptMsg(null);
+    try {
+      const res = await adminFetch("/api/payment-accounts/re-encrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: stepUpPassword })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed");
+      setReencryptMsg(
+        `Re-encrypted ${json.data?.updated ?? 0} account(s). ${json.data?.skipped ?? 0} already encrypted.`
+      );
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to re-encrypt accounts.");
     } finally {
       setLoading(false);
     }
@@ -277,16 +317,41 @@ export function PaymentAccountsManager() {
             invoice PDFs. Filtered by invoice currency by default.
           </p>
         </div>
-        <Button onClick={openNew} size="sm">
-          Add account
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={reencryptAll} size="sm" variant="outline" loading={loading}>
+            Re-encrypt stored data
+          </Button>
+          <Button onClick={openNew} size="sm">
+            Add account
+          </Button>
+        </div>
       </div>
+
+      {reencryptMsg ? (
+        <p className="mt-4 text-sm font-semibold text-green-dark" role="status">
+          {reencryptMsg}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
           {error}
         </p>
       ) : null}
+
+      <div className="mt-4 max-w-md">
+        <label className="block text-sm font-semibold text-gray-dark" htmlFor="stepUpPassword">
+          Current password (required for changes)
+        </label>
+        <input
+          id="stepUpPassword"
+          type="password"
+          value={stepUpPassword}
+          onChange={(e) => setStepUpPassword(e.target.value)}
+          className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2"
+          placeholder="Enter before save, delete, or toggle"
+        />
+      </div>
 
       <div className="mt-6 space-y-3">
         {accounts.map((acc) => (

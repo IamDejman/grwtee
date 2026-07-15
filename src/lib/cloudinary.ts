@@ -31,18 +31,38 @@ export async function deleteImage(publicId: string) {
 
 export async function uploadImage(
   file: File,
-  folder: string = "grwtee"
+  folder?: string,
+  filename?: string
+): Promise<{ secure_url: string; public_id: string }>;
+export async function uploadImage(
+  buffer: Buffer,
+  folder: string,
+  filename?: string
+): Promise<{ secure_url: string; public_id: string }>;
+export async function uploadImage(
+  file: File | Buffer,
+  folder: string = "grwtee",
+  filename?: string
 ): Promise<{ secure_url: string; public_id: string }> {
   await initCloudinary();
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  let buffer: Buffer;
+  if (file instanceof Buffer) {
+    buffer = file;
+  } else {
+    buffer = Buffer.from(await (file as File).arrayBuffer());
+  }
+  const publicIdPrefix = filename ? filename.replace(/\.[^.]+$/, "") : undefined;
 
   return await new Promise((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
         {
           folder,
+          public_id: publicIdPrefix,
           resource_type: "image",
+          ...(process.env.CLOUDINARY_MODERATION === "true"
+            ? { moderation: "aws_rek" as const }
+            : {}),
           transformation: [
             { width: 1200, height: 1600, crop: "limit" },
             { quality: "auto" },
@@ -51,7 +71,7 @@ export async function uploadImage(
         },
         (error, result) => {
           if (error || !result) reject(error);
-          else resolve(result as any);
+          else resolve(result as { secure_url: string; public_id: string });
         }
       )
       .end(buffer);

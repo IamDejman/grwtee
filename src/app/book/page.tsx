@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 
 const serviceOptions = [
   { value: "virtual-personal-styling", label: "Virtual Personal Styling" },
@@ -27,6 +28,7 @@ export default function BookPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [service, setService] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const isFormValid =
     name.trim() !== "" &&
@@ -49,7 +51,8 @@ export default function BookPage() {
       message: JSON.stringify({
         city: fd.get("city"),
         additionalNotes: fd.get("additionalNotes")
-      })
+      }),
+      turnstileToken
     };
 
     try {
@@ -205,6 +208,8 @@ export default function BookPage() {
           {errorMsg && (
             <p className="text-center text-sm font-semibold text-red-600">{errorMsg}</p>
           )}
+
+          <TurnstileWidget onToken={setTurnstileToken} />
 
           <div className="flex justify-center">
             <Button

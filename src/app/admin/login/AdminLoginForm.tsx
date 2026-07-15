@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  totp: z.string().optional(),
   remember: z.boolean().optional()
 });
 
@@ -40,13 +41,33 @@ export function AdminLoginForm() {
 
   const onSubmit = async (data: FormData) => {
     setError(null);
+
+    const checkRes = await fetch("/api/admin/login/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: data.email,
+        password: data.password,
+        totp: data.totp?.trim() || undefined
+      })
+    });
+    const checkJson = (await checkRes.json().catch(() => ({}))) as {
+      ok?: boolean;
+      message?: string;
+    };
+    if (!checkJson.ok) {
+      setError(checkJson.message || "Invalid email or password");
+      return;
+    }
+
     const res = await signIn("credentials", {
       redirect: false,
       email: data.email,
-      password: data.password
+      password: data.password,
+      totp: data.totp?.trim() || undefined
     });
     if (res?.error) {
-      setError("Invalid email or password");
+      setError("Unable to sign in. Please try again.");
       return;
     }
     router.replace("/admin/dashboard");
@@ -106,6 +127,21 @@ export function AdminLoginForm() {
                   )}
                 </button>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-dark" htmlFor="totp">
+                Authenticator code
+              </label>
+              <input
+                id="totp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2 outline-none ring-0 transition focus:border-green-dark"
+                placeholder="Required if MFA is enabled"
+                {...register("totp")}
+              />
             </div>
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2">
