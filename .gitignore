@@ -49,3 +49,5 @@ public/closet-restyling.mov
 
 # Claude session planning/lessons (kept local)
 tasks/
+
+.claude/settings.local.json
