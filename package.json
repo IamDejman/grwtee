@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "build:deploy": "prisma migrate deploy && prisma generate && next build",
+    "build:deploy": "bash scripts/vercel-build.sh",
     "migrate:deploy": "prisma migrate deploy",
     "typecheck": "tsc --noEmit",
     "start": "next start",
