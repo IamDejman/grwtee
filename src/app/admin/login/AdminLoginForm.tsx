@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -21,17 +21,17 @@ type FormData = z.infer<typeof schema>;
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("reason") === "session_expired"
+      ? "Your session has expired. Please sign in again."
+      : null
+  );
+  const [successMsg, setSuccessMsg] = useState<string | null>(() =>
+    searchParams.get("reset") === "success"
+      ? "Password updated. You can sign in with your new password."
+      : null
+  );
   const [showPassword, setShowPassword] = useState(false);
-
-  useEffect(() => {
-    if (searchParams.get("reset") === "success") {
-      setSuccessMsg("Password updated. You can sign in with your new password.");
-    } else if (searchParams.get("reason") === "session_expired") {
-      setError("Your session has expired. Please sign in again.");
-    }
-  }, [searchParams]);
 
   const {
     register,

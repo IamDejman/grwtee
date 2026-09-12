@@ -41,7 +41,7 @@ export default function SubscribePage() {
         <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-gray-medium/40 bg-white p-6 shadow-sm md:p-8">
           <SubscribePageForm />
           <p className="mt-4 text-center text-xs text-gray-dark/60">
-            We'll email you a confirmation link to verify your address.
+            We&apos;ll email you a confirmation link to verify your address.
           </p>
         </div>
 

@@ -94,7 +94,8 @@ export function MessageThread({ conversationId, initialMessages, currentUserId, 
   }
 
   // Group messages by date
-  let lastDate = ''
+  const formatDay = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
     <>
@@ -107,12 +108,11 @@ export function MessageThread({ conversationId, initialMessages, currentUserId, 
           </div>
         )}
 
-        {messages.map((msg) => {
+        {messages.map((msg, i) => {
           const isMine = msg.sender_id === currentUserId
           const date = new Date(msg.created_at)
-          const dateStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-          const showDate = dateStr !== lastDate
-          lastDate = dateStr
+          const dateStr = formatDay(msg.created_at)
+          const showDate = i === 0 || formatDay(messages[i - 1].created_at) !== dateStr
 
           const { avatar_url, initials } = getAvatar(msg.sender_id)
 
