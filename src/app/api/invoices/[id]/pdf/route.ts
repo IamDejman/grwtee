@@ -437,6 +437,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
+      "Content-Length": String(pdfBytes.byteLength),
       "Content-Disposition": `attachment; filename="${invoice.invoiceNumber}.pdf"`
     }
   });

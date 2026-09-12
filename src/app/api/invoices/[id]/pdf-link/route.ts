@@ -27,7 +27,8 @@ export async function POST(
         expiresAt: new Date(exp * 1000).toISOString()
       }
     });
-  } catch {
+  } catch (e) {
+    console.error("[API] invoice-pdf-link failed:", e);
     return jsonGenericServerError("invoice-pdf-link");
   }
 }

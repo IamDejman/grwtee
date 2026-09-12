@@ -321,16 +321,19 @@ export default function AdminInvoicesPage() {
   };
 
   const downloadPdf = async (inv: Invoice) => {
+    setError(null);
     try {
       const res = await adminFetch(`/api/invoices/${inv.id}/pdf-link`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (!res.ok || !json?.data?.url) throw new Error("Failed");
+      if (!json?.data?.url) throw new Error("No URL in response");
       // The PDF route serves Content-Disposition: attachment, so navigating
       // to the signed URL downloads without leaving the page. window.open
       // after an await gets popup-blocked (silently, on iPad Safari).
       window.location.assign(json.data.url);
-    } catch {
-      setError("Failed to generate secure PDF link.");
+    } catch (e: unknown) {
+      const detail = e instanceof Error ? e.message : "unknown error";
+      setError(`Failed to generate secure PDF link (${detail}). Please try again.`);
     }
   };
 
