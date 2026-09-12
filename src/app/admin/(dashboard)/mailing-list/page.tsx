@@ -160,6 +160,8 @@ export default function MailingListPage() {
                 className="w-44"
                 options={statusOptions}
               />
+              {/* API download route, not a page: a full navigation is required */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/api/admin/subscribers/export"
                 className="inline-flex items-center rounded-full border border-gray-medium/60 bg-white px-4 py-2 text-sm font-medium text-gray-dark transition hover:bg-cream-light"

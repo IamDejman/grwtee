@@ -64,7 +64,7 @@ export function WaitlistForm({
             isDark ? "text-white" : "text-green-dark"
           }`}
         >
-          You're on the list.
+          You&apos;re on the list.
         </p>
         <p
           className={`mt-2 text-sm leading-6 ${

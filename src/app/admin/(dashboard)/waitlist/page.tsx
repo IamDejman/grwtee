@@ -69,6 +69,8 @@ export default function WaitlistPage() {
         <span className="rounded-full bg-purple-dark/10 px-3 py-1 text-sm font-medium text-purple-dark">
           {total} on the list
         </span>
+        {/* API download route, not a page: a full navigation is required */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/api/admin/waitlist/export"
           className="ml-auto inline-flex items-center rounded-full border border-gray-medium/60 bg-white px-4 py-2 text-sm font-medium text-gray-dark transition hover:bg-cream-light"
