@@ -141,7 +141,6 @@ export function ContactStep({ brief, update, next, headingRef }: StepProps) {
   return (
     <StepFrame
       title={name ? `Where can we reach you, ${name}?` : "Where can we reach you?"}
-      helper="We send your confirmation by email and check in on WhatsApp. Your answers are saved as you go, so we can help if you stop partway."
       headingRef={headingRef}
       validate={() => {
         const phone = brief.whatsapp.trim();
