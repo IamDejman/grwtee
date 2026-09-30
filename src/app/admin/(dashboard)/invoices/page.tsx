@@ -14,14 +14,7 @@ import { useToast } from "@/components/admin/Toast";
 import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SearchInput, SkeletonRows, Stat } from "@/components/admin/ui";
 import { formatDate } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
-
-// Stored/server format — numbers
-type LineItem = {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  vat: boolean;
-};
+import { computeTotals, currencySymbol, formatMoney, parseItems, VAT_RATE, type LineItem } from "@/lib/invoice-totals";
 
 // Form state — strings so inputs can be cleared/edited naturally
 type LineItemDraft = {
@@ -43,7 +36,6 @@ type Invoice = {
   createdAt: string;
 };
 
-const VAT_RATE = 0.075;
 
 // Tolerate thousands separators and currency symbols typed or pasted into
 // amount fields (e.g. "1,280,000.00", "₦1 280 000").
@@ -52,40 +44,6 @@ function parseAmount(value: string | number): number {
   const cleaned = value.replace(/[^0-9.-]/g, "");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
-}
-
-function parseItems(json: string): LineItem[] {
-  try {
-    const parsed = JSON.parse(json);
-    if (Array.isArray(parsed)) return parsed as LineItem[];
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function currencySymbol(currency: string) {
-  return currency === "USD" ? "$" : "\u20A6";
-}
-
-function formatMoney(amount: number, currency: string) {
-  return `${currencySymbol(currency)}${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`;
-}
-
-function computeTotals(items: LineItem[]) {
-  let subtotal = 0;
-  let vat = 0;
-  for (const it of items) {
-    const qty = Number(it.quantity) || 0;
-    const price = Number(it.unitPrice) || 0;
-    const line = qty * price;
-    subtotal += line;
-    if (it.vat) vat += line * VAT_RATE;
-  }
-  return { subtotal, vat, total: subtotal + vat };
 }
 
 function computeDraftTotals(drafts: LineItemDraft[], applyVat: boolean) {

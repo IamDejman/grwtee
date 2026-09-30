@@ -114,7 +114,7 @@ export function Stat({ label, value, tone }: { label: string; value: React.React
   return (
     <div className="rounded-2xl border border-atelier-border bg-white p-4">
       <p className="text-xs font-medium uppercase tracking-wider text-atelier-faint">{label}</p>
-      <p className={`mt-2 font-cormorant text-3xl font-medium tabular-nums ${tone === "gold" ? "text-[#8A6420]" : "text-atelier-ink"}`}>
+      <p className={`mt-2 font-cormorant text-3xl font-medium tabular-nums [overflow-wrap:anywhere] ${tone === "gold" ? "text-[#8A6420]" : "text-atelier-ink"}`}>
         {value}
       </p>
     </div>
