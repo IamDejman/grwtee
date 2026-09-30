@@ -90,7 +90,7 @@ export function EnvSettingsPanel() {
   const keys = Object.keys(ENV_LABELS);
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-2">
+    <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
       <h2 className="font-heading text-xl font-semibold text-purple-dark">
         Integration settings
       </h2>
@@ -111,26 +111,27 @@ export function EnvSettingsPanel() {
         </p>
       ) : null}
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
+      {/* Phones: each setting stacks (name and status, then the input); a table from md up. */}
+      <div className="mt-4">
+        <table className="block w-full text-sm md:table">
+          <thead className="hidden md:table-header-group">
             <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
               <th className="py-2 pr-4">Setting</th>
               <th className="py-2 pr-4">Status</th>
               <th className="py-2 pr-4">New value</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-medium/40">
+          <tbody className="block divide-y divide-gray-medium/40 md:table-row-group">
             {keys.map((key) => {
               const row = rows[key];
               const configured = row?.value === "[configured]";
               return (
-                <tr key={key}>
-                  <td className="py-3 pr-4 align-top">
+                <tr key={key} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 py-3 md:table-row md:py-0">
+                  <td className="min-w-0 align-top md:table-cell md:py-3 md:pr-4">
                     <p className="font-semibold text-gray-dark">{ENV_LABELS[key]}</p>
-                    <p className="mt-0.5 font-mono text-xs text-gray-dark/60">{key}</p>
+                    <p className="mt-0.5 break-all font-mono text-xs text-gray-dark/60">{key}</p>
                   </td>
-                  <td className="py-3 pr-4 align-top">
+                  <td className="align-top md:table-cell md:py-3 md:pr-4">
                     {configured ? (
                       <span className="rounded-full bg-green-dark/10 px-2 py-1 text-xs font-semibold text-green-dark">
                         {row.source === "database" ? "DB" : "Env"}
@@ -141,16 +142,17 @@ export function EnvSettingsPanel() {
                       </span>
                     )}
                   </td>
-                  <td className="py-3 pr-4 align-top">
+                  <td className="col-span-2 align-top md:table-cell md:py-3 md:pr-4">
                     <input
                       type="password"
                       autoComplete="off"
+                      aria-label={`New value for ${ENV_LABELS[key]}`}
                       placeholder={configured ? "Enter new value to replace" : "Set value"}
                       value={draft[key] || ""}
                       onChange={(e) =>
                         setDraft((prev) => ({ ...prev, [key]: e.target.value }))
                       }
-                      className="w-full min-w-[220px] rounded-md border border-gray-medium px-3 py-2"
+                      className="w-full rounded-md border md:min-w-[220px] border-gray-medium px-3 py-2"
                     />
                   </td>
                 </tr>

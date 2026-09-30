@@ -1,61 +1,257 @@
+"use client";
+
+import { Dialog, Transition } from "@headlessui/react";
+import {
+  BookOpen,
+  Briefcase,
+  CalendarCheck,
+  CalendarDays,
+  Ellipsis,
+  Images,
+  LayoutDashboard,
+  ListChecks,
+  Mail,
+  MessageSquare,
+  Receipt,
+  Settings,
+  Shirt,
+  Sparkles,
+  Users,
+  X,
+  type LucideIcon
+} from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Fragment, useState } from "react";
 import { AdminSignOutButton } from "@/components/admin/AdminSignOutButton";
 
-const websiteLinks = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/gallery", label: "Gallery" },
-  { href: "/admin/services", label: "Services" },
-  { href: "/admin/bookings", label: "Bookings" },
-  { href: "/admin/december", label: "December" },
-  { href: "/admin/invoices", label: "Invoices" },
-  { href: "/admin/mailing-list", label: "Mailing list" },
-  { href: "/admin/waitlist", label: "Waitlist" },
-  { href: "/admin/settings", label: "Settings" }
+type NavLink = { href: string; label: string; icon: LucideIcon };
+
+const websiteLinks: NavLink[] = [
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/gallery", label: "Gallery", icon: Images },
+  { href: "/admin/services", label: "Services", icon: Briefcase },
+  { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/december", label: "December", icon: Sparkles },
+  { href: "/admin/invoices", label: "Invoices", icon: Receipt },
+  { href: "/admin/mailing-list", label: "Mailing list", icon: Mail },
+  { href: "/admin/waitlist", label: "Waitlist", icon: ListChecks },
+  { href: "/admin/settings", label: "Settings", icon: Settings }
 ];
 
-const stylistLinks = [
-  { href: "/admin/looks", label: "Looks" },
-  { href: "/admin/lookbooks", label: "Lookbooks" },
-  { href: "/admin/calendar", label: "Calendar" },
-  { href: "/admin/clients", label: "Clients" },
-  { href: "/admin/messages", label: "Messages" }
+const stylistLinks: NavLink[] = [
+  { href: "/admin/looks", label: "Looks", icon: Shirt },
+  { href: "/admin/lookbooks", label: "Lookbooks", icon: BookOpen },
+  { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/admin/clients", label: "Clients", icon: Users },
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare }
 ];
 
-export function AdminSidebar() {
+// The phone bottom bar: the most-used sections, with everything else under "More".
+const tabHrefs = ["/admin/dashboard", "/admin/bookings", "/admin/december", "/admin/invoices"];
+const tabLabels: Record<string, string> = { "/admin/dashboard": "Home" };
+
+const allLinks = [...websiteLinks, ...stylistLinks];
+const tabs = tabHrefs.map((href) => allLinks.find((l) => l.href === href)!);
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SidebarLinks({ pathname }: { pathname: string }) {
+  const renderLink = (l: NavLink) => {
+    const active = isActive(pathname, l.href);
+    return (
+      <Link
+        key={l.href}
+        href={l.href}
+        aria-current={active ? "page" : undefined}
+        className={`block rounded-md px-3 py-2 text-sm font-medium ${
+          active ? "bg-purple-dark text-white" : "text-gray-dark hover:bg-cream-light"
+        }`}
+      >
+        {l.label}
+      </Link>
+    );
+  };
   return (
-    <aside className="w-60 shrink-0 border-r border-gray-medium/60 bg-cream">
-      <div className="px-4 py-4">
-        <p className="font-accent text-xs font-semibold tracking-widest text-green-dark">
-          ADMIN
-        </p>
-      </div>
-      <nav className="px-2">
-        {websiteLinks.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="block rounded-md px-3 py-2 text-sm font-medium text-gray-dark hover:bg-cream-light"
-          >
-            {l.label}
-          </Link>
-        ))}
-        <div className="mx-3 my-3 border-t border-gray-medium/40" />
-        <p className="px-3 py-1 text-[10px] font-semibold tracking-widest uppercase text-gray-dark/50">
-          Stylist
-        </p>
-        {stylistLinks.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="block rounded-md px-3 py-2 text-sm font-medium text-gray-dark hover:bg-cream-light"
-          >
-            {l.label}
-          </Link>
-        ))}
-        <AdminSignOutButton />
-      </nav>
-    </aside>
+    <nav aria-label="Admin" className="px-2 pb-6">
+      {websiteLinks.map(renderLink)}
+      <div className="mx-3 my-3 border-t border-gray-medium/40" />
+      <p className="px-3 py-1 text-[10px] font-semibold tracking-widest uppercase text-gray-dark/50">
+        Stylist
+      </p>
+      {stylistLinks.map(renderLink)}
+      <AdminSignOutButton />
+    </nav>
   );
 }
 
+function SheetGrid({
+  title,
+  links,
+  pathname,
+  onNavigate
+}: {
+  title: string;
+  links: NavLink[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <div>
+      <p className="px-1 text-[10px] font-semibold tracking-widest uppercase text-gray-dark/50">
+        {title}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {links.map((l) => {
+          const active = isActive(pathname, l.href);
+          const Icon = l.icon;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-center text-xs font-medium ${
+                active
+                  ? "bg-purple-dark text-white"
+                  : "bg-white text-gray-dark ring-1 ring-gray-medium/50 active:bg-cream-light"
+              }`}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              {l.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
+export function AdminSidebar() {
+  const pathname = usePathname() ?? "";
+  const [moreOpen, setMoreOpen] = useState(false);
+  const current = allLinks.find((l) => isActive(pathname, l.href));
+  const onTab = tabs.some((t) => isActive(pathname, t.href));
+
+  return (
+    <>
+      {/* Phones and tablets: page name up top, section tabs along the bottom. */}
+      <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-gray-medium/60 bg-cream/95 px-4 backdrop-blur lg:hidden">
+        <span className="font-accent text-xs font-semibold tracking-widest text-green-dark">
+          ADMIN
+        </span>
+        {current ? (
+          <span className="truncate text-sm font-medium text-gray-dark">{current.label}</span>
+        ) : null}
+      </header>
+
+      <nav
+        aria-label="Admin sections"
+        className="fixed inset-x-0 bottom-0 z-40 touch-manipulation border-t border-gray-medium/60 bg-cream/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      >
+        <ul className="grid grid-cols-5">
+          {tabs.map((t) => {
+            const active = isActive(pathname, t.href);
+            const Icon = t.icon;
+            return (
+              <li key={t.href}>
+                <Link
+                  href={t.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
+                    active ? "text-purple-dark" : "text-gray-dark/60"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
+                  {tabLabels[t.href] ?? t.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-expanded={moreOpen}
+              className={`flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-medium ${
+                !onTab && current ? "text-purple-dark" : "text-gray-dark/60"
+              }`}
+            >
+              <Ellipsis className="h-5 w-5" aria-hidden="true" />
+              More
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <Transition show={moreOpen} as={Fragment}>
+        <Dialog onClose={setMoreOpen} className="relative z-50 lg:hidden">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-dark/40" aria-hidden="true" />
+          </Transition.Child>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="translate-y-full"
+            enterTo="translate-y-0"
+            leave="ease-in duration-150"
+            leaveFrom="translate-y-0"
+            leaveTo="translate-y-full"
+          >
+            <Dialog.Panel className="fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-cream px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl">
+              <div className="mx-auto h-1 w-10 rounded-full bg-gray-medium" aria-hidden="true" />
+              <div className="mt-2 flex items-center justify-between">
+                <Dialog.Title className="font-heading text-lg font-semibold text-purple-dark">
+                  All sections
+                </Dialog.Title>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen(false)}
+                  aria-label="Close"
+                  className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-dark hover:bg-cream-light"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="mt-3 space-y-5">
+                <SheetGrid
+                  title="Website"
+                  links={websiteLinks}
+                  pathname={pathname}
+                  onNavigate={() => setMoreOpen(false)}
+                />
+                <SheetGrid
+                  title="Stylist"
+                  links={stylistLinks}
+                  pathname={pathname}
+                  onNavigate={() => setMoreOpen(false)}
+                />
+                <AdminSignOutButton />
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
+        </Dialog>
+      </Transition>
+
+      {/* Desktop: the sidebar stays in view while the page scrolls. */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-gray-medium/60 bg-cream lg:block">
+        <div className="px-4 py-4">
+          <p className="font-accent text-xs font-semibold tracking-widest text-green-dark">
+            ADMIN
+          </p>
+        </div>
+        <SidebarLinks pathname={pathname} />
+      </aside>
+    </>
+  );
+}

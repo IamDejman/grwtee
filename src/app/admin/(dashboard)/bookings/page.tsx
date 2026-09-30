@@ -142,6 +142,34 @@ export default function AdminBookingsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const statusPill = (b: Booking) => (
+    <span
+      className={[
+        "rounded-full px-3 py-1 text-xs font-semibold",
+        b.status === "pending"
+          ? "bg-gold/20 text-gray-dark"
+          : b.status === "contacted"
+            ? "bg-green-dark/10 text-green-dark"
+            : b.status === "confirmed"
+              ? "bg-purple-medium/10 text-purple-medium"
+              : "bg-green-600/10 text-green-700"
+      ].join(" ")}
+    >
+      {statusOptions.find((o) => o.value === b.status)?.label ?? b.status}
+    </span>
+  );
+
+  async function openDetail(b: Booking) {
+    try {
+      const res = await adminFetch(`/api/bookings/${b.id}`);
+      const json = await res.json();
+      if (res.ok && json.data) setDetail(json.data);
+      else setDetail(b);
+    } catch {
+      setDetail(b);
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -169,7 +197,7 @@ export default function AdminBookingsPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+      <div className="mt-6 rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60 sm:p-6">
         <div className="grid gap-4 md:grid-cols-3">
           <Input
             label="Search"
@@ -191,7 +219,37 @@ export default function AdminBookingsPage() {
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
+        {/* Phones: one card per booking. */}
+        <ul className="mt-6 divide-y divide-gray-medium/60 md:hidden">
+          {filtered.map((b) => (
+            <li key={b.id}>
+              <button
+                type="button"
+                onClick={() => openDetail(b)}
+                className="block w-full py-4 text-left"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 font-semibold text-purple-medium">{b.name}</span>
+                  {statusPill(b)}
+                </span>
+                <span className="mt-1 block text-sm text-gray-dark">
+                  {formatServiceLabel(b.service)}
+                </span>
+                <span className="mt-1 block text-xs text-gray-dark/70 [overflow-wrap:anywhere]">
+                  {b.email} · <span className="whitespace-nowrap">{b.phone}</span>
+                </span>
+                <span className="mt-1 block text-xs text-gray-dark/60">
+                  {formatDateTime(b.createdAt)}
+                </span>
+              </button>
+            </li>
+          ))}
+          {!filtered.length ? (
+            <li className="py-4 text-sm text-gray-dark/70">No bookings found.</li>
+          ) : null}
+        </ul>
+
+        <div className="mt-6 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
@@ -217,34 +275,12 @@ export default function AdminBookingsPage() {
                   <td className="py-3 pr-4">{b.phone}</td>
                   <td className="py-3 pr-4">{formatServiceLabel(b.service)}</td>
                   <td className="py-3 pr-4">
-                    <span
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-semibold",
-                        b.status === "pending"
-                          ? "bg-gold/20 text-gray-dark"
-                          : b.status === "contacted"
-                            ? "bg-green-dark/10 text-green-dark"
-                            : b.status === "confirmed"
-                              ? "bg-purple-medium/10 text-purple-medium"
-                              : "bg-green-600/10 text-green-700"
-                      ].join(" ")}
-                    >
-                      {statusOptions.find((o) => o.value === b.status)?.label ?? b.status}
-                    </span>
+                    {statusPill(b)}
                   </td>
                   <td className="py-3 pr-4">
                     <button
                       className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                      onClick={async () => {
-                        try {
-                          const res = await adminFetch(`/api/bookings/${b.id}`);
-                          const json = await res.json();
-                          if (res.ok && json.data) setDetail(json.data);
-                          else setDetail(b);
-                        } catch {
-                          setDetail(b);
-                        }
-                      }}
+                      onClick={() => openDetail(b)}
                     >
                       View
                     </button>

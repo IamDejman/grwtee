@@ -30,7 +30,8 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
   await admin.from('conversations').update({ unread_count: 0 }).eq('id', id)
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: '#F8F5EE' }}>
+    // Phones: fill the space between the admin top bar and tab bar so the reply box stays visible.
+    <div className="fixed inset-x-0 top-12 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col lg:static lg:h-screen" style={{ backgroundColor: '#F8F5EE' }}>
       <div className="shrink-0 px-6 lg:px-8 py-4 flex items-center gap-4" style={{ backgroundColor: 'rgba(248,245,238,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
         <Link href="/admin/messages" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
           <ArrowLeft className="w-4 h-4" />

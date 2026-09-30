@@ -39,7 +39,7 @@ export default async function MessagesPage() {
 
   return (
     <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
-      <div className="sticky top-0 z-10 px-6 lg:px-8 py-5" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
+      <div className="sticky top-12 z-10 px-6 lg:top-0 lg:px-8 py-5" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
         <p className="text-xs font-medium tracking-widest uppercase" style={{ color: '#9A8DAA' }}>Inbox</p>
         <h1 className="text-2xl lg:text-3xl font-light leading-tight mt-0.5" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Messages</h1>
       </div>

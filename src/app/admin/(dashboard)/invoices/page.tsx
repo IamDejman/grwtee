@@ -443,7 +443,7 @@ export default function AdminInvoicesPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="mt-6 hidden rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 md:block">
+      <div className="mt-6 hidden rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead>

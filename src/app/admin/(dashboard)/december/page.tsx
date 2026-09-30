@@ -138,10 +138,10 @@ function BriefDetail({ b }: { b: Booking }) {
     ["Paid", b.paidAt ? shortDate(b.paidAt) : "-"]
   ];
   return (
-    <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-3 text-sm">
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[8rem_1fr] sm:gap-y-3">
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="text-gray-dark/70">{label}</dt>
+          <dt className="mt-2 text-xs text-gray-dark/70 sm:mt-0 sm:text-sm">{label}</dt>
           <dd className="whitespace-pre-line text-gray-dark">{value}</dd>
         </div>
       ))}
@@ -336,69 +336,116 @@ export default function AdminDecemberPage() {
     ["settings", "Settings"]
   ];
 
-  const bookingTable = (rows: Booking[], empty: string) => (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[860px] text-sm">
-        <thead>
-          <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-            <th className="py-3 pr-4">Call (Lagos)</th>
-            <th className="py-3 pr-4">Client</th>
-            <th className="py-3 pr-4">Looks</th>
-            <th className="py-3 pr-4">Status</th>
-            <th className="py-3 pr-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-medium/60">
-          {rows.map((b) => (
-            <tr key={b.id}>
-              <td className="py-3 pr-4 tabular-nums text-gray-dark">{lagosSlot(b.slotStart)}</td>
-              <td className="py-3 pr-4">
-                <p className="font-semibold text-purple-medium">{b.name}</p>
-                <p className="text-xs text-gray-dark/70">
-                  {b.email} ·{" "}
-                  <a className="underline" href={whatsappLink(b.whatsapp)} target="_blank" rel="noreferrer">
-                    WhatsApp
-                  </a>
-                </p>
-              </td>
-              <td className="py-3 pr-4 tabular-nums">{b.looks}</td>
-              <td className="py-3 pr-4">
-                <StatusPill status={b.status} />
-              </td>
-              <td className="py-3 pr-4">
-                <div className="flex flex-wrap gap-3 text-xs font-semibold">
-                  <button type="button" className="text-green-dark hover:text-purple-dark" onClick={() => setDetail(b)}>
-                    View brief
-                  </button>
-                  {b.status === "scheduled" ? (
-                    <button type="button" className="text-green-dark hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "paid")}>
-                      Mark paid
-                    </button>
-                  ) : null}
-                  {b.status === "paid" ? (
-                    <button type="button" className="text-gray-dark/70 hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "unpaid")}>
-                      Mark unpaid
-                    </button>
-                  ) : null}
-                  {b.status !== "cancelled" && Date.parse(b.slotStart) > Date.now() ? (
-                    <button type="button" className="text-red-600 hover:text-red-700 disabled:opacity-50" disabled={busy === b.id} onClick={() => setConfirmCancel(b)}>
-                      Cancel
-                    </button>
-                  ) : null}
-                </div>
-              </td>
-            </tr>
-          ))}
-          {!rows.length ? (
-            <tr>
-              <td className="py-4 text-gray-dark/70" colSpan={5}>
-                {empty}
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+  const bookingActions = (b: Booking) => (
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold">
+      <button type="button" className="text-green-dark hover:text-purple-dark" onClick={() => setDetail(b)}>
+        View brief
+      </button>
+      {b.status === "scheduled" ? (
+        <button type="button" className="text-green-dark hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "paid")}>
+          Mark paid
+        </button>
+      ) : null}
+      {b.status === "paid" ? (
+        <button type="button" className="text-gray-dark/70 hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "unpaid")}>
+          Mark unpaid
+        </button>
+      ) : null}
+      {b.status !== "cancelled" && Date.parse(b.slotStart) > Date.now() ? (
+        <button type="button" className="text-red-600 hover:text-red-700 disabled:opacity-50" disabled={busy === b.id} onClick={() => setConfirmCancel(b)}>
+          Cancel
+        </button>
+      ) : null}
     </div>
+  );
+
+  const draftActions = (d: Draft) => (
+    <div className="flex flex-wrap gap-3 text-xs font-semibold">
+      <a
+        className="text-green-dark hover:text-purple-dark"
+        href={whatsappLink(
+          d.whatsapp,
+          `Hi ${firstName(d.name)}, it's GRWTEE. We saw you started your Lagos in December brief. Would you like help choosing a consultation time?`
+        )}
+        target="_blank"
+        rel="noreferrer"
+      >
+        WhatsApp
+      </a>
+      <a className="text-green-dark hover:text-purple-dark" href={`mailto:${d.email}`}>
+        Email
+      </a>
+    </div>
+  );
+
+  const bookingTable = (rows: Booking[], empty: string) => (
+    <>
+      {/* Phones: one card per booking. */}
+      <ul className="divide-y divide-gray-medium/60 md:hidden">
+        {rows.map((b) => (
+          <li key={b.id} className="py-4 first:pt-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-purple-medium">{b.name}</p>
+                <p className="mt-0.5 text-sm tabular-nums text-gray-dark">{lagosSlot(b.slotStart)} Lagos</p>
+              </div>
+              <StatusPill status={b.status} />
+            </div>
+            <p className="mt-1 break-all text-xs text-gray-dark/70">
+              {b.looks} looks · {b.email} ·{" "}
+              <a className="underline" href={whatsappLink(b.whatsapp)} target="_blank" rel="noreferrer">
+                WhatsApp
+              </a>
+            </p>
+            <div className="mt-3">{bookingActions(b)}</div>
+          </li>
+        ))}
+        {!rows.length ? <li className="text-sm text-gray-dark/70">{empty}</li> : null}
+      </ul>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
+              <th className="py-3 pr-4">Call (Lagos)</th>
+              <th className="py-3 pr-4">Client</th>
+              <th className="py-3 pr-4">Looks</th>
+              <th className="py-3 pr-4">Status</th>
+              <th className="py-3 pr-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-medium/60">
+            {rows.map((b) => (
+              <tr key={b.id}>
+                <td className="py-3 pr-4 tabular-nums text-gray-dark">{lagosSlot(b.slotStart)}</td>
+                <td className="py-3 pr-4">
+                  <p className="font-semibold text-purple-medium">{b.name}</p>
+                  <p className="text-xs text-gray-dark/70">
+                    {b.email} ·{" "}
+                    <a className="underline" href={whatsappLink(b.whatsapp)} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  </p>
+                </td>
+                <td className="py-3 pr-4 tabular-nums">{b.looks}</td>
+                <td className="py-3 pr-4">
+                  <StatusPill status={b.status} />
+                </td>
+                <td className="py-3 pr-4">
+                  {bookingActions(b)}
+                </td>
+              </tr>
+            ))}
+            {!rows.length ? (
+              <tr>
+                <td className="py-4 text-gray-dark/70" colSpan={5}>
+                  {empty}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 
   return (
@@ -430,7 +477,7 @@ export default function AdminDecemberPage() {
       ) : null}
 
       {data ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Stat label="Upcoming calls" value={upcoming.length} />
           <Stat label="Awaiting payment" value={unpaid} />
           <Stat label="Didn't book" value={data.drafts.length} />
@@ -438,15 +485,15 @@ export default function AdminDecemberPage() {
         </div>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
-        <div aria-label="December views" className="flex flex-wrap gap-2 border-b border-gray-medium/60 pb-4">
+      <div className="mt-6 rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60 sm:p-6">
+        <div aria-label="December views" className="-mx-4 flex gap-2 overflow-x-auto border-b border-gray-medium/60 px-4 pb-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
           {tabs.map(([key, label]) => (
             <button
               key={key}
               type="button"
               aria-pressed={tab === key}
               onClick={() => setTab(key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition sm:py-1.5 ${
                 tab === key ? "bg-purple-dark text-white" : "text-gray-dark/80 hover:bg-purple-dark/10"
               }`}
             >
@@ -463,57 +510,57 @@ export default function AdminDecemberPage() {
           ) : tab === "past" ? (
             bookingTable(past, "Nothing here yet.")
           ) : tab === "drafts" ? (
-            <div className="overflow-x-auto">
+            <div>
               <p className="mb-4 text-sm text-gray-dark/80">
                 People who gave their contact details but haven&apos;t booked. Drafts are deleted after 90 days.
               </p>
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-                    <th className="py-3 pr-4">Name</th>
-                    <th className="py-3 pr-4">Reached</th>
-                    <th className="py-3 pr-4">Last active</th>
-                    <th className="py-3 pr-4">Follow up</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-medium/60">
-                  {data.drafts.map((d) => (
-                    <tr key={d.id}>
-                      <td className="py-3 pr-4">
-                        <p className="font-semibold text-purple-medium">{d.name}</p>
-                        <p className="text-xs text-gray-dark/70">{d.email}</p>
-                      </td>
-                      <td className="py-3 pr-4">{STEP_LABELS[d.step] ?? d.step}</td>
-                      <td className="py-3 pr-4 tabular-nums text-gray-dark/80">{shortDate(d.updatedAt)}</td>
-                      <td className="py-3 pr-4">
-                        <div className="flex flex-wrap gap-3 text-xs font-semibold">
-                          <a
-                            className="text-green-dark hover:text-purple-dark"
-                            href={whatsappLink(
-                              d.whatsapp,
-                              `Hi ${firstName(d.name)}, it's GRWTEE. We saw you started your Lagos in December brief. Would you like help choosing a consultation time?`
-                            )}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            WhatsApp
-                          </a>
-                          <a className="text-green-dark hover:text-purple-dark" href={`mailto:${d.email}`}>
-                            Email
-                          </a>
-                        </div>
-                      </td>
+              <ul className="divide-y divide-gray-medium/60 md:hidden">
+                {data.drafts.map((d) => (
+                  <li key={d.id} className="py-4 first:pt-0">
+                    <p className="font-semibold text-purple-medium">{d.name}</p>
+                    <p className="mt-0.5 break-all text-xs text-gray-dark/70">{d.email}</p>
+                    <p className="mt-1 text-xs text-gray-dark/80">
+                      Reached {STEP_LABELS[d.step] ?? d.step} · {shortDate(d.updatedAt)}
+                    </p>
+                    <div className="mt-3">{draftActions(d)}</div>
+                  </li>
+                ))}
+                {!data.drafts.length ? <li className="text-sm text-gray-dark/70">No one has dropped off yet.</li> : null}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
+                      <th className="py-3 pr-4">Name</th>
+                      <th className="py-3 pr-4">Reached</th>
+                      <th className="py-3 pr-4">Last active</th>
+                      <th className="py-3 pr-4">Follow up</th>
                     </tr>
-                  ))}
-                  {!data.drafts.length ? (
-                    <tr>
-                      <td className="py-4 text-gray-dark/70" colSpan={4}>
-                        No one has dropped off yet.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-medium/60">
+                    {data.drafts.map((d) => (
+                      <tr key={d.id}>
+                        <td className="py-3 pr-4">
+                          <p className="font-semibold text-purple-medium">{d.name}</p>
+                          <p className="text-xs text-gray-dark/70">{d.email}</p>
+                        </td>
+                        <td className="py-3 pr-4">{STEP_LABELS[d.step] ?? d.step}</td>
+                        <td className="py-3 pr-4 tabular-nums text-gray-dark/80">{shortDate(d.updatedAt)}</td>
+                        <td className="py-3 pr-4">
+                          {draftActions(d)}
+                        </td>
+                      </tr>
+                    ))}
+                    {!data.drafts.length ? (
+                      <tr>
+                        <td className="py-4 text-gray-dark/70" colSpan={4}>
+                          No one has dropped off yet.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <SettingsForm initial={data.settings} onSaved={load} />

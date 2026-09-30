@@ -196,7 +196,7 @@ export default function AdminGalleryPage() {
       ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-1">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-1">
           <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
             Upload Images
           </h2>
@@ -271,7 +271,7 @@ export default function AdminGalleryPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-2">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex w-full gap-3">
               <div className="flex-1">

@@ -84,8 +84,8 @@ export default function WaitlistPage() {
           <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
             <tr>
               <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Joined</th>
+              <th className="hidden px-4 py-3 sm:table-cell">Name</th>
+              <th className="hidden px-4 py-3 sm:table-cell">Joined</th>
             </tr>
           </thead>
           <tbody>
@@ -105,9 +105,14 @@ export default function WaitlistPage() {
             )}
             {entries.map((e) => (
               <tr key={e.id} className="border-t border-gray-medium/30">
-                <td className="px-4 py-3 font-medium text-gray-dark">{e.email}</td>
-                <td className="px-4 py-3 text-gray-dark/80">{e.name || "-"}</td>
-                <td className="px-4 py-3 text-gray-dark/80">{formatDate(e.createdAt)}</td>
+                <td className="px-4 py-3 font-medium text-gray-dark [overflow-wrap:anywhere]">
+                  {e.email}
+                  <span className="mt-0.5 block font-normal text-gray-dark/70 sm:hidden">
+                    {e.name || "-"} · {formatDate(e.createdAt)}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{e.name || "-"}</td>
+                <td className="hidden whitespace-nowrap px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(e.createdAt)}</td>
               </tr>
             ))}
           </tbody>

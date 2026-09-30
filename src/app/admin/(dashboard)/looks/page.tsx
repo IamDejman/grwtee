@@ -21,7 +21,7 @@ export default async function LooksPage() {
   return (
     <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
       <div
-        className="sticky top-0 z-10 px-6 lg:px-8 py-5 flex items-center justify-between"
+        className="sticky top-12 z-10 px-6 lg:top-0 lg:px-8 py-5 flex items-center justify-between"
         style={{
           backgroundColor: 'rgba(248,245,238,0.92)',
           backdropFilter: 'blur(12px)',
