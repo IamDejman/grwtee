@@ -154,8 +154,8 @@ export default function AdminSettingsPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Site Settings
           </h2>
@@ -206,7 +206,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Invoice Branding
           </h2>
@@ -255,13 +255,13 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60 lg:col-span-2">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
           <PaymentAccountsManager />
         </div>
 
         <EnvSettingsPanel />
 
-        <div className="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Admin Profile
           </h2>

@@ -191,7 +191,7 @@ export default function AdminServicesPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-medium/60">
+      <div className="mt-6 rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="w-full max-w-md">
             <Input
@@ -203,7 +203,56 @@ export default function AdminServicesPage() {
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
+        {/* Phones: one card per service. */}
+        <ul className="mt-6 divide-y divide-gray-medium/60 md:hidden">
+          {filtered.map((s) => (
+            <li key={s.id} className="py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-purple-medium">{s.name}</p>
+                  <p className="mt-0.5 break-all text-xs text-gray-dark/70">{s.slug}</p>
+                </div>
+                <p className="shrink-0 text-xs tabular-nums text-gray-dark/70">#{s.order}</p>
+              </div>
+              <p className="mt-1 text-sm tabular-nums text-gray-dark">
+                USD {s.priceUSD ?? "-"} · NGN {s.priceNGN ?? "-"}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  className="rounded-full border border-gray-medium/60 px-3 py-1.5 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
+                  onClick={() => quickToggle(s.id, { featured: !s.featured })}
+                  disabled={loading}
+                >
+                  {s.featured ? "Featured" : "Not featured"}
+                </button>
+                <button
+                  className="rounded-full border border-gray-medium/60 px-3 py-1.5 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
+                  onClick={() => quickToggle(s.id, { active: !s.active })}
+                  disabled={loading}
+                >
+                  {s.active ? "Active" : "Inactive"}
+                </button>
+                <button
+                  className="ml-auto px-2 py-1.5 text-xs font-semibold text-green-dark hover:text-purple-dark"
+                  onClick={() => setEditing(s)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="px-2 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700"
+                  onClick={() => remove(s.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+          {!filtered.length ? (
+            <li className="py-4 text-sm text-gray-dark/70">No services found.</li>
+          ) : null}
+        </ul>
+
+        <div className="mt-6 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">

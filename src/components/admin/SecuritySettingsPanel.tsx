@@ -129,7 +129,7 @@ export function SecuritySettingsPanel() {
   };
 
   return (
-    <div className="mt-10 rounded-xl border border-gray-medium/60 bg-white p-6">
+    <div className="mt-10 rounded-xl border border-gray-medium/60 bg-white p-4 sm:p-6">
       <h2 className="font-heading text-xl font-semibold text-purple-dark">Security</h2>
       <p className="mt-2 text-sm text-gray-dark/80">
         Multi-factor authentication, active sessions, and sign-out controls.

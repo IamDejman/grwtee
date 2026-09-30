@@ -94,6 +94,20 @@ export default function MailingListPage() {
     }
   }
 
+  const statusPill = (s: Subscriber) => (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        s.status === "confirmed"
+          ? "bg-green-dark/10 text-green-dark"
+          : s.status === "pending"
+          ? "bg-gold-light/30 text-purple-dark"
+          : "bg-gray-medium/20 text-gray-dark"
+      }`}
+    >
+      {s.status}
+    </span>
+  );
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -142,7 +156,7 @@ export default function MailingListPage() {
       {tab === "subscribers" && (
         <div>
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <div className="flex gap-3 text-sm text-gray-dark">
+            <div className="flex flex-wrap gap-2 text-sm text-gray-dark sm:gap-3">
               <span className="rounded-full bg-green-dark/10 px-3 py-1 font-medium text-green-dark">
                 {counts.confirmed} confirmed
               </span>
@@ -176,9 +190,9 @@ export default function MailingListPage() {
               <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
                 <tr>
                   <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Subscribed</th>
-                  <th className="px-4 py-3">Confirmed</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Status</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Subscribed</th>
+                  <th className="hidden px-4 py-3 md:table-cell">Confirmed</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -199,26 +213,20 @@ export default function MailingListPage() {
                 )}
                 {subscribers.map((s) => (
                   <tr key={s.id} className="border-t border-gray-medium/30">
-                    <td className="px-4 py-3 font-medium text-gray-dark">{s.email}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          s.status === "confirmed"
-                            ? "bg-green-dark/10 text-green-dark"
-                            : s.status === "pending"
-                            ? "bg-gold-light/30 text-purple-dark"
-                            : "bg-gray-medium/20 text-gray-dark"
-                        }`}
-                      >
-                        {s.status}
+                    <td className="px-4 py-3 font-medium text-gray-dark [overflow-wrap:anywhere]">
+                      {s.email}
+                      <span className="mt-1 flex items-center gap-2 font-normal sm:hidden">
+                        {statusPill(s)}
+                        <span className="text-xs text-gray-dark/70">{formatDate(s.createdAt)}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-dark/80">{formatDate(s.createdAt)}</td>
-                    <td className="px-4 py-3 text-gray-dark/80">{formatDate(s.confirmedAt)}</td>
+                    <td className="hidden px-4 py-3 sm:table-cell">{statusPill(s)}</td>
+                    <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(s.createdAt)}</td>
+                    <td className="hidden px-4 py-3 text-gray-dark/80 md:table-cell">{formatDate(s.confirmedAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => deleteSubscriber(s.id)}
-                        className="text-xs font-medium text-red-600 hover:underline"
+                        className="py-1 text-xs font-medium text-red-600 hover:underline"
                       >
                         Delete
                       </button>
@@ -237,7 +245,7 @@ export default function MailingListPage() {
             <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
               <tr>
                 <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Sent</th>
+                <th className="hidden px-4 py-3 sm:table-cell">Sent</th>
                 <th className="px-4 py-3">Recipients</th>
                 <th className="px-4 py-3">Failed</th>
               </tr>
@@ -259,8 +267,11 @@ export default function MailingListPage() {
               )}
               {broadcasts.map((b) => (
                 <tr key={b.id} className="border-t border-gray-medium/30">
-                  <td className="px-4 py-3 font-medium text-gray-dark">{b.subject}</td>
-                  <td className="px-4 py-3 text-gray-dark/80">{formatDate(b.sentAt)}</td>
+                  <td className="px-4 py-3 font-medium text-gray-dark">
+                    {b.subject}
+                    <span className="mt-0.5 block text-xs font-normal text-gray-dark/70 sm:hidden">{formatDate(b.sentAt)}</span>
+                  </td>
+                  <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(b.sentAt)}</td>
                   <td className="px-4 py-3 text-gray-dark/80">{b.sentCount}</td>
                   <td
                     className={`px-4 py-3 ${

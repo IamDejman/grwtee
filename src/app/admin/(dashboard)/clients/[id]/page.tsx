@@ -38,7 +38,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
-      <div className="sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
+      <div className="sticky top-12 z-10 px-6 lg:top-0 lg:px-8 py-4 flex items-center justify-between" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
         <div className="flex items-center gap-3">
           <Link href="/admin/clients" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
             <ArrowLeft className="w-4 h-4" />
