@@ -10,6 +10,7 @@ export interface SlotRules {
   slotMinutes: number;
   minNoticeMinutes: number;
   windowDays: number;
+  lastDate: string | null; // last day calls can take place, Lagos YYYY-MM-DD
 }
 
 export interface BusyRange {
@@ -23,11 +24,22 @@ export const DEFAULT_RULES: SlotRules = {
   endHour: 15,
   slotMinutes: 30,
   minNoticeMinutes: 4 * 60,
-  windowDays: 60
+  windowDays: 60,
+  // December itself is for styling, not consultations.
+  lastDate: "2026-11-27"
 };
 
 const LAGOS_UTC_OFFSET_HOURS = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function lagosDay(t: number): string {
+  return new Date(t + LAGOS_UTC_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
+}
+
+/** True once the last booking day has passed in Lagos. */
+export function bookingClosed(now: Date, rules: SlotRules = DEFAULT_RULES): boolean {
+  return rules.lastDate !== null && lagosDay(now.getTime()) > rules.lastDate;
+}
 
 /** Open slot start times (ISO UTC), grouped by Lagos calendar date (YYYY-MM-DD). */
 export function generateSlots(
@@ -49,6 +61,7 @@ export function generateSlots(
   for (let d = 0; d < rules.windowDays; d++) {
     const dayStart = lagosMidnightUtc + d * DAY_MS;
     const lagosDate = new Date(dayStart + LAGOS_UTC_OFFSET_HOURS * 3_600_000);
+    if (rules.lastDate !== null && lagosDate.toISOString().slice(0, 10) > rules.lastDate) break;
     if (!rules.weekdays.includes(lagosDate.getUTCDay())) continue;
 
     const slots: string[] = [];

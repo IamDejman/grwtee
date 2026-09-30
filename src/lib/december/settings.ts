@@ -23,7 +23,8 @@ const rulesFields = z.object({
   endHour: z.number().int().min(1).max(24),
   slotMinutes: z.number().int().min(15).max(120),
   minNoticeMinutes: z.number().int().min(0).max(14 * 24 * 60),
-  windowDays: z.number().int().min(1).max(180)
+  windowDays: z.number().int().min(1).max(180),
+  lastDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
 });
 
 export const rulesSchema = rulesFields.refine((r) => r.endHour > r.startHour, {

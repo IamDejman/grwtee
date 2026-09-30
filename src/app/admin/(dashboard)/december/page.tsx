@@ -54,6 +54,7 @@ type Rules = {
   slotMinutes: number;
   minNoticeMinutes: number;
   windowDays: number;
+  lastDate: string | null;
 };
 
 type Settings = { rules: Rules; feeNgn: number | null; feeUsd: number | null; capacity: number | null };
@@ -152,7 +153,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
 
   const num = (v: string) => Number.parseInt(v, 10);
   const optional = (v: string) => (v.trim() ? num(v.replace(/[^\d]/g, "")) : null);
-  const setRule = (key: keyof Rules, value: string) => setRules((r) => ({ ...r, [key]: num(value) }));
+  const setRule = (key: Exclude<keyof Rules, "lastDate">, value: string) => setRules((r) => ({ ...r, [key]: num(value) }));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +254,14 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
           <Input label="Call length (minutes)" name="slotMinutes" autoComplete="off" type="number" min={15} max={120} step={15} value={rules.slotMinutes} onChange={(e) => setRule("slotMinutes", e.target.value)} />
           <Input label="Minimum notice (hours)" name="minNoticeHours" autoComplete="off" type="number" min={0} step={0.5} value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} />
           <Input label="Book up to (days ahead)" name="windowDays" autoComplete="off" type="number" min={1} max={180} value={rules.windowDays} onChange={(e) => setRule("windowDays", e.target.value)} />
+          <Input
+            label="Last day for calls"
+            name="lastDate"
+            autoComplete="off"
+            type="date"
+            value={rules.lastDate ?? ""}
+            onChange={(e) => setRules((r) => ({ ...r, lastDate: e.target.value || null }))}
+          />
         </div>
       </section>
 

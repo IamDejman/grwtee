@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { DecemberFlow } from "@/components/december/DecemberFlow";
 import { activeBookingCount, decemberEnabled } from "@/lib/december/booking";
+import { bookingClosed } from "@/lib/december/availability";
 import { feeLabel, getSettings } from "@/lib/december/settings";
 
 export const metadata: Metadata = {
@@ -23,8 +24,14 @@ export default async function DecemberPage() {
   if (!decemberEnabled()) notFound();
   const [requestHeaders, settings] = await Promise.all([headers(), getSettings()]);
   const country = requestHeaders.get("x-vercel-ip-country")?.toUpperCase() ?? "";
-  const full = settings.capacity !== null && (await activeBookingCount().catch(() => 0)) >= settings.capacity;
+  const closed = bookingClosed(new Date(), settings.rules);
+  const full = !closed && settings.capacity !== null && (await activeBookingCount().catch(() => 0)) >= settings.capacity;
   return (
-    <DecemberFlow initialCountry={isSupportedCountry(country) ? country : ""} fee={feeLabel(settings)} full={full} />
+    <DecemberFlow
+      initialCountry={isSupportedCountry(country) ? country : ""}
+      fee={feeLabel(settings)}
+      full={full}
+      closed={closed}
+    />
   );
 }

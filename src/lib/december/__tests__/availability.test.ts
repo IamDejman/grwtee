@@ -1,4 +1,4 @@
-import { DEFAULT_RULES, generateSlots } from "../availability";
+import { bookingClosed, DEFAULT_RULES, generateSlots } from "../availability";
 
 describe("generateSlots", () => {
   it("matches the Calendly rules: weekdays, 11:00 to 15:00 Lagos, 8 slots", () => {
@@ -25,6 +25,24 @@ describe("generateSlots", () => {
     const days = generateSlots(new Date("2026-09-30T08:44:00Z"));
     const last = [...days.keys()].at(-1);
     expect(last).toBe("2026-11-27"); // last weekday before 29 Nov, as on Calendly
+  });
+
+  it("never offers times after the last booking day", () => {
+    const days = generateSlots(new Date("2026-10-20T08:00:00Z"));
+    expect([...days.keys()].at(-1)).toBe("2026-11-27");
+    expect([...days.keys()].some((d) => d.startsWith("2026-12"))).toBe(false);
+  });
+
+  it("offers December when there is no last day", () => {
+    const days = generateSlots(new Date("2026-10-20T08:00:00Z"), { ...DEFAULT_RULES, lastDate: null });
+    expect([...days.keys()].some((d) => d.startsWith("2026-12"))).toBe(true);
+  });
+
+  it("closes bookings after the last day in Lagos", () => {
+    expect(bookingClosed(new Date("2026-11-27T22:59:00Z"))).toBe(false); // 23:59 Lagos, 27 Nov
+    expect(bookingClosed(new Date("2026-11-27T23:00:00Z"))).toBe(true); // 00:00 Lagos, 28 Nov
+    expect(generateSlots(new Date("2026-11-28T08:00:00Z")).size).toBe(0);
+    expect(bookingClosed(new Date("2026-12-10T12:00:00Z"), { ...DEFAULT_RULES, lastDate: null })).toBe(false);
   });
 
   it("removes slots that overlap busy time", () => {
