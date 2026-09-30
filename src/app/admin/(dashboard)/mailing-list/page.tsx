@@ -115,9 +115,6 @@ export default function MailingListPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Mailing list
           </h1>
-          <p className="mt-1 text-sm text-gray-dark/70">
-            Manage subscribers and send broadcasts.
-          </p>
         </div>
         <Link href="/admin/mailing-list/new">
           <Button>New broadcast</Button>

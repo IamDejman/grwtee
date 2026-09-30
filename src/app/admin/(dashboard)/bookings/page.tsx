@@ -177,9 +177,6 @@ export default function AdminBookingsPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Booking Requests
           </h1>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Review, update status, export, and manage client submissions.
-          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={load} disabled={loading}>

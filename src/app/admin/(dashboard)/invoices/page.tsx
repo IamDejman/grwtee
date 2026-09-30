@@ -344,19 +344,6 @@ export default function AdminInvoicesPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Invoices
           </h1>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Create and manage client invoices. Download as PDF.
-          </p>
-          <p className="mt-1 text-xs text-gray-dark/70">
-            Bank/payment details shown on invoices are managed in{" "}
-            <Link
-              href="/admin/settings"
-              className="font-semibold text-green-dark underline hover:text-purple-dark"
-            >
-              Settings
-            </Link>
-            .
-          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={load} disabled={loading}>
@@ -707,10 +694,6 @@ export default function AdminInvoicesPage() {
               <div>
                 <p className="text-sm font-semibold text-gray-dark">
                   Payment accounts on this invoice
-                </p>
-                <p className="mt-1 text-xs text-gray-dark/70">
-                  By default, all active {currency} accounts will be shown on the
-                  PDF. Check specific ones below to override.
                 </p>
               </div>
               {selectedAccountIds !== null ? (

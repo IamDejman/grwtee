@@ -5,11 +5,16 @@ import { DEFAULT_RULES, type SlotRules } from "./availability";
 /**
  * Admin-editable December settings, stored in SiteSettings:
  * - december_rules: JSON (any subset of SlotRules), falls back to the Calendly defaults
- * - december_fee: free text shown to clients, e.g. "₦50,000 / $40"; empty hides the fee
+ * - december_fee_ngn / december_fee_usd: whole-number amounts; both empty hides the fee
  * - december_capacity: max active bookings; empty means unlimited
  */
 
-const KEYS = { rules: "december_rules", fee: "december_fee", capacity: "december_capacity" } as const;
+const KEYS = {
+  rules: "december_rules",
+  feeNgn: "december_fee_ngn",
+  feeUsd: "december_fee_usd",
+  capacity: "december_capacity"
+} as const;
 
 // Kept separate from the refinement so a saved partial setting can be read field by field.
 const rulesFields = z.object({
@@ -28,11 +33,24 @@ export const rulesSchema = rulesFields.refine((r) => r.endHour > r.startHour, {
 
 export const settingsSchema = z.object({
   rules: rulesSchema,
-  fee: z.string().trim().max(120),
+  feeNgn: z.number().int().min(1).max(100_000_000).nullable(),
+  feeUsd: z.number().int().min(1).max(1_000_000).nullable(),
   capacity: z.number().int().min(1).max(10_000).nullable()
 });
 
 export type DecemberSettings = z.infer<typeof settingsSchema>;
+
+const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+/** The fee as shown to clients, e.g. "₦50,000 / $40"; empty when no fee is set. */
+export function feeLabel({ feeNgn, feeUsd }: Pick<DecemberSettings, "feeNgn" | "feeUsd">): string {
+  return [feeNgn && `₦${amount.format(feeNgn)}`, feeUsd && `$${amount.format(feeUsd)}`].filter(Boolean).join(" / ");
+}
+
+function positiveInt(raw: string | undefined): number | null {
+  const n = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 async function readAll(): Promise<Record<string, string>> {
   const rows = await prisma.siteSettings.findMany({ where: { key: { in: Object.values(KEYS) } } });
@@ -57,15 +75,15 @@ function parseRules(raw: string | undefined): SlotRules {
 export async function getSettings(): Promise<DecemberSettings> {
   try {
     const values = await readAll();
-    const capacity = Number.parseInt(values[KEYS.capacity] ?? "", 10);
     return {
       rules: parseRules(values[KEYS.rules]),
-      fee: values[KEYS.fee] ?? "",
-      capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null
+      feeNgn: positiveInt(values[KEYS.feeNgn]),
+      feeUsd: positiveInt(values[KEYS.feeUsd]),
+      capacity: positiveInt(values[KEYS.capacity])
     };
   } catch (err) {
     console.error("[December] Could not read settings, using defaults", err);
-    return { rules: DEFAULT_RULES, fee: "", capacity: null };
+    return { rules: DEFAULT_RULES, feeNgn: null, feeUsd: null, capacity: null };
   }
 }
 
@@ -76,7 +94,8 @@ export async function getRules(): Promise<SlotRules> {
 export async function saveSettings(settings: DecemberSettings): Promise<void> {
   const entries: [string, string][] = [
     [KEYS.rules, JSON.stringify(settings.rules)],
-    [KEYS.fee, settings.fee],
+    [KEYS.feeNgn, settings.feeNgn === null ? "" : String(settings.feeNgn)],
+    [KEYS.feeUsd, settings.feeUsd === null ? "" : String(settings.feeUsd)],
     [KEYS.capacity, settings.capacity === null ? "" : String(settings.capacity)]
   ];
   await prisma.$transaction(

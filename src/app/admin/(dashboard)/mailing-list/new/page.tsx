@@ -190,10 +190,6 @@ export default function NewBroadcastPage() {
           <h1 className="mt-1 font-heading text-2xl font-semibold text-purple-dark">
             New broadcast
           </h1>
-          <p className="mt-1 text-sm text-gray-dark/70">
-            Compose your email on the left. The live preview on the right shows
-            exactly what recipients will see.
-          </p>
         </div>
       </div>
 
@@ -276,10 +272,6 @@ export default function NewBroadcastPage() {
                 className="min-h-[340px] px-4 py-3 text-sm leading-relaxed text-gray-dark focus:outline-none [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-purple-dark [&_p]:mb-3 [&_a]:text-green-dark [&_a]:underline [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-dark/60">
-              Every email automatically gets the GRWTEE header and unsubscribe
-              footer.
-            </p>
           </div>
 
           <div className="rounded-lg border border-gray-medium/40 bg-cream-light/60 p-4">

@@ -50,7 +50,6 @@ export default async function MessagesPage() {
               <MessageSquare className="w-5 h-5" style={{ color: '#B0A0C4' }} />
             </div>
             <p className="text-sm font-medium" style={{ color: '#5A4D6A' }}>No messages yet</p>
-            <p className="text-xs" style={{ color: '#9A8DAA' }}>Client conversations will appear here</p>
           </div>
         ) : (
           <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>

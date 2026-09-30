@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
 import { briefRows, describeSlot, formatSlot, whatsappLink } from "./format";
-import { getSettings } from "./settings";
+import { feeLabel, getSettings } from "./settings";
 
 /**
  * December emails. Inline styles only; palette mirrors the /december flow (night, gold, cream).
@@ -93,7 +93,7 @@ function accountLines(a: PaymentAccount): string[] {
 }
 
 export async function paymentSection(): Promise<{ html: string; text: string }> {
-  const { fee } = await getSettings();
+  const fee = feeLabel(await getSettings());
   if (!fee) return { html: "", text: "" };
   const accounts = decryptPaymentAccounts(
     await prisma.paymentAccount.findMany({ where: { active: true }, orderBy: [{ order: "asc" }, { createdAt: "asc" }] })
