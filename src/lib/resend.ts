@@ -6,6 +6,7 @@ export type SendEmailOptions = {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 };
 
 /**
@@ -33,7 +34,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
     to: options.to,
     subject: options.subject,
     html: options.html,
-    text: options.text
+    text: options.text,
+    replyTo: options.replyTo
   });
 
   if (error) {

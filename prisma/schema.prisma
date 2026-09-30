@@ -230,3 +230,63 @@ model Broadcast {
 }
 
 
+
+// Lagos in December consultation bookings (/december). Times are UTC.
+model DecemberBooking {
+  id              String    @id @default(cuid())
+  // "scheduled" | "paid" | "cancelled"
+  status          String    @default("scheduled")
+  // Client-generated id so a retried request can't book twice.
+  clientRef       String    @unique
+  name            String
+  email           String
+  whatsapp        String // E.164
+  country         String
+  occasions       String[]
+  otherOccasion   String?
+  looks           Int
+  // [{ day: 1-31, title }] December plans from the timeline builder
+  events          Json
+  plans           String?
+  styleWords      String[]
+  styleNotes      String?
+  styleLinks      String[]
+  comments        String?
+  consentAt       DateTime
+  timezone        String // client's IANA zone, for emails
+  slotStart       DateTime
+  slotEnd         DateTime
+  // Mirrors slotStart while the booking holds its slot; null once cancelled or failed.
+  // The unique index is what stops two clients booking the same time.
+  heldSlot        DateTime? @unique
+  googleEventId   String?
+  meetUrl         String?
+  // SHA-256 of the token in the client's manage link
+  manageTokenHash String    @unique
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  reminder24hAt   DateTime? // when the "tomorrow" reminder was sent
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([slotStart])
+}
+
+// Progress saved once a client passes the contact step, so the stylist can follow up on
+// anyone who stops before booking. Marked booked by clientRef when they finish.
+model DecemberDraft {
+  id        String    @id @default(cuid())
+  clientRef String    @unique
+  name      String
+  email     String
+  whatsapp  String // E.164
+  country   String
+  step      String // last screen reached
+  brief     Json
+  bookedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([bookedAt, updatedAt])
+}
