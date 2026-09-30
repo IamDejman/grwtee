@@ -41,7 +41,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.70.0",
     "react-masonry-css": "^1.0.16",
-    "resend": "^6.9.3",
+    "resend": "^6.30.0",
     "sharp": "^0.33.5",
     "zod": "^4.6.5"
   },
