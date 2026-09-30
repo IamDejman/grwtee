@@ -48,7 +48,7 @@ export function Footer() {
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";
 
   // Hide the public footer on admin routes.
-  if (pathname?.startsWith("/admin")) return null;
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/december")) return null;
 
   return (
     <footer className="pattern-dark">

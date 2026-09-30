@@ -30,5 +30,11 @@
         }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/december-reminders",
+      "schedule": "0 7 * * *"
+    }
   ]
 }

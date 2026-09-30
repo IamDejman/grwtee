@@ -6,6 +6,7 @@ const websiteLinks = [
   { href: "/admin/gallery", label: "Gallery" },
   { href: "/admin/services", label: "Services" },
   { href: "/admin/bookings", label: "Bookings" },
+  { href: "/admin/december", label: "December" },
   { href: "/admin/invoices", label: "Invoices" },
   { href: "/admin/mailing-list", label: "Mailing list" },
   { href: "/admin/waitlist", label: "Waitlist" },

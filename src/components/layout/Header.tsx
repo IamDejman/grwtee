@@ -50,7 +50,7 @@ export function Header() {
   }, []);
 
   // Hide the public site header on admin routes — admin has its own chrome.
-  if (pathname?.startsWith("/admin")) return null;
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/december")) return null;
 
   const instagramUrl =
     process.env.NEXT_PUBLIC_INSTAGRAM_URL || "https://instagram.com/grwtee";

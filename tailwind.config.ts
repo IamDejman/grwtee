@@ -27,6 +27,14 @@ const config: Config = {
           medium: "#E0E0E0",
           dark: "#2C3E50"
         },
+        // December booking flow (after-dark)
+        night: {
+          DEFAULT: "#160F1F",
+          raised: "#211830",
+          line: "#3A2D4D"
+        },
+        lilac: "#B3A6C6",
+        coral: "#F2A391",
         // Obsidian Atelier — stylist dashboard design system
         atelier: {
           void: "#0D0A14",
