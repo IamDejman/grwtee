@@ -22,5 +22,5 @@ export const passwordPolicySchema = z
 export function validatePassword(password: string): { ok: true } | { ok: false; message: string } {
   const result = passwordPolicySchema.safeParse(password);
   if (result.success) return { ok: true };
-  return { ok: false, message: result.error.errors[0]?.message ?? "Invalid password" };
+  return { ok: false, message: result.error.issues[0]?.message ?? "Invalid password" };
 }

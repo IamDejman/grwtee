@@ -11,16 +11,20 @@ import { DEFAULT_RULES, type SlotRules } from "./availability";
 
 const KEYS = { rules: "december_rules", fee: "december_fee", capacity: "december_capacity" } as const;
 
-export const rulesSchema = z
-  .object({
-    weekdays: z.array(z.number().int().min(0).max(6)).min(1),
-    startHour: z.number().int().min(0).max(23),
-    endHour: z.number().int().min(1).max(24),
-    slotMinutes: z.number().int().min(15).max(120),
-    minNoticeMinutes: z.number().int().min(0).max(14 * 24 * 60),
-    windowDays: z.number().int().min(1).max(180)
-  })
-  .refine((r) => r.endHour > r.startHour, { message: "End hour must be after start hour", path: ["endHour"] });
+// Kept separate from the refinement so a saved partial setting can be read field by field.
+const rulesFields = z.object({
+  weekdays: z.array(z.number().int().min(0).max(6)).min(1),
+  startHour: z.number().int().min(0).max(23),
+  endHour: z.number().int().min(1).max(24),
+  slotMinutes: z.number().int().min(15).max(120),
+  minNoticeMinutes: z.number().int().min(0).max(14 * 24 * 60),
+  windowDays: z.number().int().min(1).max(180)
+});
+
+export const rulesSchema = rulesFields.refine((r) => r.endHour > r.startHour, {
+  message: "End hour must be after start hour",
+  path: ["endHour"]
+});
 
 export const settingsSchema = z.object({
   rules: rulesSchema,
@@ -38,7 +42,7 @@ async function readAll(): Promise<Record<string, string>> {
 function parseRules(raw: string | undefined): SlotRules {
   if (!raw) return DEFAULT_RULES;
   try {
-    const partial = rulesSchema.innerType().partial().safeParse(JSON.parse(raw));
+    const partial = rulesFields.partial().safeParse(JSON.parse(raw));
     if (partial.success) {
       const merged = { ...DEFAULT_RULES, ...partial.data };
       if (merged.endHour > merged.startHour) return merged;

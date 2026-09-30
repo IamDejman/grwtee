@@ -37,7 +37,7 @@ export async function PUT(req: Request) {
   const parsed = schema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: parsed.error.errors[0]?.message ?? "Invalid request" },
+      { success: false, error: parsed.error.issues[0]?.message ?? "Invalid request" },
       { status: 400 }
     );
   }
