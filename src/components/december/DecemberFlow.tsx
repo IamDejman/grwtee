@@ -134,12 +134,14 @@ function GoldThread({ index }: { index: number }) {
 
 function Intro({
   full,
+  closed,
   resumeName,
   onStart,
   onResume,
   headingRef
 }: {
   full: boolean;
+  closed: boolean;
   resumeName: string | null;
   onStart: () => void;
   onResume: () => void;
@@ -169,7 +171,7 @@ function Intro({
       >
         Concerts, brunches, dinners and nights that run late. Tell us what&apos;s on your calendar and
         we&apos;ll curate a look for each occasion.
-        {full ? null : " It takes about three minutes, then you choose a time for your consultation."}
+        {full || closed ? null : " It takes about three minutes, then you choose a time for your consultation."}
       </motion.p>
       <motion.div
         className="mt-10 flex flex-wrap items-center gap-6"
@@ -177,7 +179,11 @@ function Intro({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.1, duration: 0.7, ease: EASE }}
       >
-        {full ? (
+        {closed ? (
+          <p className="font-body text-base text-gold">
+            Bookings for December have closed. Thank you, and we&apos;ll see you next season.
+          </p>
+        ) : full ? (
           <p className="font-body text-base text-gold">
             December is fully booked. Thank you, and we&apos;ll see you next season.
           </p>
@@ -204,7 +210,17 @@ function Intro({
   );
 }
 
-export function DecemberFlow({ initialCountry, fee, full }: { initialCountry: string; fee: string; full: boolean }) {
+export function DecemberFlow({
+  initialCountry,
+  fee,
+  full,
+  closed
+}: {
+  initialCountry: string;
+  fee: string;
+  full: boolean;
+  closed: boolean;
+}) {
   const reduce = useReducedMotion();
   const [brief, setBrief] = useState<DecemberBrief>(() => emptyBrief(initialCountry));
   const [step, setStep] = useState<Step>("intro");
@@ -300,6 +316,7 @@ export function DecemberFlow({ initialCountry, fee, full }: { initialCountry: st
     intro: (
       <Intro
         full={full}
+        closed={closed}
         resumeName={saved ? firstName(saved.brief.name) : null}
         headingRef={headingRef}
         onStart={() => {
