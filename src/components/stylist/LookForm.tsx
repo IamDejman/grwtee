@@ -195,8 +195,12 @@ export function LookForm({ initialData }: LookFormProps) {
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.url) setPrimaryImageUrl(data.url)
+      const data = (await res.json().catch(() => null)) as { data?: { imageUrl?: string }; error?: string } | null
+      if (!res.ok || !data?.data?.imageUrl) throw new Error(data?.error || 'Image upload failed. Try again.')
+      setPrimaryImageUrl(data.data.imageUrl)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed. Try again.')
     } finally {
       setUploadingImage(false)
     }

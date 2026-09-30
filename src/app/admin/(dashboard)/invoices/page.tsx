@@ -8,6 +8,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { formatDate } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -131,7 +132,9 @@ export default function AdminInvoicesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   // Form state
   const [clientName, setClientName] = useState("");
@@ -240,19 +243,19 @@ export default function AdminInvoicesPage() {
 
   const create = async () => {
     if (!clientName.trim()) {
-      setError("Client name is required.");
+      setFormError("Client name is required.");
       return;
     }
     if (!lineDrafts.length || lineDrafts.some((i) => !i.description.trim())) {
-      setError("All line items need a description.");
+      setFormError("All line items need a description.");
       return;
     }
     if (lineDrafts.some((i) => !(parseAmount(i.unitPrice) > 0))) {
-      setError("Each line item needs a unit price greater than 0.");
+      setFormError("Each line item needs a unit price greater than 0.");
       return;
     }
     setSubmitting(true);
-    setError(null);
+    setFormError(null);
     try {
       const res = await adminFetch("/api/invoices", {
         method: "POST",
@@ -282,7 +285,7 @@ export default function AdminInvoicesPage() {
       await load();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create invoice.";
-      setError(msg);
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -307,7 +310,13 @@ export default function AdminInvoicesPage() {
   };
 
   const remove = async (inv: Invoice) => {
-    if (!confirm(`Delete invoice ${inv.invoiceNumber}?`)) return;
+    const ok = await confirm({
+      title: `Delete invoice ${inv.invoiceNumber}?`,
+      body: `${inv.clientName}. This can't be undone.`,
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     setLoading(true);
     try {
       const res = await adminFetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
@@ -349,7 +358,14 @@ export default function AdminInvoicesPage() {
           <Button variant="outline" onClick={load} disabled={loading}>
             Refresh
           </Button>
-          <Button onClick={() => setShowForm(true)}>New Invoice</Button>
+          <Button
+            onClick={() => {
+              setFormError(null);
+              setShowForm(true);
+            }}
+          >
+            New Invoice
+          </Button>
         </div>
       </div>
 
@@ -800,6 +816,12 @@ export default function AdminInvoicesPage() {
             />
           </div>
 
+          {formError ? (
+            <p className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
           <div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <Button variant="outline" onClick={() => setShowForm(false)} type="button">
               Cancel
@@ -810,6 +832,7 @@ export default function AdminInvoicesPage() {
           </div>
         </div>
       </Modal>
+      {dialog}
     </div>
   );
 }

@@ -94,11 +94,6 @@ export function EnvSettingsPanel() {
       <h2 className="font-heading text-xl font-semibold text-purple-dark">
         Integration settings
       </h2>
-      <p className="mt-2 text-sm text-gray-dark/80">
-        Store API keys in the database when Vercel env vars are unavailable. Values are
-        never shown after saving — enter a new value to replace. Requires your current
-        password.
-      </p>
 
       {error ? (
         <p className="mt-3 text-sm text-red-600" role="alert">

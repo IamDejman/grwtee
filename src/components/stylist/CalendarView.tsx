@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { ChevronLeft, ChevronRight, X, Check, Globe } from 'lucide-react'
 
 const MONTHS = [
@@ -81,6 +82,8 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [lookSearch, setLookSearch] = useState('')
+  const [error, setError] = useState('')
+  const { confirm, dialog } = useConfirm()
 
   const daysInMonth = getDaysInMonth(month, year)
   const firstDay = getFirstDayOfMonth(month, year)
@@ -120,7 +123,8 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ month, year, title: `${MONTHS[month - 1]} ${year}` })
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.calendar?.id) throw new Error('calendar')
     setLocalCalendar(data.calendar)
     return data.calendar.id as string
   }
@@ -128,6 +132,7 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
   async function saveDay() {
     if (!selectedDate) return
     setSaving(true)
+    setError('')
 
     try {
       const calendarId = await ensureCalendar()
@@ -145,7 +150,11 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
           return [...filtered, data.day]
         })
         closePanel()
+      } else {
+        setError("Couldn't save this day. Try again.")
       }
+    } catch {
+      setError("Couldn't save this day. Try again.")
     } finally {
       setSaving(false)
     }
@@ -159,9 +168,21 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
       return
     }
 
-    await fetch(`/api/stylist/calendar/${localCalendar.id}/days?date=${selectedDate}`, {
-      method: 'DELETE'
+    const ok = await confirm({
+      title: 'Clear this day?',
+      body: 'The look planned for this day will be removed from the calendar.',
+      confirmLabel: 'Clear',
+      danger: true
     })
+    if (!ok) return
+    setError('')
+    const res = await fetch(`/api/stylist/calendar/${localCalendar.id}/days?date=${selectedDate}`, {
+      method: 'DELETE'
+    }).catch(() => null)
+    if (!res?.ok) {
+      setError("Couldn't clear this day. Try again.")
+      return
+    }
     setLocalDays((prev) => prev.filter((d) => d.date !== selectedDate))
     closePanel()
   }
@@ -169,6 +190,7 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
   async function togglePublish() {
     if (!localCalendar) return
     setPublishing(true)
+    setError('')
     try {
       const res = await fetch(`/api/stylist/calendar/${localCalendar.id}`, {
         method: 'PATCH',
@@ -179,7 +201,11 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
         setLocalCalendar((prev) =>
           prev ? { ...prev, is_published: !prev.is_published } : prev
         )
+      } else {
+        setError(`Couldn't ${localCalendar.is_published ? 'unpublish' : 'publish'} this month. Try again.`)
       }
+    } catch {
+      setError(`Couldn't ${localCalendar.is_published ? 'unpublish' : 'publish'} this month. Try again.`)
     } finally {
       setPublishing(false)
     }
@@ -187,12 +213,12 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
 
   function prevMonth() {
     const d = month === 1 ? { m: 12, y: year - 1 } : { m: month - 1, y: year }
-    router.push(`/stylist/calendar?month=${d.m}&year=${d.y}`)
+    router.push(`/admin/calendar?month=${d.m}&year=${d.y}`)
   }
 
   function nextMonth() {
     const d = month === 12 ? { m: 1, y: year + 1 } : { m: month + 1, y: year }
-    router.push(`/stylist/calendar?month=${d.m}&year=${d.y}`)
+    router.push(`/admin/calendar?month=${d.m}&year=${d.y}`)
   }
 
   const filteredLooks = looks.filter((l) =>
@@ -204,6 +230,7 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
 
   return (
     <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
+      {dialog}
       {/* Header */}
       <div
         className="sticky top-0 z-10 px-6 lg:px-8 py-5 flex items-center justify-between"
@@ -264,6 +291,12 @@ export function CalendarView({ stylistId, month, year, calendar, days, looks }: 
           {localCalendar?.is_published ? 'Published' : 'Publish Month'}
         </button>
       </div>
+
+      {error ? (
+        <p className="mx-4 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 lg:mx-6" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className="px-4 lg:px-6 py-6 flex gap-6">
         {/* Calendar grid */}
