@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
-import Link from 'next/link'
-
-const LOOKBOOK_TYPES = [
-  'quick_trip', 'special_occasion', 'conference',
-  'birthday', 'wedding', 'vacation', 'custom'
-]
-const STATUSES = ['draft', 'requested', 'accepted', 'completed']
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { Textarea } from '@/components/ui/Textarea'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { Panel, SwitchRow } from '@/components/admin/ui'
+import { useToast } from '@/components/admin/Toast'
+import { ChipPicker, EditorHeader, ImageField, ItemCard } from '@/components/stylist/FormParts'
+import { LOOKBOOK_STATUSES, LOOKBOOK_TYPES } from '@/lib/stylist-labels'
 
 interface LookbookItem {
   id?: string
@@ -23,7 +24,11 @@ interface LookbookItem {
   sort_order: number
 }
 
+export type ClientOption = { id: string; name: string }
+
 interface LookbookFormProps {
+  clients: ClientOption[]
+  defaultClientId?: string
   initialData?: {
     id: string
     title: string
@@ -41,8 +46,10 @@ interface LookbookFormProps {
   }
 }
 
-export function LookbookForm({ initialData }: LookbookFormProps) {
+export function LookbookForm({ clients, defaultClientId, initialData }: LookbookFormProps) {
   const router = useRouter()
+  const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   const isEdit = !!initialData?.id
 
   const [title, setTitle] = useState(initialData?.title ?? '')
@@ -53,38 +60,50 @@ export function LookbookForm({ initialData }: LookbookFormProps) {
   const [dateStart, setDateStart] = useState(initialData?.event_date_start?.split('T')[0] ?? '')
   const [dateEnd, setDateEnd] = useState(initialData?.event_date_end?.split('T')[0] ?? '')
   const [status, setStatus] = useState(initialData?.status ?? 'draft')
-  const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to ?? '')
+  const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to ?? defaultClientId ?? '')
   const [isPublished, setIsPublished] = useState(initialData?.is_published ?? false)
   const [showInFeed, setShowInFeed] = useState(initialData?.show_in_feed ?? false)
-  const [items, setItems] = useState<LookbookItem[]>(initialData?.lookbook_items ?? [])
-  const [saving, setSaving] = useState(false)
+  const [items, setItems] = useState<LookbookItem[]>(
+    (initialData?.lookbook_items ?? []).map((item) => ({ ...item, price: item.price == null ? '' : String(item.price) }))
+  )
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [titleError, setTitleError] = useState('')
 
-  function addItem() {
-    setItems((prev) => [
-      ...prev,
-      { name: '', brand: '', category: 'top', image_url: '', price: '', purchase_url: '', notes: '', sort_order: prev.length }
-    ])
-  }
+  // Keep a client who is no longer in the list selectable, so saving doesn't silently unassign them.
+  const clientOptions = [
+    { value: '', label: 'No one (general lookbook)' },
+    ...clients.map((c) => ({ value: c.id, label: c.name })),
+    ...(assignedTo && !clients.some((c) => c.id === assignedTo) ? [{ value: assignedTo, label: 'Current client' }] : [])
+  ]
 
   function updateItem(idx: number, field: keyof LookbookItem, value: string) {
     setItems((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)))
   }
 
-  function removeItem(idx: number) {
-    setItems((prev) => prev.filter((_, i) => i !== idx))
-  }
-
-  async function handleSave() {
-    if (!title.trim()) { setError('Title is required.'); return }
-    setSaving(true)
+  async function save() {
+    if (!title.trim()) {
+      setTitleError('Give the lookbook a title.')
+      document.getElementById('lookbook-title')?.focus()
+      return
+    }
+    if (dateStart && dateEnd && dateEnd < dateStart) {
+      setError('The end date is before the start date.')
+      return
+    }
+    if (items.some((item) => !item.name.trim())) {
+      setError('Every item needs a name, or remove the empty ones.')
+      return
+    }
+    setTitleError('')
     setError('')
+    setBusy(true)
 
     const body = {
       title: title.trim(),
       type,
-      custom_type: type === 'custom' ? customType : null,
-      description: description || null,
+      custom_type: type === 'custom' ? customType.trim() || null : null,
+      description: description.trim() || null,
       cover_image_url: coverImageUrl || null,
       event_date_start: dateStart || null,
       event_date_end: dateEnd || null,
@@ -92,210 +111,168 @@ export function LookbookForm({ initialData }: LookbookFormProps) {
       assigned_to: assignedTo || null,
       is_published: isPublished,
       show_in_feed: showInFeed,
-      items: items.map((item, i) => ({ ...item, sort_order: i }))
+      items: items.map((item, i) => ({ ...item, price: item.price.replace(/[^0-9.]/g, ''), sort_order: i }))
     }
 
     try {
-      const url = isEdit ? `/api/stylist/lookbooks/${initialData.id}` : '/api/stylist/lookbooks'
-      const method = isEdit ? 'PUT' : 'POST'
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(isEdit ? `/api/stylist/lookbooks/${initialData.id}` : '/api/stylist/lookbooks', {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
-
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? 'Failed to save.')
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        setError(data?.error ?? "Couldn't save the lookbook. Try again.")
         return
       }
-
+      toast.success('Lookbook saved.')
       router.push('/admin/lookbooks')
       router.refresh()
     } catch {
-      setError('Something went wrong.')
+      setError("Couldn't save the lookbook. Check your connection and try again.")
     } finally {
-      setSaving(false)
+      setBusy(false)
     }
   }
 
-  const inputStyle = {
-    borderColor: '#D4C9BB',
-    backgroundColor: '#FFFFFF',
-    color: '#1A1428',
-    fontFamily: 'var(--font-dm-sans), DM Sans, sans-serif'
+  async function remove() {
+    if (!initialData) return
+    const ok = await confirm({
+      title: `Delete "${initialData.title}"?`,
+      body: "The client will no longer see it. This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/stylist/lookbooks/${initialData.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success('Lookbook deleted.')
+      router.push('/admin/lookbooks')
+      router.refresh()
+    } catch {
+      toast.error("Couldn't delete the lookbook. Try again.")
+      setBusy(false)
+    }
   }
 
   return (
-    <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
-      {/* Header */}
-      <div
-        className="sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between"
-        style={{
-          backgroundColor: 'rgba(248,245,238,0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #EAE4D8'
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <Link href="/admin/lookbooks" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <h1 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>
-            {isEdit ? 'Edit Lookbook' : 'New Lookbook'}
-          </h1>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 h-9 rounded-xl text-sm font-medium"
-          style={{ backgroundColor: '#422D64', color: '#FFFFFF', opacity: saving ? 0.7 : 1 }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
+    <div>
+      {dialog}
+      <EditorHeader
+        backHref="/admin/lookbooks"
+        backLabel="Back to lookbooks"
+        title={isEdit ? 'Edit lookbook' : 'New lookbook'}
+        actions={
+          <>
+            {isEdit ? (
+              <Button size="sm" variant="ghost" className="!text-red-600 hover:!bg-red-50" disabled={busy} onClick={() => void remove()}>
+                Delete
+              </Button>
+            ) : null}
+            <Button size="sm" loading={busy} onClick={() => void save()}>
+              Save
+            </Button>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="mx-6 lg:mx-8 mt-4 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: '#FEF2F2', color: '#C0392B', border: '1px solid #FECACA' }}>
+      {error ? (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      <div className="px-6 lg:px-8 py-6 max-w-3xl space-y-6">
-        {/* Basic info */}
-        <div className="rounded-2xl p-6 space-y-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-          <h2 className="text-xl font-light mb-2" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Details</h2>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Title *</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Wedding Weekend" className="w-full px-4 h-11 rounded-xl border text-sm outline-none" style={inputStyle} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Type</label>
-            <div className="flex flex-wrap gap-2">
-              {LOOKBOOK_TYPES.map((t) => (
-                <button key={t} type="button" onClick={() => setType(t)}
-                  className="px-3 h-8 rounded-full text-xs font-medium capitalize transition-all"
-                  style={{ backgroundColor: type === t ? '#422D64' : '#F2EDF8', color: type === t ? '#FFFFFF' : '#5A4D6A' }}>
-                  {t.replace(/_/g, ' ')}
-                </button>
-              ))}
-            </div>
-            {type === 'custom' && (
-              <input type="text" value={customType} onChange={(e) => setCustomType(e.target.value)} placeholder="Custom type name" className="mt-2 w-full px-4 h-10 rounded-xl border text-sm outline-none" style={inputStyle} />
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this lookbook for?" rows={3} className="w-full px-4 py-3 rounded-xl border text-sm outline-none resize-none" style={inputStyle} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Cover Image URL</label>
-            <input type="url" value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://…" className="w-full px-4 h-11 rounded-xl border text-sm outline-none" style={inputStyle} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Event Start</label>
-              <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className="w-full px-4 h-11 rounded-xl border text-sm outline-none" style={inputStyle} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Event End</label>
-              <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="w-full px-4 h-11 rounded-xl border text-sm outline-none" style={inputStyle} />
-            </div>
-          </div>
-        </div>
-
-        {/* Assignment & Status */}
-        <div className="rounded-2xl p-6 space-y-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-          <h2 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Assignment</h2>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Client ID (assigned to)</label>
-            <input type="text" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Client user ID" className="w-full px-4 h-11 rounded-xl border text-sm outline-none" style={inputStyle} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>Status</label>
-            <div className="flex gap-2 flex-wrap">
-              {STATUSES.map((s) => (
-                <button key={s} type="button" onClick={() => setStatus(s)}
-                  className="px-3 h-8 rounded-full text-xs font-medium capitalize transition-all"
-                  style={{ backgroundColor: status === s ? '#422D64' : '#F2EDF8', color: status === s ? '#FFFFFF' : '#5A4D6A' }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              { label: 'Published', sub: 'Visible to assigned client', value: isPublished, set: setIsPublished },
-              { label: 'Show in Feed', sub: 'Visible to all clients in discovery feed', value: showInFeed, set: setShowInFeed }
-            ].map(({ label, sub, value, set }) => (
-              <div key={label} className="flex items-center justify-between p-4 rounded-xl" style={{ backgroundColor: '#F8F5EE' }}>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: '#1A1428' }}>{label}</p>
-                  <p className="text-xs" style={{ color: '#9A8DAA' }}>{sub}</p>
-                </div>
-                <button type="button" onClick={() => set(!value)} className="w-11 h-6 rounded-full relative transition-all" style={{ backgroundColor: value ? '#422D64' : '#D4C9BB' }}>
-                  <div className="w-4 h-4 rounded-full bg-white absolute top-1 transition-all" style={{ left: value ? 'calc(100% - 20px)' : '4px' }} />
-                </button>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="space-y-5">
+          <Panel title="Details">
+            <div className="space-y-4">
+              <Input
+                id="lookbook-title"
+                label="Title"
+                required
+                value={title}
+                error={titleError || undefined}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Lagos wedding weekend"
+              />
+              <ChipPicker label="Type" options={LOOKBOOK_TYPES} selected={[type]} onToggle={setType} />
+              {type === 'custom' ? (
+                <Input label="Custom type" value={customType} onChange={(e) => setCustomType(e.target.value)} placeholder="e.g. Graduation" />
+              ) : null}
+              <Textarea
+                label="Description"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What is this lookbook for?"
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input label="Event starts" type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
+                <Input label="Event ends" type="date" value={dateEnd} min={dateStart || undefined} onChange={(e) => setDateEnd(e.target.value)} />
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          </Panel>
 
-        {/* Items */}
-        <div className="rounded-2xl p-6" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>
-              Items <span className="text-base font-light" style={{ color: '#9A8DAA' }}>({items.length})</span>
-            </h2>
-            <button type="button" onClick={addItem} className="flex items-center gap-1.5 px-3 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-              <Plus className="w-3.5 h-3.5" /> Add Item
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {items.map((item, idx) => (
-              <div key={idx} className="rounded-xl p-4" style={{ backgroundColor: '#F8F5EE', border: '1px solid #EAE4D8' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium tracking-widest uppercase" style={{ color: '#9A8DAA' }}>Item {idx + 1}</span>
-                  <button type="button" onClick={() => removeItem(idx)} className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ color: '#C0392B', backgroundColor: 'rgba(192,57,43,0.1)' }}>
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { field: 'name' as const, label: 'Name *', placeholder: 'Item name' },
-                    { field: 'brand' as const, label: 'Brand', placeholder: 'Brand' },
-                    { field: 'price' as const, label: 'Price', placeholder: '0.00' },
-                    { field: 'image_url' as const, label: 'Image URL', placeholder: 'https://…' }
-                  ].map(({ field, label, placeholder }) => (
-                    <div key={field} className={field === 'image_url' ? 'col-span-2' : ''}>
-                      <label className="block text-[10px] font-medium tracking-wider uppercase mb-1" style={{ color: '#9A8DAA' }}>{label}</label>
-                      <input type="text" value={item[field] as string} onChange={(e) => updateItem(idx, field, e.target.value)} placeholder={placeholder}
-                        className="w-full px-3 h-8 rounded-lg border text-xs outline-none" style={{ borderColor: '#D4C9BB', backgroundColor: '#FFFFFF', color: '#1A1428' }} />
+          <Panel
+            title="Items"
+            actions={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setItems((prev) => [
+                    ...prev,
+                    { name: '', brand: '', category: 'top', image_url: '', price: '', purchase_url: '', notes: '', sort_order: prev.length }
+                  ])
+                }
+              >
+                Add item
+              </Button>
+            }
+          >
+            {!items.length ? (
+              <p className="rounded-xl border border-dashed border-atelier-border px-4 py-8 text-center text-sm text-atelier-muted">
+                Add the pieces clients can shop from this lookbook.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {items.map((item, idx) => (
+                  <ItemCard key={item.id ?? idx} index={idx} onRemove={() => setItems((prev) => prev.filter((_, i) => i !== idx))}>
+                    <Input label="Name" required value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} placeholder="e.g. Gele, emerald" />
+                    <Input label="Brand" value={item.brand} onChange={(e) => updateItem(idx, 'brand', e.target.value)} />
+                    <Input label="Price" inputMode="decimal" value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} />
+                    <div className="sm:col-span-2">
+                      <Input label="Shop link" type="url" value={item.purchase_url} onChange={(e) => updateItem(idx, 'purchase_url', e.target.value)} placeholder="https://" />
                     </div>
-                  ))}
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-medium tracking-wider uppercase mb-1" style={{ color: '#9A8DAA' }}>Purchase URL</label>
-                    <input type="url" value={item.purchase_url} onChange={(e) => updateItem(idx, 'purchase_url', e.target.value)} placeholder="https://…"
-                      className="w-full px-3 h-8 rounded-lg border text-xs outline-none" style={{ borderColor: '#D4C9BB', backgroundColor: '#FFFFFF', color: '#1A1428' }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-            {items.length === 0 && (
-              <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#F8F5EE', border: '1px dashed #D4C9BB' }}>
-                <p className="text-sm" style={{ color: '#9A8DAA' }}>Add items clients can shop from this lookbook</p>
-              </div>
+                    <div className="sm:col-span-2">
+                      <Input label="Photo link" type="url" value={item.image_url} onChange={(e) => updateItem(idx, 'image_url', e.target.value)} placeholder="https://" />
+                    </div>
+                  </ItemCard>
+                ))}
+              </ul>
             )}
-          </div>
+          </Panel>
+        </div>
+
+        <div className="space-y-5">
+          <Panel title="Client">
+            <div className="space-y-4">
+              <Select label="For" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} options={clientOptions} />
+              <Select
+                label="Status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={LOOKBOOK_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
+              />
+              <SwitchRow label="Client can see it" checked={isPublished} onChange={setIsPublished} />
+              <SwitchRow label="Show to everyone in the app feed" checked={showInFeed} onChange={setShowInFeed} />
+            </div>
+          </Panel>
+          <Panel>
+            <ImageField label="Cover photo" value={coverImageUrl} onChange={setCoverImageUrl} onError={setError} />
+          </Panel>
         </div>
       </div>
     </div>

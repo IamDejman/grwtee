@@ -1,10 +1,19 @@
-import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect, notFound } from 'next/navigation'
-import { getStylistId } from '@/lib/stylist-auth'
 import Link from 'next/link'
-import { ArrowLeft, MessageSquare, Shirt, Sparkles } from 'lucide-react'
+import { notFound, redirect } from 'next/navigation'
+import { ArrowLeft, BookOpen, Shirt } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getStylistId } from '@/lib/stylist-auth'
+import { clientName } from '@/lib/stylist-clients'
+import { lookbookStatusLabel, stylistLabel } from '@/lib/stylist-labels'
+import { Badge, EmptyState, Field, Panel } from '@/components/admin/ui'
+import { ButtonLink } from '@/components/ui/Button'
+import { ClientAvatar } from '@/components/stylist/ClientAvatar'
 
-export const metadata = { title: 'Client Profile' }
+export const metadata = { title: 'Client' }
+
+function size(value: string | null, region: string | null) {
+  return value ? `${value} (${region ?? 'US'})` : '-'
+}
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const ownerId = await getStylistId()
@@ -14,8 +23,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const admin = createAdminClient()
 
   const [profileRes, wardrobeRes, lookbooksRes, conversationRes] = await Promise.all([
-    admin.from('profiles').select('*').eq('id', id).single(),
-    admin.from('wardrobe_items').select('id, name, category, image_url, brand, color, is_favorite').eq('user_id', id).limit(12),
+    admin.from('profiles').select('*').eq('id', id).maybeSingle(),
+    admin.from('wardrobe_items').select('id, name, image_url').eq('user_id', id).order('created_at', { ascending: false }).limit(12),
     admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false }),
     admin.from('conversations').select('id').eq('stylist_id', ownerId).eq('client_id', id).maybeSingle()
   ])
@@ -23,110 +32,116 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const profile = profileRes.data
   if (!profile) notFound()
 
-  const initials = profile.full_name ? profile.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : '?'
+  const name = clientName(profile)
   const wardrobe = wardrobeRes.data ?? []
   const lookbooks = lookbooksRes.data ?? []
 
-  const rows = [
-    { label: 'Body Shape', value: profile.body_shape },
-    { label: 'Gender Preference', value: profile.gender_preference },
-    { label: 'Location', value: profile.location },
-    { label: 'Dress Size', value: profile.dress_size ? `${profile.dress_size} (${profile.dress_size_region ?? 'US'})` : null },
-    { label: 'Shoe Size', value: profile.shoe_size ? `${profile.shoe_size} (${profile.shoe_size_region ?? 'US'})` : null },
-    { label: 'Subscription', value: profile.subscription_tier },
-    { label: 'Timezone', value: profile.timezone }
-  ]
-
   return (
-    <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
-      <div className="sticky top-12 z-10 px-6 lg:top-0 lg:px-8 py-4 flex items-center justify-between" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
-        <div className="flex items-center gap-3">
-          <Link href="/admin/clients" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-            <ArrowLeft className="w-4 h-4" />
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/admin/clients"
+            aria-label="Back to clients"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-purple-dark ring-1 ring-inset ring-atelier-border transition hover:bg-atelier-lavender"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
           </Link>
-          <h1 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Client Profile</h1>
+          <h1 className="truncate font-cormorant text-3xl font-medium leading-tight text-atelier-ink sm:text-4xl">{name}</h1>
         </div>
-        <Link href={conversationRes.data ? `/admin/messages/${conversationRes.data.id}` : '/admin/messages'} className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-medium" style={{ backgroundColor: '#422D64', color: '#FFFFFF' }}>
-          <MessageSquare className="w-4 h-4" /> Message
-        </Link>
+        {conversationRes.data ? (
+          <ButtonLink href={`/admin/messages/${conversationRes.data.id}`} size="sm">
+            Message
+          </ButtonLink>
+        ) : null}
       </div>
 
-      <div className="px-6 lg:px-8 py-6 space-y-6 max-w-4xl">
-        <div className="rounded-2xl p-6" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-          <div className="flex items-start gap-5">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt={profile.full_name} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
-            ) : (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-lg font-semibold shrink-0" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>{initials}</div>
-            )}
-            <div className="flex-1">
-              <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>{profile.full_name ?? 'Unknown Client'}</h2>
-              {profile.email && <p className="text-sm mt-0.5" style={{ color: '#9A8DAA' }}>{profile.email}</p>}
-              {profile.bio && <p className="text-sm mt-3" style={{ color: '#5A4D6A' }}>{profile.bio}</p>}
-              {profile.style_tags && profile.style_tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {profile.style_tags.map((tag: string) => (
-                    <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>{tag}</span>
+      <div className="space-y-5">
+        <Panel>
+          <div className="flex items-start gap-4">
+            <ClientAvatar name={name} src={profile.avatar_url} size="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2">
+                {profile.email ? <span className="truncate text-sm text-atelier-muted">{profile.email}</span> : null}
+                {profile.subscription_tier === 'premium' ? <Badge tone="gold">Premium</Badge> : null}
+              </p>
+              {profile.bio ? <p className="mt-2 text-sm text-atelier-ink">{profile.bio}</p> : null}
+              {profile.style_tags?.length ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(profile.style_tags as string[]).map((tag) => (
+                    <Badge key={tag} tone="purple">{tag}</Badge>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 pt-6" style={{ borderTop: '1px solid #F0EBE3' }}>
-            {rows.filter((r) => r.value).map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-xs font-medium tracking-wider uppercase mb-1" style={{ color: '#9A8DAA' }}>{label}</p>
-                <p className="text-sm capitalize" style={{ color: '#1A1428' }}>{String(value).replace(/_/g, ' ')}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+          <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-atelier-border pt-5 md:grid-cols-3">
+            <Field label="Body shape">{stylistLabel(profile.body_shape)}</Field>
+            <Field label="Shops for">{stylistLabel(profile.gender_preference)}</Field>
+            <Field label="Location">{profile.location || '-'}</Field>
+            <Field label="Dress size">{size(profile.dress_size, profile.dress_size_region)}</Field>
+            <Field label="Shoe size">{size(profile.shoe_size, profile.shoe_size_region)}</Field>
+            <Field label="Plan">{stylistLabel(profile.subscription_tier)}</Field>
+          </dl>
+        </Panel>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl p-6" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Wardrobe</h3>
-              <span className="text-xs" style={{ color: '#9A8DAA' }}>{wardrobe.length} items</span>
-            </div>
-            {wardrobe.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ backgroundColor: '#F8F5EE' }}>
-                <Shirt className="w-6 h-6 mx-auto mb-2" style={{ color: '#D4C9BB' }} />
-                <p className="text-xs" style={{ color: '#9A8DAA' }}>No wardrobe items yet</p>
-              </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Panel title="Wardrobe">
+            {!wardrobe.length ? (
+              <EmptyState icon={Shirt} title="Nothing in their wardrobe yet." />
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {wardrobe.map((item) => (
-                  <div key={item.id} className="aspect-square rounded-xl overflow-hidden" style={{ backgroundColor: '#F2EDF8' }}>
-                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Shirt className="w-4 h-4" style={{ color: '#D4C9BB' }} /></div>}
-                  </div>
+                  <li key={item.id} className="aspect-square overflow-hidden rounded-xl bg-atelier-canvas" title={item.name ?? undefined}>
+                    {item.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img loading="lazy" src={item.image_url} alt={item.name ?? ''} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-atelier-faint">
+                        <Shirt className="h-4 w-4" aria-hidden />
+                      </span>
+                    )}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
-          <div className="rounded-2xl p-6" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Lookbooks</h3>
-              <Link href="/admin/lookbooks/new" className="text-xs font-medium" style={{ color: '#CF9D4E' }}>+ New</Link>
-            </div>
-            {lookbooks.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ backgroundColor: '#F8F5EE' }}>
-                <Sparkles className="w-6 h-6 mx-auto mb-2" style={{ color: '#D4C9BB' }} />
-                <p className="text-xs" style={{ color: '#9A8DAA' }}>No lookbooks assigned</p>
-              </div>
+          </Panel>
+
+          <Panel
+            title="Lookbooks"
+            actions={
+              <ButtonLink href={`/admin/lookbooks/new?client=${profile.id}`} size="sm" variant="outline">
+                New lookbook
+              </ButtonLink>
+            }
+          >
+            {!lookbooks.length ? (
+              <EmptyState icon={BookOpen} title="No lookbooks for this client yet." />
             ) : (
-              <div className="space-y-2">
+              <ul className="-mx-2 space-y-1">
                 {lookbooks.map((lb) => (
-                  <Link key={lb.id} href={`/admin/lookbooks/${lb.id}`} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: '#F8F5EE' }}>
-                    {lb.cover_image_url ? <img src={lb.cover_image_url} alt={lb.title} className="w-10 h-10 rounded-lg object-cover shrink-0" /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#F2EDF8' }}><Sparkles className="w-4 h-4" style={{ color: '#B0A0C4' }} /></div>}
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: '#1A1428' }}>{lb.title}</p>
-                      <p className="text-xs capitalize" style={{ color: '#9A8DAA' }}>{lb.status} · {lb.type?.replace(/_/g, ' ')}</p>
-                    </div>
-                  </Link>
+                  <li key={lb.id}>
+                    <Link href={`/admin/lookbooks/${lb.id}`} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-atelier-canvas">
+                      {lb.cover_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img loading="lazy" src={lb.cover_image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-atelier-lavender text-purple-dark">
+                          <BookOpen className="h-4 w-4" aria-hidden />
+                        </span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-atelier-ink">{lb.title}</span>
+                        <span className="block text-xs text-atelier-faint">
+                          {lookbookStatusLabel(lb.status)} · {stylistLabel(lb.type)}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
+          </Panel>
         </div>
       </div>
     </div>

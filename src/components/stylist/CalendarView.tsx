@@ -1,9 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { ChevronLeft, ChevronRight, X, Check, Globe } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Textarea } from '@/components/ui/Textarea'
+import { Modal } from '@/components/admin/Modal'
+import { useToast } from '@/components/admin/Toast'
+import { Badge, PageHeader, SearchInput } from '@/components/admin/ui'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -11,20 +17,21 @@ const MONTHS = [
 ]
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// Values match what the calendar days table accepts. Colours only mark the day; the name is always shown too.
 const OCCASIONS = [
-  { value: 'casual', label: 'Casual', color: '#7DCEA0' },
-  { value: 'corporate', label: 'Corporate', color: '#5DADE2' },
-  { value: 'date_night', label: 'Date Night', color: '#C39BD3' },
-  { value: 'formal', label: 'Formal', color: '#F0B27A' },
-  { value: 'streetwear', label: 'Streetwear', color: '#F1948A' },
-  { value: 'athleisure', label: 'Athleisure', color: '#82E0AA' },
-  { value: 'brunch', label: 'Brunch', color: '#F8C471' },
-  { value: 'vacation', label: 'Vacation', color: '#76D7C4' },
-  { value: 'wedding_guest', label: 'Wedding Guest', color: '#F1948A' },
-  { value: 'work', label: 'Work', color: '#85C1E9' },
-  { value: 'church', label: 'Church', color: '#D7BDE2' },
-  { value: 'dinner', label: 'Dinner', color: '#FAD7A0' },
-  { value: 'school', label: 'School', color: '#A9CCE3' }
+  { value: 'casual', label: 'Casual', color: '#7DB88F' },
+  { value: 'corporate', label: 'Corporate', color: '#6A9CC9' },
+  { value: 'work', label: 'Work', color: '#6A9CC9' },
+  { value: 'date_night', label: 'Date night', color: '#B98BC9' },
+  { value: 'formal', label: 'Formal', color: '#D9A066' },
+  { value: 'streetwear', label: 'Streetwear', color: '#D98080' },
+  { value: 'athleisure', label: 'Athleisure', color: '#7DB88F' },
+  { value: 'brunch', label: 'Brunch', color: '#CF9D4E' },
+  { value: 'dinner', label: 'Dinner', color: '#CF9D4E' },
+  { value: 'vacation', label: 'Vacation', color: '#66B3A6' },
+  { value: 'wedding_guest', label: 'Wedding guest', color: '#D98080' },
+  { value: 'church', label: 'Church', color: '#B98BC9' },
+  { value: 'school', label: 'School', color: '#6A9CC9' }
 ]
 
 interface Look {
@@ -53,7 +60,6 @@ interface Calendar {
 }
 
 interface CalendarViewProps {
-  stylistId: string
   month: number
   year: number
   calendar: Calendar | null
@@ -61,521 +67,345 @@ interface CalendarViewProps {
   looks: Look[]
 }
 
-function getDaysInMonth(month: number, year: number) {
-  return new Date(year, month, 0).getDate()
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function monthHref(month: number, year: number, step: -1 | 1) {
+  const m = month + step
+  if (m < 1) return `/admin/calendar?month=12&year=${year - 1}`
+  if (m > 12) return `/admin/calendar?month=1&year=${year + 1}`
+  return `/admin/calendar?month=${m}&year=${year}`
 }
 
-function getFirstDayOfMonth(month: number, year: number) {
-  return new Date(year, month - 1, 1).getDay()
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, '0')
-}
-
-export function CalendarView({ stylistId, month, year, calendar, days, looks }: CalendarViewProps) {
+export function CalendarView({ month, year, calendar, days, looks }: CalendarViewProps) {
   const router = useRouter()
+  const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   const [localDays, setLocalDays] = useState<CalendarDay[]>(days)
   const [localCalendar, setLocalCalendar] = useState<Calendar | null>(calendar)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [editPanel, setEditPanel] = useState<Partial<CalendarDay>>({})
+  const [draft, setDraft] = useState<Partial<CalendarDay>>({})
+  const [lookSearch, setLookSearch] = useState('')
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
-  const [lookSearch, setLookSearch] = useState('')
-  const [error, setError] = useState('')
-  const { confirm, dialog } = useConfirm()
 
-  const daysInMonth = getDaysInMonth(month, year)
-  const firstDay = getFirstDayOfMonth(month, year)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const firstDay = new Date(year, month - 1, 1).getDay()
   const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7
+  // Lagos date on both server and browser, so the highlighted day never mismatches during hydration.
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date())
 
-  function getDayData(dateStr: string) {
-    return localDays.find((d) => d.date === dateStr)
-  }
+  const dayFor = (date: string) => localDays.find((d) => d.date === date)
+  const lookFor = (id: string | null | undefined) => (id ? looks.find((l) => l.id === id) ?? null : null)
+  const occasionFor = (value: string | null | undefined) => OCCASIONS.find((o) => o.value === value)
 
-  function getOccasionColor(occ: string | null | undefined) {
-    if (!occ) return null
-    return OCCASIONS.find((o) => o.value === occ)?.color ?? '#B0A0C4'
-  }
-
-  function getLook(id: string | null | undefined) {
-    if (!id) return null
-    return looks.find((l) => l.id === id) ?? null
-  }
-
-  function openDay(dateStr: string) {
-    const existing = getDayData(dateStr)
-    setSelectedDate(dateStr)
-    setEditPanel(existing ?? { date: dateStr })
+  function openDay(date: string) {
+    setSelectedDate(date)
+    setDraft(dayFor(date) ?? { date })
     setLookSearch('')
   }
 
-  function closePanel() {
-    setSelectedDate(null)
-    setEditPanel({})
-  }
+  const closeDay = () => setSelectedDate(null)
 
-  async function ensureCalendar() {
-    if (localCalendar) return localCalendar.id
-
+  async function ensureCalendar(): Promise<Calendar> {
+    if (localCalendar) return localCalendar
     const res = await fetch('/api/stylist/calendar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ month, year, title: `${MONTHS[month - 1]} ${year}` })
     })
-    const data = await res.json().catch(() => null)
+    const data = (await res.json().catch(() => null)) as { calendar?: Calendar } | null
     if (!res.ok || !data?.calendar?.id) throw new Error('calendar')
     setLocalCalendar(data.calendar)
-    return data.calendar.id as string
+    return data.calendar
   }
 
   async function saveDay() {
     if (!selectedDate) return
     setSaving(true)
-    setError('')
-
     try {
-      const calendarId = await ensureCalendar()
-
-      const res = await fetch(`/api/stylist/calendar/${calendarId}/days`, {
+      const cal = await ensureCalendar()
+      const res = await fetch(`/api/stylist/calendar/${cal.id}/days`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editPanel, date: selectedDate, calendar_id: calendarId })
+        body: JSON.stringify({ ...draft, notes: draft.notes?.trim() || null, date: selectedDate, calendar_id: cal.id })
       })
-
-      if (res.ok) {
-        const data = await res.json()
-        setLocalDays((prev) => {
-          const filtered = prev.filter((d) => d.date !== selectedDate)
-          return [...filtered, data.day]
-        })
-        closePanel()
-      } else {
-        setError("Couldn't save this day. Try again.")
-      }
+      const data = (await res.json().catch(() => null)) as { day?: CalendarDay } | null
+      if (!res.ok || !data?.day) throw new Error()
+      const saved = data.day
+      setLocalDays((prev) => [...prev.filter((d) => d.date !== selectedDate), saved])
+      toast.success('Day saved.')
+      closeDay()
     } catch {
-      setError("Couldn't save this day. Try again.")
+      toast.error("Couldn't save this day. Try again.")
     } finally {
       setSaving(false)
     }
   }
 
   async function clearDay() {
-    if (!selectedDate || !localCalendar) return
-    const existing = getDayData(selectedDate)
-    if (!existing) {
-      closePanel()
-      return
-    }
-
+    if (!selectedDate || !localCalendar || !dayFor(selectedDate)) return closeDay()
     const ok = await confirm({
       title: 'Clear this day?',
-      body: 'The look planned for this day will be removed from the calendar.',
+      body: 'The look and notes planned for this day will be removed.',
       confirmLabel: 'Clear',
       danger: true
     })
     if (!ok) return
-    setError('')
-    const res = await fetch(`/api/stylist/calendar/${localCalendar.id}/days?date=${selectedDate}`, {
-      method: 'DELETE'
-    }).catch(() => null)
-    if (!res?.ok) {
-      setError("Couldn't clear this day. Try again.")
-      return
+    try {
+      const res = await fetch(`/api/stylist/calendar/${localCalendar.id}/days?date=${selectedDate}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      setLocalDays((prev) => prev.filter((d) => d.date !== selectedDate))
+      toast.success('Day cleared.')
+      closeDay()
+    } catch {
+      toast.error("Couldn't clear this day. Try again.")
     }
-    setLocalDays((prev) => prev.filter((d) => d.date !== selectedDate))
-    closePanel()
   }
 
   async function togglePublish() {
-    if (!localCalendar) return
     setPublishing(true)
-    setError('')
+    const next = !localCalendar?.is_published
     try {
-      const res = await fetch(`/api/stylist/calendar/${localCalendar.id}`, {
+      const cal = await ensureCalendar()
+      const res = await fetch(`/api/stylist/calendar/${cal.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_published: !localCalendar.is_published })
+        body: JSON.stringify({ is_published: next })
       })
-      if (res.ok) {
-        setLocalCalendar((prev) =>
-          prev ? { ...prev, is_published: !prev.is_published } : prev
-        )
-      } else {
-        setError(`Couldn't ${localCalendar.is_published ? 'unpublish' : 'publish'} this month. Try again.`)
-      }
+      if (!res.ok) throw new Error()
+      setLocalCalendar({ ...cal, is_published: next })
+      toast.success(next ? `${MONTHS[month - 1]} is now visible to clients.` : `${MONTHS[month - 1]} is hidden from clients.`)
     } catch {
-      setError(`Couldn't ${localCalendar.is_published ? 'unpublish' : 'publish'} this month. Try again.`)
+      toast.error(`Couldn't ${next ? 'publish' : 'unpublish'} this month. Try again.`)
     } finally {
       setPublishing(false)
     }
   }
 
-  function prevMonth() {
-    const d = month === 1 ? { m: 12, y: year - 1 } : { m: month - 1, y: year }
-    router.push(`/admin/calendar?month=${d.m}&year=${d.y}`)
-  }
-
-  function nextMonth() {
-    const d = month === 12 ? { m: 1, y: year + 1 } : { m: month + 1, y: year }
-    router.push(`/admin/calendar?month=${d.m}&year=${d.y}`)
-  }
-
-  const filteredLooks = looks.filter((l) =>
-    l.title.toLowerCase().includes(lookSearch.toLowerCase())
-  )
-
-  const selectedLook = getLook(editPanel.primary_look_id)
-  const altLook = getLook(editPanel.alternate_look_id)
+  const q = lookSearch.trim().toLowerCase()
+  const matchingLooks = q ? looks.filter((l) => l.title.toLowerCase().includes(q)) : looks
+  const chosenLook = lookFor(draft.primary_look_id)
+  const published = !!localCalendar?.is_published
 
   return (
-    <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
+    <div>
       {dialog}
-      {/* Header */}
-      <div
-        className="sticky top-0 z-10 px-6 lg:px-8 py-5 flex items-center justify-between"
-        style={{
-          backgroundColor: 'rgba(248,245,238,0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #EAE4D8'
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="text-xs font-medium tracking-widest uppercase" style={{ color: '#9A8DAA' }}>
-              Monthly
-            </p>
-            <h1
-              className="text-2xl lg:text-3xl font-light leading-tight mt-0.5"
-              style={{
-                fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif',
-                color: '#1A1428'
-              }}
-            >
-              Calendar
-            </h1>
-          </div>
-
-          {/* Month nav */}
-          <div
-            className="flex items-center gap-2 px-3 py-2 rounded-xl ml-4"
-            style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}
+      <PageHeader
+        title="Calendar"
+        actions={
+          <Button
+            size="sm"
+            variant={published ? 'outline' : 'primary'}
+            loading={publishing}
+            disabled={!localDays.length && !published}
+            onClick={() => void togglePublish()}
           >
-            <button onClick={prevMonth} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100">
-              <ChevronLeft className="w-4 h-4" style={{ color: '#5A4D6A' }} />
-            </button>
-            <span
-              className="text-sm font-medium px-2"
-              style={{ color: '#1A1428', minWidth: '130px', textAlign: 'center' }}
-            >
-              {MONTHS[month - 1]} {year}
-            </span>
-            <button onClick={nextMonth} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100">
-              <ChevronRight className="w-4 h-4" style={{ color: '#5A4D6A' }} />
-            </button>
-          </div>
+            {published ? 'Unpublish month' : 'Publish month'}
+          </Button>
+        }
+      />
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-full bg-white p-1 ring-1 ring-inset ring-atelier-border">
+          <button
+            type="button"
+            aria-label="Previous month"
+            onClick={() => router.push(monthHref(month, year, -1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-atelier-muted transition hover:bg-atelier-canvas hover:text-atelier-ink"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </button>
+          <span className="min-w-[9rem] text-center text-sm font-medium text-atelier-ink">
+            {MONTHS[month - 1]} {year}
+          </span>
+          <button
+            type="button"
+            aria-label="Next month"
+            onClick={() => router.push(monthHref(month, year, 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-atelier-muted transition hover:bg-atelier-canvas hover:text-atelier-ink"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
         </div>
-
-        {/* Publish toggle */}
-        <button
-          onClick={togglePublish}
-          disabled={publishing}
-          className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-medium transition-all"
-          style={{
-            backgroundColor: localCalendar?.is_published ? '#0D674E' : '#422D64',
-            color: '#FFFFFF',
-            opacity: publishing ? 0.7 : 1
-          }}
-        >
-          <Globe className="w-4 h-4" />
-          {localCalendar?.is_published ? 'Published' : 'Publish Month'}
-        </button>
-      </div>
-
-      {error ? (
-        <p className="mx-4 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 lg:mx-6" role="alert">
-          {error}
+        <p className="flex items-center gap-2 text-sm text-atelier-muted">
+          {published ? <Badge tone="green">Visible to clients</Badge> : <Badge>Not published</Badge>}
+          <span className="tabular-nums">
+            {localDays.length} of {daysInMonth} days planned
+          </span>
         </p>
-      ) : null}
+      </div>
 
-      <div className="px-4 lg:px-6 py-6 flex gap-6">
-        {/* Calendar grid */}
-        <div className="flex-1 min-w-0">
-          {/* Day labels */}
-          <div className="grid grid-cols-7 mb-2">
-            {DAYS_OF_WEEK.map((d) => (
-              <div
-                key={d}
-                className="text-center text-xs font-medium py-2 tracking-wider"
-                style={{ color: '#9A8DAA' }}
+      <div className="rounded-2xl border border-atelier-border bg-white p-2 sm:p-4">
+        <div className="mb-1 grid grid-cols-7">
+          {DAYS_OF_WEEK.map((d) => (
+            <div key={d} className="py-1.5 text-center text-xs font-medium text-atelier-faint">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+          {Array.from({ length: totalCells }, (_, i) => {
+            const dayNum = i - firstDay + 1
+            if (dayNum < 1 || dayNum > daysInMonth) return <div key={i} aria-hidden />
+
+            const date = `${year}-${pad(month)}-${pad(dayNum)}`
+            const day = dayFor(date)
+            const look = lookFor(day?.primary_look_id)
+            const occasion = occasionFor(day?.occasion)
+            const isToday = date === todayStr
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => openDay(date)}
+                aria-label={`${dayNum} ${MONTHS[month - 1]}${day ? `, ${[occasion?.label, look?.title].filter(Boolean).join(', ') || 'planned'}` : ', nothing planned'}`}
+                className={`relative flex aspect-square flex-col overflow-hidden rounded-lg text-left ring-1 ring-inset transition hover:ring-purple-dark/40 sm:aspect-[4/5] sm:rounded-xl ${
+                  day ? 'bg-white ring-atelier-border' : 'bg-atelier-canvas/60 ring-transparent'
+                } ${isToday ? '!ring-2 !ring-gold' : ''}`}
               >
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar cells */}
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: totalCells }).map((_, i) => {
-              const dayNum = i - firstDay + 1
-              const isValidDay = dayNum >= 1 && dayNum <= daysInMonth
-              if (!isValidDay) {
-                return <div key={i} className="aspect-square rounded-xl" />
-              }
-
-              const dateStr = `${year}-${pad(month)}-${pad(dayNum)}`
-              const dayData = getDayData(dateStr)
-              const primaryLook = getLook(dayData?.primary_look_id)
-              const occColor = getOccasionColor(dayData?.occasion)
-              const isSelected = selectedDate === dateStr
-              const today = new Date()
-              const isToday =
-                today.getDate() === dayNum &&
-                today.getMonth() + 1 === month &&
-                today.getFullYear() === year
-
-              return (
-                <button
-                  key={i}
-                  onClick={() => openDay(dateStr)}
-                  className="aspect-square rounded-xl p-1.5 flex flex-col items-start justify-between transition-all text-left"
-                  style={{
-                    backgroundColor: isSelected
-                      ? '#422D64'
-                      : dayData
-                      ? '#FFFFFF'
-                      : 'rgba(255,255,255,0.5)',
-                    border: '1px solid',
-                    borderColor: isSelected
-                      ? '#422D64'
-                      : isToday
-                      ? '#CF9D4E'
-                      : '#EAE4D8',
-                    boxShadow: dayData ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
-                  }}
+                {look?.primary_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img loading="lazy" src={look.primary_image_url} alt="" className="absolute inset-0 hidden h-full w-full object-cover sm:block" />
+                ) : null}
+                <span
+                  className={`relative m-1 inline-flex h-5 min-w-5 items-center justify-center self-start rounded-full px-1 text-xs font-medium tabular-nums ${
+                    look?.primary_image_url ? 'sm:bg-white/90' : ''
+                  } ${isToday ? 'text-[#8A6420]' : 'text-atelier-ink'}`}
                 >
-                  <span
-                    className="text-xs font-medium leading-none"
-                    style={{
-                      color: isSelected ? '#CF9D4E' : isToday ? '#CF9D4E' : '#1A1428'
-                    }}
-                  >
-                    {dayNum}
+                  {dayNum}
+                </span>
+                {occasion ? (
+                  <span className="relative mt-auto flex items-center gap-1 p-1 sm:p-1.5">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2" style={{ backgroundColor: occasion.color }} aria-hidden />
+                    <span className={`hidden truncate text-[11px] font-medium md:block ${look?.primary_image_url ? 'rounded bg-white/90 px-1 text-atelier-ink' : 'text-atelier-muted'}`}>
+                      {occasion.label}
+                    </span>
                   </span>
+                ) : day ? (
+                  <span className="relative mt-auto p-1 sm:p-1.5">
+                    <span className="block h-1.5 w-1.5 rounded-full bg-purple-dark/40 sm:h-2 sm:w-2" aria-hidden />
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-atelier-faint">Tap a day to plan the look for it.</p>
 
-                  <div className="w-full">
-                    {primaryLook?.primary_image_url && (
-                      <div className="w-full aspect-square rounded-lg overflow-hidden mb-1">
-                        <img
-                          src={primaryLook.primary_image_url}
-                          alt={primaryLook.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    {occColor && (
-                      <div
-                        className="w-full h-1 rounded-full"
-                        style={{ backgroundColor: occColor }}
-                      />
-                    )}
-                  </div>
+      <Modal
+        open={!!selectedDate}
+        onClose={() => !saving && closeDay()}
+        size="md"
+        title={
+          selectedDate
+            ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+            : ''
+        }
+      >
+        <div className="space-y-5">
+          <fieldset>
+            <legend className="text-sm font-semibold text-gray-dark">Occasion</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {OCCASIONS.map((o) => {
+                const on = draft.occasion === o.value
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setDraft((d) => ({ ...d, occasion: on ? null : o.value }))}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition ${
+                      on ? 'bg-atelier-ink text-white' : 'bg-white text-atelier-muted ring-1 ring-inset ring-atelier-border hover:text-atelier-ink'
+                    }`}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: o.color }} aria-hidden />
+                    {o.label}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
+          <div>
+            <p className="text-sm font-semibold text-gray-dark">Look</p>
+            {chosenLook ? (
+              <div className="mt-2 flex items-center gap-3 rounded-xl border border-atelier-border p-2">
+                <LookThumb look={chosenLook} />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-atelier-ink">{chosenLook.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, primary_look_id: null }))}
+                  className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark transition hover:bg-atelier-lavender"
+                >
+                  Change
                 </button>
-              )
-            })}
+              </div>
+            ) : !looks.length ? (
+              <p className="mt-2 rounded-xl border border-dashed border-atelier-border px-4 py-5 text-center text-sm text-atelier-muted">
+                Only published looks can go on the calendar.{' '}
+                <Link href="/admin/looks/new" className="font-medium text-purple-dark underline underline-offset-2">
+                  Create a look
+                </Link>
+              </p>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {looks.length > 6 ? (
+                  <SearchInput label="Search looks" placeholder="Search looks…" value={lookSearch} onChange={setLookSearch} />
+                ) : null}
+                <ul className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-atelier-border p-1">
+                  {matchingLooks.map((look) => (
+                    <li key={look.id}>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, primary_look_id: look.id }))}
+                        className="flex w-full items-center gap-3 rounded-lg p-1.5 text-left transition hover:bg-atelier-canvas"
+                      >
+                        <LookThumb look={look} />
+                        <span className="truncate text-sm text-atelier-ink">{look.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {!matchingLooks.length ? <li className="px-3 py-3 text-sm text-atelier-faint">No looks match.</li> : null}
+                </ul>
+              </div>
+            )}
           </div>
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-3">
-            {OCCASIONS.slice(0, 8).map((occ) => (
-              <div key={occ.value} className="flex items-center gap-1.5">
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: occ.color }}
-                />
-                <span className="text-xs capitalize" style={{ color: '#9A8DAA' }}>
-                  {occ.label}
-                </span>
-              </div>
-            ))}
+          <Textarea
+            label="Notes"
+            rows={2}
+            value={draft.notes ?? ''}
+            onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+            placeholder="Styling tips for the day"
+          />
+
+          <div className="flex flex-wrap justify-between gap-2 border-t border-atelier-border pt-4">
+            {selectedDate && dayFor(selectedDate) ? (
+              <Button size="sm" variant="ghost" className="!text-red-600 hover:!bg-red-50" disabled={saving} onClick={() => void clearDay()}>
+                Clear day
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button size="sm" loading={saving} onClick={() => void saveDay()}>
+              Save
+            </Button>
           </div>
         </div>
-
-        {/* Day editor panel */}
-        {selectedDate && (
-          <div
-            className="w-72 lg:w-80 shrink-0 rounded-2xl p-5 animate-slide-in-right self-start sticky top-24"
-            style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="text-xs font-medium tracking-widest uppercase" style={{ color: '#9A8DAA' }}>
-                  Editing
-                </p>
-                <h3
-                  className="text-lg font-light mt-0.5"
-                  style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}
-                >
-                  {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </h3>
-              </div>
-              <button
-                onClick={closePanel}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                style={{ color: '#9A8DAA', backgroundColor: '#F8F5EE' }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Occasion */}
-            <div className="mb-4">
-              <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>
-                Occasion
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {OCCASIONS.map((occ) => (
-                  <button
-                    key={occ.value}
-                    onClick={() => setEditPanel((p) => ({
-                      ...p,
-                      occasion: p.occasion === occ.value ? null : occ.value
-                    }))}
-                    className="flex items-center gap-1.5 px-2.5 h-7 rounded-full text-xs transition-all"
-                    style={{
-                      backgroundColor: editPanel.occasion === occ.value ? occ.color + '25' : '#F8F5EE',
-                      color: editPanel.occasion === occ.value ? occ.color : '#9A8DAA',
-                      border: '1px solid',
-                      borderColor: editPanel.occasion === occ.value ? occ.color : 'transparent'
-                    }}
-                  >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: occ.color }}
-                    />
-                    {occ.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Primary look */}
-            <div className="mb-4">
-              <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>
-                Primary Look
-              </label>
-
-              {selectedLook ? (
-                <div
-                  className="flex items-center gap-3 p-3 rounded-xl"
-                  style={{ backgroundColor: '#F2EDF8', border: '1px solid #E4D8F5' }}
-                >
-                  {selectedLook.primary_image_url && (
-                    <img
-                      src={selectedLook.primary_image_url}
-                      alt={selectedLook.title}
-                      className="w-10 h-10 rounded-lg object-cover shrink-0"
-                    />
-                  )}
-                  <span className="text-sm flex-1 font-medium truncate" style={{ color: '#1A1428' }}>
-                    {selectedLook.title}
-                  </span>
-                  <button
-                    onClick={() => setEditPanel((p) => ({ ...p, primary_look_id: null }))}
-                    className="shrink-0"
-                    style={{ color: '#9A8DAA' }}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Search looks…"
-                    value={lookSearch}
-                    onChange={(e) => setLookSearch(e.target.value)}
-                    className="w-full px-3 h-9 rounded-xl border text-sm outline-none"
-                    style={{ borderColor: '#D4C9BB', backgroundColor: '#F8F5EE', color: '#1A1428' }}
-                  />
-                  {lookSearch && (
-                    <div
-                      className="mt-1 rounded-xl overflow-hidden max-h-48 overflow-y-auto"
-                      style={{ border: '1px solid #EAE4D8', backgroundColor: '#FFFFFF' }}
-                    >
-                      {filteredLooks.slice(0, 8).map((look) => (
-                        <button
-                          key={look.id}
-                          onClick={() => {
-                            setEditPanel((p) => ({ ...p, primary_look_id: look.id }))
-                            setLookSearch('')
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-gray-50"
-                        >
-                          {look.primary_image_url && (
-                            <img
-                              src={look.primary_image_url}
-                              alt={look.title}
-                              className="w-8 h-8 rounded-lg object-cover shrink-0"
-                            />
-                          )}
-                          <span className="text-xs truncate" style={{ color: '#1A1428' }}>
-                            {look.title}
-                          </span>
-                        </button>
-                      ))}
-                      {filteredLooks.length === 0 && (
-                        <p className="px-3 py-3 text-xs" style={{ color: '#9A8DAA' }}>
-                          No looks found
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Notes */}
-            <div className="mb-5">
-              <label className="block text-xs font-medium tracking-wider uppercase mb-2" style={{ color: '#5A4D6A' }}>
-                Notes
-              </label>
-              <textarea
-                value={editPanel.notes ?? ''}
-                onChange={(e) => setEditPanel((p) => ({ ...p, notes: e.target.value }))}
-                placeholder="Styling notes, tips…"
-                rows={2}
-                className="w-full px-3 py-2 rounded-xl border text-sm outline-none resize-none"
-                style={{ borderColor: '#D4C9BB', backgroundColor: '#F8F5EE', color: '#1A1428' }}
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={clearDay}
-                className="flex-1 h-9 rounded-xl text-xs font-medium transition-all"
-                style={{ backgroundColor: '#FEF2F2', color: '#C0392B' }}
-              >
-                Clear
-              </button>
-              <button
-                onClick={saveDay}
-                disabled={saving}
-                className="flex-1 h-9 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
-                style={{ backgroundColor: '#422D64', color: '#FFFFFF', opacity: saving ? 0.7 : 1 }}
-              >
-                <Check className="w-3.5 h-3.5" />
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      </Modal>
     </div>
+  )
+}
+
+function LookThumb({ look }: { look: Look }) {
+  return look.primary_image_url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img loading="lazy" src={look.primary_image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+  ) : (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-atelier-lavender text-purple-dark">
+      <Sparkles className="h-4 w-4" aria-hidden />
+    </span>
   )
 }

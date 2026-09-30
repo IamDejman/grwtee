@@ -1,22 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Eye, Heart, Sparkles } from 'lucide-react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { Sparkles, Eye, Heart, Bookmark, Edit2, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
-
-const OCCASIONS = [
-  { value: '', label: 'All' },
-  { value: 'casual', label: 'Casual' },
-  { value: 'corporate', label: 'Corporate' },
-  { value: 'date_night', label: 'Date Night' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'streetwear', label: 'Streetwear' },
-  { value: 'athleisure', label: 'Athleisure' },
-  { value: 'brunch', label: 'Brunch' },
-  { value: 'vacation', label: 'Vacation' },
-  { value: 'wedding_guest', label: 'Wedding Guest' }
-]
+import { useToast } from '@/components/admin/Toast'
+import { Badge, EmptyState, FilterChips, RowAction, SearchInput, Switch } from '@/components/admin/ui'
+import { ButtonLink } from '@/components/ui/Button'
+import { LOOK_OCCASIONS, stylistLabel } from '@/lib/stylist-labels'
 
 interface Look {
   id: string
@@ -32,278 +23,177 @@ interface Look {
   created_at: string
 }
 
-interface LooksGridProps {
-  looks: Look[]
-}
+type Status = 'all' | 'published' | 'draft'
 
-export function LooksGrid({ looks }: LooksGridProps) {
-  const [filter, setFilter] = useState('')
-  const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'draft'>('all')
-  const [toggling, setToggling] = useState<string | null>(null)
-  const [localLooks, setLocalLooks] = useState(looks)
-  const [error, setError] = useState('')
+export function LooksGrid({ looks }: { looks: Look[] }) {
+  const [items, setItems] = useState(looks)
+  const [status, setStatus] = useState<Status>('all')
+  const [occasion, setOccasion] = useState('all')
+  const [query, setQuery] = useState('')
+  const [busyId, setBusyId] = useState<string | null>(null)
   const { confirm, dialog } = useConfirm()
+  const toast = useToast()
 
-  const filtered = localLooks.filter((l) => {
-    if (filter && l.occasion !== filter) return false
-    if (publishedFilter === 'published' && !l.is_published) return false
-    if (publishedFilter === 'draft' && l.is_published) return false
-    return true
-  })
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return items.filter((l) => {
+      if (status === 'published' && !l.is_published) return false
+      if (status === 'draft' && l.is_published) return false
+      if (occasion !== 'all' && l.occasion !== occasion) return false
+      return !q || l.title.toLowerCase().includes(q)
+    })
+  }, [items, status, occasion, query])
+
+  // Only offer occasions that have looks, so the chip row stays short.
+  const usedOccasions = LOOK_OCCASIONS.filter((o) => items.some((l) => l.occasion === o))
 
   async function togglePublish(look: Look) {
-    setToggling(look.id)
-    setError('')
+    const next = !look.is_published
+    setBusyId(look.id)
     try {
       const res = await fetch(`/api/stylist/looks/${look.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_published: !look.is_published })
+        body: JSON.stringify({ is_published: next })
       })
-      if (res.ok) {
-        setLocalLooks((prev) =>
-          prev.map((l) => (l.id === look.id ? { ...l, is_published: !l.is_published } : l))
-        )
-      } else {
-        setError(`Couldn't ${look.is_published ? 'unpublish' : 'publish'} "${look.title}". Try again.`)
-      }
+      if (!res.ok) throw new Error()
+      setItems((prev) => prev.map((l) => (l.id === look.id ? { ...l, is_published: next } : l)))
+      toast.success(next ? 'Look published.' : 'Look moved to drafts.')
     } catch {
-      setError(`Couldn't ${look.is_published ? 'unpublish' : 'publish'} "${look.title}". Try again.`)
+      toast.error(`Couldn't ${next ? 'publish' : 'unpublish'} "${look.title}". Try again.`)
     } finally {
-      setToggling(null)
+      setBusyId(null)
     }
   }
 
   async function deleteLook(look: Look) {
     const ok = await confirm({
       title: `Delete "${look.title}"?`,
-      body: "This can't be undone.",
+      body: "Clients will no longer see it. This can't be undone.",
       confirmLabel: 'Delete',
       danger: true
     })
     if (!ok) return
-    setError('')
-    const res = await fetch(`/api/stylist/looks/${look.id}`, { method: 'DELETE' }).catch(() => null)
-    if (res?.ok) {
-      setLocalLooks((prev) => prev.filter((l) => l.id !== look.id))
-    } else {
-      setError(`Couldn't delete "${look.title}". Try again.`)
+    setBusyId(look.id)
+    try {
+      const res = await fetch(`/api/stylist/looks/${look.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      setItems((prev) => prev.filter((l) => l.id !== look.id))
+      toast.success('Look deleted.')
+    } catch {
+      toast.error(`Couldn't delete "${look.title}". Try again.`)
+    } finally {
+      setBusyId(null)
     }
   }
 
   return (
     <div>
       {dialog}
-      {error ? (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        {/* Published filter */}
-        <div
-          className="flex rounded-xl overflow-hidden p-1 gap-1"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8' }}
-        >
-          {(['all', 'published', 'draft'] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setPublishedFilter(v)}
-              className="px-3 h-7 rounded-lg text-xs font-medium capitalize transition-all"
-              style={{
-                backgroundColor: publishedFilter === v ? '#422D64' : 'transparent',
-                color: publishedFilter === v ? '#FFFFFF' : '#9A8DAA'
-              }}
-            >
-              {v}
-            </button>
-          ))}
+      <div className="mb-5 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <FilterChips<Status>
+            label="Filter by status"
+            value={status}
+            onChange={setStatus}
+            options={[
+              { value: 'all', label: 'All', count: items.length },
+              { value: 'published', label: 'Published', count: items.filter((l) => l.is_published).length },
+              { value: 'draft', label: 'Drafts', count: items.filter((l) => !l.is_published).length }
+            ]}
+          />
+          <div className="lg:w-72">
+            <SearchInput label="Search looks" placeholder="Search titles…" value={query} onChange={setQuery} />
+          </div>
         </div>
-
-        {/* Occasion filter pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {OCCASIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className="shrink-0 px-3 h-8 rounded-full text-xs font-medium transition-all"
-              style={{
-                backgroundColor: filter === value ? '#CF9D4E' : '#FFFFFF',
-                color: filter === value ? '#FFFFFF' : '#9A8DAA',
-                border: '1px solid',
-                borderColor: filter === value ? '#CF9D4E' : '#EAE4D8'
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {usedOccasions.length > 1 ? (
+          <FilterChips
+            label="Filter by occasion"
+            value={occasion}
+            onChange={setOccasion}
+            options={[
+              { value: 'all', label: 'Any occasion' },
+              ...usedOccasions.map((o) => ({ value: o, label: stylistLabel(o) }))
+            ]}
+          />
+        ) : null}
       </div>
 
-      {/* Count */}
-      <p className="text-xs mb-4 font-medium" style={{ color: '#9A8DAA' }}>
-        {filtered.length} {filtered.length === 1 ? 'look' : 'looks'}
-      </p>
-
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div
-          className="rounded-2xl p-16 flex flex-col items-center justify-center gap-3 text-center"
-          style={{ backgroundColor: '#FFFFFF', border: '1px dashed #D4C9BB' }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: '#F2EDF8' }}
-          >
-            <Sparkles className="w-5 h-5" style={{ color: '#B0A0C4' }} />
-          </div>
-          <p className="text-sm font-medium" style={{ color: '#5A4D6A' }}>
-            No looks found
-          </p>
-          <p className="text-xs" style={{ color: '#9A8DAA' }}>
-            Try a different filter or create a new look
-          </p>
+      {!filtered.length ? (
+        <div className="rounded-2xl border border-atelier-border bg-white">
+          <EmptyState
+            icon={Sparkles}
+            title={items.length ? 'No looks match.' : 'No looks yet.'}
+            action={
+              items.length ? null : (
+                <ButtonLink href="/admin/looks/new" size="sm" variant="outline">
+                  Create your first look
+                </ButtonLink>
+              )
+            }
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((look) => {
-            const occasionLabel = look.occasion
-              ? look.occasion.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-              : null
-            const seasonLabel = look.season
-              ? look.season.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-              : null
-
-            return (
-              <div
-                key={look.id}
-                className="group rounded-2xl overflow-hidden transition-all animate-fade-in-up"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #EAE4D8',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                }}
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((look) => (
+            <li key={look.id} className="overflow-hidden rounded-2xl border border-atelier-border bg-white">
+              <Link
+                href={`/admin/looks/${look.id}`}
+                className="group relative block aspect-[3/4] bg-atelier-canvas"
+                aria-label={`Edit ${look.title}`}
               >
-                {/* Image */}
-                <div
-                  className="relative aspect-[3/4] overflow-hidden"
-                  style={{ backgroundColor: '#F2EDF8' }}
-                >
-                  {look.primary_image_url ? (
-                    <img
-                      src={look.primary_image_url}
-                      alt={look.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Sparkles className="w-8 h-8" style={{ color: '#D4C9BB' }} />
-                    </div>
-                  )}
-
-                  {/* Badges */}
-                  <div className="absolute top-3 left-3 flex gap-1.5">
-                    <span
-                      className="text-[10px] px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm"
-                      style={{
-                        backgroundColor: look.is_published
-                          ? 'rgba(13,103,78,0.85)'
-                          : 'rgba(90,77,106,0.85)',
-                        color: '#FFFFFF'
-                      }}
-                    >
-                      {look.is_published ? 'Live' : 'Draft'}
+                {look.primary_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img loading="lazy"
+                    src={look.primary_image_url}
+                    alt=""
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                  />
+                ) : (
+                  <span className="flex h-full items-center justify-center text-atelier-faint">
+                    <Sparkles className="h-8 w-8" aria-hidden />
+                  </span>
+                )}
+                <span className="absolute left-2 top-2 flex gap-1.5">
+                  {look.is_published ? null : <Badge>Draft</Badge>}
+                  {look.is_premium ? <Badge tone="gold">Premium</Badge> : null}
+                </span>
+              </Link>
+              <div className="p-3">
+                <p className="truncate text-sm font-medium text-atelier-ink">{look.title}</p>
+                <p className="truncate text-xs text-atelier-faint">
+                  {[look.occasion, look.season].filter(Boolean).map(stylistLabel).join(' · ') || '-'}
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-atelier-border pt-3">
+                  <span className="flex items-center gap-2.5 text-xs tabular-nums text-atelier-faint">
+                    <span className="flex items-center gap-1" title="Likes">
+                      <Heart className="h-3 w-3" aria-hidden /> {look.likes_count}
+                      <span className="sr-only">likes</span>
                     </span>
-                    {look.is_premium && (
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm"
-                        style={{ backgroundColor: 'rgba(207,157,78,0.9)', color: '#FFFFFF' }}
-                      >
-                        Premium
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Hover actions */}
-                  <div
-                    className="absolute inset-0 flex items-end p-3 gap-2 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100"
-                    style={{ background: 'linear-gradient(to top, rgba(13,10,20,0.7), transparent)' }}
-                  >
-                    <Link
-                      href={`/admin/looks/${look.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', backdropFilter: 'blur(8px)' }}
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${look.title}`}
-                      onClick={() => void deleteLook(look)}
-                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-                      style={{ backgroundColor: 'rgba(192,57,43,0.2)', color: '#FFFFFF', backdropFilter: 'blur(8px)' }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                    <span className="flex items-center gap-1" title="Views">
+                      <Eye className="h-3 w-3" aria-hidden /> {look.views_count}
+                      <span className="sr-only">views</span>
+                    </span>
+                  </span>
+                  <Switch
+                    checked={look.is_published}
+                    disabled={busyId === look.id}
+                    onChange={() => void togglePublish(look)}
+                    label={`Published: ${look.title}`}
+                  />
                 </div>
-
-                {/* Card footer */}
-                <div className="p-3">
-                  <p className="text-sm font-medium truncate mb-1" style={{ color: '#1A1428' }}>
-                    {look.title}
-                  </p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {occasionLabel && (
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: '#F2EDF8', color: '#5A4D6A' }}
-                      >
-                        {occasionLabel}
-                      </span>
-                    )}
-                    {seasonLabel && (
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}
-                      >
-                        {seasonLabel}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Stats + publish toggle */}
-                  <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid #F0EBE3' }}>
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex items-center gap-1 text-xs" style={{ color: '#B0A0C4' }}>
-                        <Heart className="w-3 h-3" /> {look.likes_count}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs" style={{ color: '#B0A0C4' }}>
-                        <Eye className="w-3 h-3" /> {look.views_count}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => togglePublish(look)}
-                      disabled={toggling === look.id}
-                      className="flex items-center gap-1 text-xs font-medium transition-colors"
-                      style={{ color: look.is_published ? '#0D674E' : '#9A8DAA' }}
-                      title={look.is_published ? 'Unpublish' : 'Publish'}
-                    >
-                      {look.is_published ? (
-                        <ToggleRight className="w-4 h-4" />
-                      ) : (
-                        <ToggleLeft className="w-4 h-4" />
-                      )}
-                      {look.is_published ? 'Live' : 'Draft'}
-                    </button>
-                  </div>
+                <div className="-mx-1 mt-2 flex justify-between">
+                  <Link href={`/admin/looks/${look.id}`} className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark transition hover:bg-atelier-lavender">
+                    Edit
+                  </Link>
+                  <RowAction danger disabled={busyId === look.id} onClick={() => void deleteLook(look)}>
+                    Delete
+                  </RowAction>
                 </div>
               </div>
-            )
-          })}
-        </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

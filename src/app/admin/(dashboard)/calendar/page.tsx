@@ -25,8 +25,10 @@ export default async function CalendarPage({
 
   const params = await searchParams
   const now = new Date()
-  const month = parseInt(params.month ?? String(now.getMonth() + 1))
-  const year = parseInt(params.year ?? String(now.getFullYear()))
+  const m = Number(params.month)
+  const y = Number(params.year)
+  const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : now.getMonth() + 1
+  const year = Number.isInteger(y) && y >= 2000 && y <= 2100 ? y : now.getFullYear()
 
   const admin = createAdminClient()
 
@@ -59,7 +61,7 @@ export default async function CalendarPage({
 
   return (
     <CalendarView
-      stylistId={ownerId}
+      key={`${year}-${month}`}
       month={month}
       year={year}
       calendar={calendar ?? null}
