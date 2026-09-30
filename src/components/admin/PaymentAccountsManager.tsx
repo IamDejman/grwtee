@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
 
 export type AccountType = "bank" | "paypal" | "wise" | "other";
@@ -95,6 +96,7 @@ export function PaymentAccountsManager() {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [stepUpPassword, setStepUpPassword] = useState("");
   const [reencryptMsg, setReencryptMsg] = useState<string | null>(null);
+  const { askPassword, dialog } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -236,8 +238,12 @@ export function PaymentAccountsManager() {
   };
 
   const remove = async (acc: PaymentAccount) => {
-    if (!confirm(`Delete "${acc.label}"?`)) return;
-    const currentPassword = prompt("Enter your current password to confirm deletion:");
+    const currentPassword = await askPassword({
+      title: `Delete "${acc.label}"?`,
+      body: "It will no longer appear on invoices or booking emails. This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true
+    });
     if (!currentPassword) return;
     setLoading(true);
     setError(null);
@@ -257,17 +263,20 @@ export function PaymentAccountsManager() {
   };
 
   const toggleActive = async (acc: PaymentAccount) => {
-    if (!stepUpPassword) {
-      setError("Enter your current password below before toggling account status.");
-      return;
-    }
+    const currentPassword =
+      stepUpPassword ||
+      (await askPassword({
+        title: `${acc.active ? "Deactivate" : "Activate"} "${acc.label}"?`,
+        confirmLabel: acc.active ? "Deactivate" : "Activate"
+      }));
+    if (!currentPassword) return;
     setLoading(true);
     setError(null);
     try {
       const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !acc.active, currentPassword: stepUpPassword })
+        body: JSON.stringify({ active: !acc.active, currentPassword })
       });
       if (!res.ok) throw new Error("Failed");
       await load();
@@ -279,10 +288,9 @@ export function PaymentAccountsManager() {
   };
 
   const reencryptAll = async () => {
-    if (!stepUpPassword) {
-      setError("Enter your current password before re-encrypting.");
-      return;
-    }
+    const currentPassword =
+      stepUpPassword || (await askPassword({ title: "Re-encrypt payment details?", confirmLabel: "Re-encrypt" }));
+    if (!currentPassword) return;
     setLoading(true);
     setError(null);
     setReencryptMsg(null);
@@ -290,7 +298,7 @@ export function PaymentAccountsManager() {
       const res = await adminFetch("/api/payment-accounts/re-encrypt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: stepUpPassword })
+        body: JSON.stringify({ currentPassword })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed");
@@ -307,15 +315,12 @@ export function PaymentAccountsManager() {
 
   return (
     <div>
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Payment Accounts
           </h2>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Bank accounts, PayPal, Wise, or other payment methods shown on
-            invoice PDFs. Filtered by invoice currency by default.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={reencryptAll} size="sm" variant="outline" loading={loading}>
@@ -454,7 +459,7 @@ export function PaymentAccountsManager() {
         ))}
         {!accounts.length && !loading ? (
           <p className="rounded-lg border border-dashed border-gray-medium/60 p-6 text-center text-sm text-gray-dark/70">
-            No payment accounts yet. Click <strong>Add account</strong> to add one.
+            No payment accounts yet.
           </p>
         ) : null}
       </div>
@@ -592,9 +597,6 @@ export function PaymentAccountsManager() {
                     setForm((f) => ({ ...f, notes: e.target.value }))
                   }
                 />
-                <p className="mt-1 text-xs text-gray-dark/70">
-                  The full text will be printed on the invoice under this account.
-                </p>
               </div>
             ) : null}
 

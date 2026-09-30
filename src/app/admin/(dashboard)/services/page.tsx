@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { slugify } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -41,6 +42,7 @@ export default function AdminServicesPage() {
   const [editing, setEditing] = useState<Service | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Omit<Service, "id">>(emptyDraft);
+  const { confirm, dialog } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -135,6 +137,14 @@ export default function AdminServicesPage() {
   };
 
   const remove = async (id: string) => {
+    const name = items.find((s) => s.id === id)?.name ?? "this service";
+    const ok = await confirm({
+      title: `Delete ${name}?`,
+      body: "It will be removed from the website. This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     setLoading(true);
     setError(null);
     try {
@@ -511,6 +521,7 @@ export default function AdminServicesPage() {
           </div>
         ) : null}
       </Modal>
+      {dialog}
     </div>
   );
 }

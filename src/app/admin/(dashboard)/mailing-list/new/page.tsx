@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
 
 const BRAND = {
@@ -85,6 +86,15 @@ export default function NewBroadcastPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [messageKind, setMessageKind] = useState<"success" | "error">("success");
   const [previewDoc, setPreviewDoc] = useState<string>(buildPreviewDoc("", ""));
+  const [confirmedCount, setConfirmedCount] = useState<number | null>(null);
+  const { confirm, dialog } = useConfirm();
+
+  useEffect(() => {
+    adminFetch("/api/admin/subscribers?status=confirmed")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { counts?: { confirmed?: number } } | null) => setConfirmedCount(data?.counts?.confirmed ?? null))
+      .catch(() => setConfirmedCount(null));
+  }, []);
 
   useEffect(() => {
     setPreviewDoc(buildPreviewDoc(subject, html));
@@ -145,13 +155,16 @@ export default function NewBroadcastPage() {
       setMessageKind("error");
       return;
     }
-    if (
-      !window.confirm(
-        "Send this broadcast to ALL confirmed subscribers? This cannot be undone."
-      )
-    ) {
-      return;
-    }
+    const audience =
+      confirmedCount === null
+        ? "all confirmed subscribers"
+        : `${confirmedCount} confirmed subscriber${confirmedCount === 1 ? "" : "s"}`;
+    const ok = await confirm({
+      title: `Send to ${audience}?`,
+      body: `"${subject.trim()}" goes out now. This can't be undone.`,
+      confirmLabel: "Send now"
+    });
+    if (!ok) return;
     setSending(true);
     setMessage(null);
     try {
@@ -179,6 +192,7 @@ export default function NewBroadcastPage() {
 
   return (
     <div>
+      {dialog}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <Link

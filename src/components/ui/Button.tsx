@@ -3,7 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 
-type Variant = "primary" | "secondary" | "outline" | "ghost";
+type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const variantClass: Record<Variant, string> = {
@@ -13,7 +13,8 @@ const variantClass: Record<Variant, string> = {
     "bg-purple-medium text-white hover:bg-purple-dark shadow-md hover:shadow-lg",
   outline:
     "border border-purple-dark text-purple-dark hover:bg-purple-dark hover:text-white",
-  ghost: "text-purple-dark hover:bg-purple-dark/10"
+  ghost: "text-purple-dark hover:bg-purple-dark/10",
+  danger: "bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg"
 };
 
 const sizeClass: Record<Size, string> = {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { formatBookingMessage, formatDateTime, formatServiceLabel } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -62,6 +63,8 @@ export default function AdminBookingsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [detail, setDetail] = useState<Booking | null>(null);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -99,7 +102,7 @@ export default function AdminBookingsPage() {
   }, [items, query]);
 
   const updateStatus = async (id: string, next: Booking["status"]) => {
-    setLoading(true);
+    setSavingStatus(true);
     setError(null);
     try {
       const res = await adminFetch(`/api/bookings/${id}`, {
@@ -108,15 +111,24 @@ export default function AdminBookingsPage() {
         body: JSON.stringify({ status: next })
       });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      setItems((prev) => prev.map((b) => (b.id === id ? { ...b, status: next } : b)));
+      setDetail((d) => (d && d.id === id ? { ...d, status: next } : d));
     } catch {
       setError("Failed to update status.");
     } finally {
-      setLoading(false);
+      setSavingStatus(false);
     }
   };
 
-  const remove = async (id: string) => {
+  const remove = async (b: Booking) => {
+    const ok = await confirm({
+      title: `Delete ${b.name}'s booking?`,
+      body: "This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
+    const id = b.id;
     setLoading(true);
     setError(null);
     try {
@@ -320,10 +332,6 @@ export default function AdminBookingsPage() {
                   <span className="font-semibold">Service:</span> {formatServiceLabel(detail.service)}
                 </p>
                 <p className="text-sm text-gray-dark/85">
-                  <span className="font-semibold">Status:</span>{" "}
-                  {statusOptions.find((o) => o.value === detail.status)?.label ?? detail.status}
-                </p>
-                <p className="text-sm text-gray-dark/85">
                   <span className="font-semibold">Submitted:</span>{" "}
                   {formatDateTime(detail.createdAt)}
                 </p>
@@ -337,17 +345,29 @@ export default function AdminBookingsPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setDetail(null)}>
-                Close
-              </Button>
-              <Button variant="secondary" onClick={() => remove(detail.id)} loading={loading}>
-                Delete
-              </Button>
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="sm:w-56">
+                <Select
+                  label="Status"
+                  value={detail.status}
+                  disabled={savingStatus}
+                  options={statusOptions.filter((o) => o.value !== "all")}
+                  onChange={(e) => void updateStatus(detail.id, e.target.value as Booking["status"])}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button variant="danger" size="sm" onClick={() => void remove(detail)} loading={loading}>
+                  Delete
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setDetail(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
       </Modal>
+      {dialog}
     </div>
   );
 }

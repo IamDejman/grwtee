@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { Sparkles, Eye, Heart, Bookmark, Edit2, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 
 const OCCASIONS = [
@@ -40,6 +41,8 @@ export function LooksGrid({ looks }: LooksGridProps) {
   const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'draft'>('all')
   const [toggling, setToggling] = useState<string | null>(null)
   const [localLooks, setLocalLooks] = useState(looks)
+  const [error, setError] = useState('')
+  const { confirm, dialog } = useConfirm()
 
   const filtered = localLooks.filter((l) => {
     if (filter && l.occasion !== filter) return false
@@ -50,6 +53,7 @@ export function LooksGrid({ looks }: LooksGridProps) {
 
   async function togglePublish(look: Look) {
     setToggling(look.id)
+    setError('')
     try {
       const res = await fetch(`/api/stylist/looks/${look.id}`, {
         method: 'PATCH',
@@ -60,22 +64,41 @@ export function LooksGrid({ looks }: LooksGridProps) {
         setLocalLooks((prev) =>
           prev.map((l) => (l.id === look.id ? { ...l, is_published: !l.is_published } : l))
         )
+      } else {
+        setError(`Couldn't ${look.is_published ? 'unpublish' : 'publish'} "${look.title}". Try again.`)
       }
+    } catch {
+      setError(`Couldn't ${look.is_published ? 'unpublish' : 'publish'} "${look.title}". Try again.`)
     } finally {
       setToggling(null)
     }
   }
 
-  async function deleteLook(id: string) {
-    if (!confirm('Delete this look? This cannot be undone.')) return
-    const res = await fetch(`/api/stylist/looks/${id}`, { method: 'DELETE' })
-    if (res.ok) {
-      setLocalLooks((prev) => prev.filter((l) => l.id !== id))
+  async function deleteLook(look: Look) {
+    const ok = await confirm({
+      title: `Delete "${look.title}"?`,
+      body: "This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true
+    })
+    if (!ok) return
+    setError('')
+    const res = await fetch(`/api/stylist/looks/${look.id}`, { method: 'DELETE' }).catch(() => null)
+    if (res?.ok) {
+      setLocalLooks((prev) => prev.filter((l) => l.id !== look.id))
+    } else {
+      setError(`Couldn't delete "${look.title}". Try again.`)
     }
   }
 
   return (
     <div>
+      {dialog}
+      {error ? (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+          {error}
+        </p>
+      ) : null}
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
         {/* Published filter */}
@@ -204,11 +227,11 @@ export function LooksGrid({ looks }: LooksGridProps) {
 
                   {/* Hover actions */}
                   <div
-                    className="absolute inset-0 flex items-end p-3 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-0 flex items-end p-3 gap-2 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100"
                     style={{ background: 'linear-gradient(to top, rgba(13,10,20,0.7), transparent)' }}
                   >
                     <Link
-                      href={`/stylist/looks/${look.id}`}
+                      href={`/admin/looks/${look.id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium"
                       style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', backdropFilter: 'blur(8px)' }}
                     >
@@ -216,7 +239,9 @@ export function LooksGrid({ looks }: LooksGridProps) {
                       Edit
                     </Link>
                     <button
-                      onClick={() => deleteLook(look.id)}
+                      type="button"
+                      aria-label={`Delete ${look.title}`}
+                      onClick={() => void deleteLook(look)}
                       className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
                       style={{ backgroundColor: 'rgba(192,57,43,0.2)', color: '#FFFFFF', backdropFilter: 'blur(8px)' }}
                     >

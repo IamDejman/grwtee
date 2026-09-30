@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
 import { signOut } from "next-auth/react";
 
@@ -23,6 +24,7 @@ export function SecuritySettingsPanel() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [stepUpPassword, setStepUpPassword] = useState("");
+  const { confirm, dialog } = useConfirm();
 
   const loadSessions = async () => {
     const res = await adminFetch("/api/admin/sessions");
@@ -81,6 +83,13 @@ export function SecuritySettingsPanel() {
   };
 
   const disableMfa = async () => {
+    const ok = await confirm({
+      title: "Turn off two-step sign-in?",
+      body: "Signing in will only need your password.",
+      confirmLabel: "Turn off",
+      danger: true
+    });
+    if (!ok) return;
     setLoading(true);
     setError(null);
     try {
@@ -101,6 +110,13 @@ export function SecuritySettingsPanel() {
   };
 
   const revokeAll = async () => {
+    const ok = await confirm({
+      title: "Sign out of all devices?",
+      body: "You'll be signed out here too.",
+      confirmLabel: "Sign out everywhere",
+      danger: true
+    });
+    if (!ok) return;
     setLoading(true);
     setError(null);
     try {
@@ -130,12 +146,10 @@ export function SecuritySettingsPanel() {
 
   return (
     <div className="mt-10 rounded-xl border border-gray-medium/60 bg-white p-4 sm:p-6">
+      {dialog}
       <h2 className="font-heading text-xl font-semibold text-purple-dark">Security</h2>
-      <p className="mt-2 text-sm text-gray-dark/80">
-        Multi-factor authentication, active sessions, and sign-out controls.
-      </p>
 
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-red-600" role="alert">{error}</p> : null}
       {success ? <p className="mt-3 text-sm text-green-dark">{success}</p> : null}
 
       <div className="mt-6 space-y-4">

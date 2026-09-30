@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
 
 type Subscriber = {
@@ -46,6 +47,7 @@ export default function MailingListPage() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   async function loadSubscribers() {
     setLoading(true);
@@ -85,12 +87,15 @@ export default function MailingListPage() {
   }, [tab, status]);
 
   async function deleteSubscriber(id: string) {
-    if (!confirm("Delete this subscriber?")) return;
-    const res = await adminFetch(`/api/admin/subscribers/${id}`, { method: "DELETE" });
-    if (res.ok) {
+    const email = subscribers.find((s) => s.id === id)?.email ?? "this subscriber";
+    const ok = await confirm({ title: `Delete ${email}?`, body: "This can't be undone.", confirmLabel: "Delete", danger: true });
+    if (!ok) return;
+    setError(null);
+    const res = await adminFetch(`/api/admin/subscribers/${id}`, { method: "DELETE" }).catch(() => null);
+    if (res?.ok) {
       setSubscribers((prev) => prev.filter((s) => s.id !== id));
     } else {
-      alert("Failed to delete");
+      setError(`Couldn't delete ${email}. Try again.`);
     }
   }
 
@@ -283,6 +288,7 @@ export default function MailingListPage() {
           </table>
         </div>
       )}
+      {dialog}
     </div>
   );
 }
