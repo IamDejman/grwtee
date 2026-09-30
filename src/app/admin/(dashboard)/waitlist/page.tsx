@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
+import { EmptyState, PageHeader, Panel, SkeletonRows, Stat } from "@/components/admin/ui";
 
 type WaitlistEntry = {
   id: string;
@@ -10,18 +12,20 @@ type WaitlistEntry = {
   createdAt: string;
 };
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleString();
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 const PAGE_SIZE = 20;
+
+const pillLink =
+  "inline-flex items-center rounded-full border border-atelier-border bg-white px-4 py-2 text-sm font-medium text-atelier-ink transition hover:bg-atelier-canvas";
 
 export default function WaitlistPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function load(p: number) {
@@ -33,112 +37,84 @@ export default function WaitlistPage() {
       if (!data.success) throw new Error(data.error || "Failed to load");
       setEntries(data.data);
       setTotal(data.total);
-    } catch (e) {
-      setError((e as Error).message);
+    } catch {
+      setError("Couldn't load the waitlist. Refresh to try again.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    load(page);
+    void load(page);
   }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Inner Circle waitlist
-          </h1>
-        </div>
-      </div>
+      <PageHeader
+        title="Inner Circle waitlist"
+        actions={
+          // API download route, not a page: a full navigation is required
+          // eslint-disable-next-line @next/next/no-html-link-for-pages
+          <a href="/api/admin/waitlist/export" className={pillLink}>
+            Export CSV
+          </a>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+      {error ? (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="rounded-full bg-purple-dark/10 px-3 py-1 text-sm font-medium text-purple-dark">
-          {total} on the list
-        </span>
-        {/* API download route, not a page: a full navigation is required */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a
-          href="/api/admin/waitlist/export"
-          className="ml-auto inline-flex items-center rounded-full border border-gray-medium/60 bg-white px-4 py-2 text-sm font-medium text-gray-dark transition hover:bg-cream-light"
-        >
-          Export CSV
-        </a>
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="On the list" value={total} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-medium/40 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
-            <tr>
-              <th className="px-4 py-3">Email</th>
-              <th className="hidden px-4 py-3 sm:table-cell">Name</th>
-              <th className="hidden px-4 py-3 sm:table-cell">Joined</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-gray-dark/60">
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!loading && entries.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-gray-dark/60">
-                  No signups yet.
-                </td>
-              </tr>
-            )}
+      <Panel className="!p-0 sm:!p-0">
+        {loading && !entries.length ? (
+          <div className="p-5">
+            <SkeletonRows />
+          </div>
+        ) : !entries.length ? (
+          <EmptyState icon={Sparkles} title="No signups yet." />
+        ) : (
+          <ul className="divide-y divide-atelier-border/70">
             {entries.map((e) => (
-              <tr key={e.id} className="border-t border-gray-medium/30">
-                <td className="px-4 py-3 font-medium text-gray-dark [overflow-wrap:anywhere]">
-                  {e.email}
-                  <span className="mt-0.5 block font-normal text-gray-dark/70 sm:hidden">
-                    {e.name || "-"} · {formatDate(e.createdAt)}
-                  </span>
-                </td>
-                <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{e.name || "-"}</td>
-                <td className="hidden whitespace-nowrap px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(e.createdAt)}</td>
-              </tr>
+              <li key={e.id} className="flex items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+                <div className="min-w-0">
+                  <p className="font-medium text-atelier-ink [overflow-wrap:anywhere]">{e.email}</p>
+                  {e.name ? <p className="text-sm text-atelier-muted">{e.name}</p> : null}
+                </div>
+                <p className="shrink-0 text-sm text-atelier-faint">{formatDate(e.createdAt)}</p>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+        )}
+      </Panel>
 
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-dark/70">
+      {totalPages > 1 ? (
+        <div className="mt-4 flex items-center justify-between text-sm text-atelier-muted">
           <span>
             Page {page} of {totalPages}
           </span>
           <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-full border border-gray-medium/60 bg-white px-4 py-1.5 font-medium transition hover:bg-cream-light disabled:opacity-40"
-            >
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={`${pillLink} disabled:opacity-40`}>
               Previous
             </button>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-full border border-gray-medium/60 bg-white px-4 py-1.5 font-medium transition hover:bg-cream-light disabled:opacity-40"
+              className={`${pillLink} disabled:opacity-40`}
             >
               Next
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

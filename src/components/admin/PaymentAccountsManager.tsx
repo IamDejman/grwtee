@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { Modal } from "@/components/ui/Modal";
+import { Modal } from "@/components/admin/Modal";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -318,8 +318,8 @@ export function PaymentAccountsManager() {
       {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-heading text-xl font-semibold text-purple-dark">
-            Payment Accounts
+          <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
+            Payment accounts
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -466,7 +466,7 @@ export function PaymentAccountsManager() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)}>
         <div>
-          <h3 className="font-heading text-xl font-semibold text-purple-dark">
+          <h3 className="font-cormorant text-2xl font-medium text-atelier-ink">
             {editingId ? "Edit account" : "New payment account"}
           </h3>
 

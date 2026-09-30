@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { Modal } from "@/components/ui/Modal";
+import { Modal } from "@/components/admin/Modal";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Receipt } from "lucide-react";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SearchInput, SkeletonRows, Stat } from "@/components/admin/ui";
 import { formatDate } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -128,7 +131,10 @@ function accountSecondaryLine(acc: PaymentAccountOption): string {
 
 export default function AdminInvoicesPage() {
   const [items, setItems] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "unpaid" | "overdue" | "paid">("all");
+  const [query, setQuery] = useState("");
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
@@ -282,6 +288,7 @@ export default function AdminInvoicesPage() {
       }
       setShowForm(false);
       resetForm();
+      toast.success("Invoice created.");
       await load();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create invoice.";
@@ -301,9 +308,10 @@ export default function AdminInvoicesPage() {
         body: JSON.stringify({ status: next })
       });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      setItems((prev) => prev.map((x) => (x.id === inv.id ? { ...x, status: next } : x)));
+      toast.success(`${inv.invoiceNumber} marked ${next}.`);
     } catch {
-      setError("Failed to update status.");
+      toast.error("Couldn't update the invoice. Try again.");
     } finally {
       setLoading(false);
     }
@@ -321,16 +329,16 @@ export default function AdminInvoicesPage() {
     try {
       const res = await adminFetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      setItems((prev) => prev.filter((x) => x.id !== inv.id));
+      toast.success(`${inv.invoiceNumber} deleted.`);
     } catch {
-      setError("Failed to delete invoice.");
+      toast.error("Couldn't delete the invoice. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const downloadPdf = async (inv: Invoice) => {
-    setError(null);
     try {
       const res = await adminFetch(`/api/invoices/${inv.id}/pdf-link`, { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -341,197 +349,154 @@ export default function AdminInvoicesPage() {
       // after an await gets popup-blocked (silently, on iPad Safari).
       window.location.assign(json.data.url);
     } catch (e: unknown) {
-      const detail = e instanceof Error ? e.message : "unknown error";
-      setError(`Failed to generate secure PDF link (${detail}). Please try again.`);
+      console.error("[Invoices] PDF link failed", e);
+      toast.error("Couldn't prepare the PDF. Try again.");
     }
   };
 
+  const rows = useMemo(() => items.map((inv) => ({ inv, total: computeTotals(parseItems(inv.items)).total })), [items]);
+  const today = new Date().toISOString().slice(0, 10);
+  const isOverdue = (inv: Invoice) => inv.status === "unpaid" && inv.dueDate.slice(0, 10) < today;
+  const outstanding = (currency: Invoice["currency"]) =>
+    rows.filter((r) => r.inv.status === "unpaid" && r.inv.currency === currency).reduce((sum, r) => sum + r.total, 0);
+  const visible = rows.filter(({ inv }) => {
+    if (filter === "paid" && inv.status !== "paid") return false;
+    if (filter === "unpaid" && inv.status !== "unpaid") return false;
+    if (filter === "overdue" && !isOverdue(inv)) return false;
+    const q = query.trim().toLowerCase();
+    return !q || inv.clientName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
+  });
+  const overdueCount = rows.filter((r) => isOverdue(r.inv)).length;
+
+  const statusBadge = (inv: Invoice) =>
+    inv.status === "paid" ? (
+      <Badge tone="green">Paid</Badge>
+    ) : isOverdue(inv) ? (
+      <Badge tone="red">Overdue</Badge>
+    ) : (
+      <Badge tone="gold">Unpaid</Badge>
+    );
+
+  const actions = (inv: Invoice) => (
+    <div className="-ml-2.5 flex flex-wrap items-center gap-1">
+      <RowAction onClick={() => void downloadPdf(inv)}>PDF</RowAction>
+      <RowAction onClick={() => void toggleStatus(inv)}>{inv.status === "paid" ? "Mark unpaid" : "Mark paid"}</RowAction>
+      <RowAction danger onClick={() => void remove(inv)}>
+        Delete
+      </RowAction>
+    </div>
+  );
+
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Invoices
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            Refresh
-          </Button>
+      <PageHeader
+        title="Invoices"
+        actions={
           <Button
+            size="sm"
             onClick={() => {
               setFormError(null);
               setShowForm(true);
             }}
           >
-            New Invoice
+            New invoice
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
 
-      {/* Mobile card list */}
-      <div className="mt-6 space-y-3 md:hidden">
-        {items.map((inv) => {
-          const parsed = parseItems(inv.items);
-          const t = computeTotals(parsed);
-          return (
-            <div
-              key={inv.id}
-              className="rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-purple-medium">{inv.invoiceNumber}</p>
-                  <p className="mt-0.5 truncate text-sm text-gray-dark">{inv.clientName}</p>
-                </div>
-                <span
-                  className={[
-                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
-                    inv.status === "paid"
-                      ? "bg-green-600/10 text-green-700"
-                      : "bg-gold/20 text-gray-dark"
-                  ].join(" ")}
-                >
-                  {inv.status === "paid" ? "Paid" : "Unpaid"}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-dark/80">
-                <div>
-                  <p className="uppercase tracking-wider text-gray-dark/60">Total</p>
-                  <p className="text-sm font-semibold text-gray-dark">
-                    {formatMoney(t.total, inv.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="uppercase tracking-wider text-gray-dark/60">Due</p>
-                  <p className="text-sm font-semibold text-gray-dark">
-                    {formatDate(inv.dueDate)}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  className="min-h-[40px] rounded-md bg-purple-dark px-3 py-2 text-xs font-semibold text-white"
-                  onClick={() => downloadPdf(inv)}
-                >
-                  PDF
-                </button>
-                <button
-                  className="min-h-[40px] rounded-md border border-purple-dark px-3 py-2 text-xs font-semibold text-purple-dark"
-                  onClick={() => toggleStatus(inv)}
-                >
-                  {inv.status === "paid" ? "Mark unpaid" : "Mark paid"}
-                </button>
-                <button
-                  className="min-h-[40px] rounded-md border border-red-600 px-3 py-2 text-xs font-semibold text-red-600"
-                  onClick={() => remove(inv)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {!items.length && !loading ? (
-          <p className="rounded-xl bg-white p-4 text-sm text-gray-dark/70 ring-1 ring-gray-medium/60">
-            No invoices yet.
-          </p>
-        ) : null}
-      </div>
+      {rows.length ? (
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <Stat label="Owed in naira" value={formatMoney(outstanding("NGN"), "NGN")} />
+          <Stat label="Owed in dollars" value={formatMoney(outstanding("USD"), "USD")} />
+          <Stat label="Overdue" value={overdueCount} tone={overdueCount ? "gold" : undefined} />
+        </div>
+      ) : null}
 
-      {/* Desktop table */}
-      <div className="mt-6 hidden rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead>
-              <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-                <th className="py-3 pr-4">Number</th>
-                <th className="py-3 pr-4">Client</th>
-                <th className="py-3 pr-4">Total</th>
-                <th className="py-3 pr-4">Date</th>
-                <th className="py-3 pr-4">Due</th>
-                <th className="py-3 pr-4">Status</th>
-                <th className="py-3 pr-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-medium/60">
-              {items.map((inv) => {
-                const parsed = parseItems(inv.items);
-                const t = computeTotals(parsed);
-                return (
-                  <tr key={inv.id}>
-                    <td className="py-3 pr-4 font-semibold text-purple-medium">
-                      {inv.invoiceNumber}
-                    </td>
-                    <td className="py-3 pr-4">{inv.clientName}</td>
-                    <td className="py-3 pr-4">{formatMoney(t.total, inv.currency)}</td>
-                    <td className="py-3 pr-4 text-gray-dark/80">
-                      {formatDate(inv.createdAt)}
-                    </td>
-                    <td className="py-3 pr-4 text-gray-dark/80">
-                      {formatDate(inv.dueDate)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={[
-                          "rounded-full px-3 py-1 text-xs font-semibold",
-                          inv.status === "paid"
-                            ? "bg-green-600/10 text-green-700"
-                            : "bg-gold/20 text-gray-dark"
-                        ].join(" ")}
-                      >
-                        {inv.status === "paid" ? "Paid" : "Unpaid"}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="rounded-md bg-purple-dark px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-medium"
-                          onClick={() => downloadPdf(inv)}
-                        >
-                          PDF
-                        </button>
-                        <button
-                          className="rounded-md border border-purple-dark px-3 py-1.5 text-xs font-semibold text-purple-dark hover:bg-purple-dark/10"
-                          onClick={() => toggleStatus(inv)}
-                        >
-                          {inv.status === "paid" ? "Mark unpaid" : "Mark paid"}
-                        </button>
-                        <button
-                          className="rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                          onClick={() => remove(inv)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {!items.length && !loading ? (
-                <tr>
-                  <td className="py-4 text-gray-dark/70" colSpan={7}>
-                    No invoices yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <FilterChips
+          label="Filter invoices"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: "All", count: rows.length },
+            { value: "unpaid", label: "Unpaid", count: rows.filter((r) => r.inv.status === "unpaid").length },
+            { value: "overdue", label: "Overdue", count: overdueCount },
+            { value: "paid", label: "Paid", count: rows.filter((r) => r.inv.status === "paid").length }
+          ]}
+        />
+        <div className="lg:w-72">
+          <SearchInput label="Search invoices" placeholder="Search client or number…" value={query} onChange={setQuery} />
         </div>
       </div>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)}>
+      <Panel className="!p-0 sm:!p-0">
+        {loading && !items.length ? (
+          <div className="p-5">
+            <SkeletonRows />
+          </div>
+        ) : !visible.length ? (
+          <EmptyState icon={Receipt} title={items.length ? "No invoices match." : "No invoices yet."} />
+        ) : (
+          <>
+            <ul className="divide-y divide-atelier-border/70 md:hidden">
+              {visible.map(({ inv, total }) => (
+                <li key={inv.id} className="px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-atelier-ink">{inv.clientName}</p>
+                      <p className="mt-0.5 text-sm text-atelier-muted">
+                        {inv.invoiceNumber} · Due {formatDate(inv.dueDate)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-medium tabular-nums text-atelier-ink">{formatMoney(total, inv.currency)}</p>
+                      <div className="mt-1">{statusBadge(inv)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2">{actions(inv)}</div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden px-6 pb-2 pt-5 md:block">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th className="text-right">Amount</th>
+                    <th>Due</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map(({ inv, total }) => (
+                    <tr key={inv.id}>
+                      <td>
+                        <p className="font-medium">{inv.clientName}</p>
+                        <p className="text-xs text-atelier-faint">{inv.invoiceNumber}</p>
+                      </td>
+                      <td className="whitespace-nowrap text-right tabular-nums">{formatMoney(total, inv.currency)}</td>
+                      <td className="whitespace-nowrap text-atelier-muted">{formatDate(inv.dueDate)}</td>
+                      <td>{statusBadge(inv)}</td>
+                      <td>{actions(inv)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Panel>
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New invoice">
         <div>
-          <h3 className="font-heading text-xl font-semibold text-purple-dark">
-            New Invoice
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
               label="Client name"
               required

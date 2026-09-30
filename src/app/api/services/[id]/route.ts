@@ -9,9 +9,9 @@ const updateSchema = z.object({
   name: z.string().min(2).optional(),
   slug: z.string().min(2).optional(),
   description: z.string().min(2).optional(),
-  priceUSD: z.number().optional(),
-  priceNGN: z.number().optional(),
-  priceNote: z.string().optional(),
+  priceUSD: z.number().nonnegative().nullable().optional(),
+  priceNGN: z.number().nonnegative().nullable().optional(),
+  priceNote: z.string().nullable().optional(),
   featured: z.boolean().optional(),
   active: z.boolean().optional(),
   order: z.number().optional()

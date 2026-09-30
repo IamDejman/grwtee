@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { Bold, ChevronLeft, Heading2, Italic, Link2, List, ListOrdered, Pilcrow, RemoveFormatting, Underline } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { PageHeader } from "@/components/admin/ui";
 import { Input } from "@/components/ui/Input";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
@@ -64,11 +66,12 @@ function ToolbarButton({ onClick, title, children }: ToolbarButtonProps) {
     <button
       type="button"
       title={title}
+      aria-label={title}
       onMouseDown={(e) => {
         e.preventDefault();
         onClick();
       }}
-      className="rounded px-2.5 py-1.5 text-sm font-medium text-gray-dark transition hover:bg-cream-light"
+      className="rounded-lg p-2 text-atelier-muted transition hover:bg-white hover:text-atelier-ink"
     >
       {children}
     </button>
@@ -193,26 +196,19 @@ export default function NewBroadcastPage() {
   return (
     <div>
       {dialog}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Link
-            href="/admin/mailing-list"
-            className="text-sm text-gray-dark/60 hover:text-gray-dark"
-          >
-            ← Mailing list
-          </Link>
-          <h1 className="mt-1 font-heading text-2xl font-semibold text-purple-dark">
-            New broadcast
-          </h1>
-        </div>
-      </div>
+      <Link
+        href="/admin/mailing-list"
+        className="-ml-1 mb-1 inline-flex items-center gap-1 rounded-lg px-1 py-1 text-sm text-atelier-muted transition hover:text-atelier-ink"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden />
+        Mailing list
+      </Link>
+      <PageHeader title="New broadcast" />
 
       {message && (
         <div
-          className={`mb-4 rounded-md border px-4 py-3 text-sm ${
-            messageKind === "success"
-              ? "border-green-dark/40 bg-green-dark/5 text-green-dark"
-              : "border-red-300 bg-red-50 text-red-800"
+          className={`mb-4 rounded-xl px-4 py-3 text-sm font-medium ${
+            messageKind === "success" ? "bg-green-dark/10 text-green-dark" : "bg-red-50 text-red-700"
           }`}
           role="status"
         >
@@ -223,10 +219,8 @@ export default function NewBroadcastPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-dark">
-              Subject
-            </label>
             <Input
+              label="Subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="e.g. New styling service, limited slots"
@@ -235,46 +229,44 @@ export default function NewBroadcastPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-dark">
-              Content
-            </label>
-            <div className="overflow-hidden rounded-lg border border-gray-medium/60 bg-white">
-              <div className="flex flex-wrap items-center gap-1 border-b border-gray-medium/40 bg-cream-light px-2 py-1.5">
+            <p className="mb-1 block text-sm font-semibold text-gray-dark">Content</p>
+            <div className="overflow-hidden rounded-2xl border border-atelier-border bg-white focus-within:border-purple-dark/40">
+              <div className="flex flex-wrap items-center gap-0.5 border-b border-atelier-border bg-atelier-canvas px-2 py-1.5">
                 <ToolbarButton title="Bold" onClick={() => exec("bold")}>
-                  <strong>B</strong>
+                  <Bold className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
                 <ToolbarButton title="Italic" onClick={() => exec("italic")}>
-                  <em>I</em>
+                  <Italic className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
                 <ToolbarButton title="Underline" onClick={() => exec("underline")}>
-                  <span className="underline">U</span>
+                  <Underline className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
-                <span className="mx-1 h-5 w-px bg-gray-medium/60" />
+                <span className="mx-1 h-5 w-px bg-atelier-border" />
                 <ToolbarButton
                   title="Heading"
                   onClick={() => exec("formatBlock", "<h2>")}
                 >
-                  H
+                  <Heading2 className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
                 <ToolbarButton
                   title="Paragraph"
                   onClick={() => exec("formatBlock", "<p>")}
                 >
-                  P
+                  <Pilcrow className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
-                <span className="mx-1 h-5 w-px bg-gray-medium/60" />
+                <span className="mx-1 h-5 w-px bg-atelier-border" />
                 <ToolbarButton title="Bulleted list" onClick={() => exec("insertUnorderedList")}>
-                  •
+                  <List className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
                 <ToolbarButton title="Numbered list" onClick={() => exec("insertOrderedList")}>
-                  1.
+                  <ListOrdered className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
-                <span className="mx-1 h-5 w-px bg-gray-medium/60" />
+                <span className="mx-1 h-5 w-px bg-atelier-border" />
                 <ToolbarButton title="Insert link" onClick={insertLink}>
-                  🔗
+                  <Link2 className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
                 <ToolbarButton title="Remove formatting" onClick={() => exec("removeFormat")}>
-                  ⨯
+                  <RemoveFormatting className="h-4 w-4" aria-hidden />
                 </ToolbarButton>
               </div>
               <div
@@ -288,51 +280,45 @@ export default function NewBroadcastPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-medium/40 bg-cream-light/60 p-4">
-            <label className="mb-1 block text-sm font-medium text-gray-dark">
-              Send test to
-            </label>
-            <div className="flex gap-2">
+          <div className="rounded-2xl border border-atelier-border bg-white p-4">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
               <Input
+                label="Send a test to"
                 type="email"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                placeholder="Defaults to your admin email"
+                placeholder="Your admin email…"
               />
-              <Button
-                variant="secondary"
-                onClick={sendTest}
-                disabled={testSending}
-              >
+              </div>
+              <Button size="sm" variant="outline" className="shrink-0" onClick={sendTest} disabled={testSending}>
                 {testSending ? "Sending…" : "Send test"}
               </Button>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Link href="/admin/mailing-list">
-              <Button variant="secondary">Cancel</Button>
-            </Link>
-            <Button onClick={sendToAll} disabled={sending}>
-              {sending ? "Sending…" : "Send to all confirmed subscribers"}
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+            <ButtonLink href="/admin/mailing-list" size="sm" variant="ghost">
+              Cancel
+            </ButtonLink>
+            <Button size="sm" onClick={sendToAll} disabled={sending}>
+              {sending ? "Sending…" : "Send to subscribers"}
             </Button>
           </div>
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-dark/60">
-              Live preview
-            </h2>
-            <span className="text-xs text-gray-dark/60">
-              Subject: <strong className="text-gray-dark">{subject || "(none)"}</strong>
+            <h2 className="text-xs font-medium uppercase tracking-wider text-atelier-faint">Preview</h2>
+            <span className="truncate pl-3 text-xs text-atelier-muted">
+              <strong className="font-medium text-atelier-ink">{subject || "-"}</strong>
             </span>
           </div>
-          <div className="overflow-hidden rounded-lg border border-gray-medium/60 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-atelier-border bg-white">
             <iframe
               title="Email preview"
               srcDoc={previewDoc}
-              className="h-[720px] w-full"
+              className="h-[520px] w-full lg:h-[720px]"
               sandbox="allow-same-origin"
             />
           </div>

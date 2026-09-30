@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { Modal } from "@/components/ui/Modal";
+import { Modal } from "@/components/admin/Modal";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/admin/Toast";
+import { EmptyState, PageHeader, Panel, RowAction, SearchInput, SkeletonRows, Switch, SwitchRow } from "@/components/admin/ui";
 import { slugify } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
 
@@ -22,7 +25,9 @@ type Service = {
   order: number;
 };
 
-const emptyDraft: Omit<Service, "id"> = {
+type Draft = Omit<Service, "id"> & { id?: string };
+
+const emptyDraft: Draft = {
   name: "",
   slug: "",
   description: "",
@@ -34,15 +39,29 @@ const emptyDraft: Omit<Service, "id"> = {
   order: 0
 };
 
+const money = (n: number | null, symbol: string) =>
+  n === null ? null : `${symbol}${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n)}`;
+
+function prices(s: Service) {
+  const parts = [money(s.priceNGN, "₦"), money(s.priceUSD, "$")].filter(Boolean);
+  return parts.length ? parts.join(" · ") : s.priceNote || "-";
+}
+
+const toNumber = (v: string) => {
+  const n = Number(v.replace(/[^\d.]/g, ""));
+  return v.trim() && Number.isFinite(n) ? n : null;
+};
+
 export default function AdminServicesPage() {
   const [items, setItems] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<Service | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState<Omit<Service, "id">>(emptyDraft);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const { confirm, dialog } = useConfirm();
+  const toast = useToast();
 
   const load = async () => {
     setLoading(true);
@@ -53,7 +72,7 @@ export default function AdminServicesPage() {
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
     } catch {
-      setError("Failed to load services.");
+      setError("Couldn't load services.");
     } finally {
       setLoading(false);
     }
@@ -66,464 +85,233 @@ export default function AdminServicesPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.slug.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)
-    );
+    return items.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q));
   }, [items, query]);
 
-  const startCreate = () => {
-    setDraft(emptyDraft);
-    setCreating(true);
-  };
+  const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
-  const create = async () => {
-    if (!draft.name.trim() || !draft.description.trim()) {
-      setError("Name and description are required.");
+  const save = async () => {
+    if (!draft) return;
+    if (draft.name.trim().length < 2 || draft.description.trim().length < 2) {
+      setFormError("Add a name and a description.");
       return;
     }
-    setLoading(true);
-    setError(null);
+    setSaving(true);
+    setFormError(null);
+    const body = {
+      name: draft.name.trim(),
+      slug: draft.id ? draft.slug : slugify(draft.name),
+      description: draft.description.trim(),
+      priceUSD: draft.priceUSD,
+      priceNGN: draft.priceNGN,
+      priceNote: draft.priceNote?.trim() || null,
+      featured: draft.featured,
+      active: draft.active,
+      order: draft.order
+    };
     try {
-      const body = {
-        ...draft,
-        slug: draft.slug?.trim() ? draft.slug.trim() : slugify(draft.name)
-      };
-      const res = await adminFetch("/api/services", {
-        method: "POST",
+      const res = await adminFetch(draft.id ? `/api/services/${draft.id}` : "/api/services", {
+        method: draft.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error("Failed");
-      setCreating(false);
+      toast.success(draft.id ? "Service saved." : "Service added.");
+      setDraft(null);
       await load();
     } catch {
-      setError("Failed to create service.");
+      setFormError("Couldn't save the service. Try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const save = async () => {
-    if (!editing) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminFetch(`/api/services/${editing.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editing.name,
-          slug: editing.slug,
-          description: editing.description,
-          priceUSD: editing.priceUSD ?? undefined,
-          priceNGN: editing.priceNGN ?? undefined,
-          priceNote: editing.priceNote ?? undefined,
-          featured: editing.featured,
-          active: editing.active,
-          order: editing.order
-        })
-      });
-      if (!res.ok) throw new Error("Failed");
-      setEditing(null);
-      await load();
-    } catch {
-      setError("Failed to save service.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const remove = async (id: string) => {
-    const name = items.find((s) => s.id === id)?.name ?? "this service";
+  const remove = async (s: Service) => {
     const ok = await confirm({
-      title: `Delete ${name}?`,
+      title: `Delete ${s.name}?`,
       body: "It will be removed from the website. This can't be undone.",
       confirmLabel: "Delete",
       danger: true
     });
     if (!ok) return;
-    setLoading(true);
-    setError(null);
     try {
-      const res = await adminFetch(`/api/services/${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/services/${s.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      setItems((prev) => prev.filter((x) => x.id !== s.id));
+      setDraft(null);
+      toast.success(`${s.name} deleted.`);
     } catch {
-      setError("Failed to delete service.");
-    } finally {
-      setLoading(false);
+      toast.error("Couldn't delete the service. Try again.");
     }
   };
 
-  const quickToggle = async (id: string, patch: Partial<Service>) => {
-    setLoading(true);
-    setError(null);
+  const quickToggle = async (s: Service, patch: Pick<Partial<Service>, "active" | "featured">) => {
+    setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...patch } : x)));
     try {
-      const res = await adminFetch(`/api/services/${id}`, {
+      const res = await adminFetch(`/api/services/${s.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch)
       });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      toast.success(
+        patch.active !== undefined
+          ? `${s.name} ${patch.active ? "shown on" : "hidden from"} the website.`
+          : `${s.name} ${patch.featured ? "featured" : "no longer featured"}.`
+      );
     } catch {
-      setError("Failed to update service.");
-    } finally {
-      setLoading(false);
+      setItems((prev) => prev.map((x) => (x.id === s.id ? s : x)));
+      toast.error("Couldn't update the service. Try again.");
     }
   };
 
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Services Management
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            Refresh
+      <PageHeader
+        title="Services"
+        actions={
+          <Button
+            size="sm"
+            onClick={() => {
+              setFormError(null);
+              setDraft({ ...emptyDraft, order: items.length });
+            }}
+          >
+            Add service
           </Button>
-          <Button onClick={startCreate}>Add Service</Button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="w-full max-w-md">
-            <Input
-              label="Search"
-              placeholder="Search name/slug/description"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+      {items.length > 5 ? (
+        <div className="mb-4 sm:w-72">
+          <SearchInput label="Search services" placeholder="Search services…" value={query} onChange={setQuery} />
         </div>
+      ) : null}
 
-        {/* Phones: one card per service. */}
-        <ul className="mt-6 divide-y divide-gray-medium/60 md:hidden">
-          {filtered.map((s) => (
-            <li key={s.id} className="py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-purple-medium">{s.name}</p>
-                  <p className="mt-0.5 break-all text-xs text-gray-dark/70">{s.slug}</p>
+      <Panel className="!p-0 sm:!p-0">
+        {loading && !items.length ? (
+          <div className="p-5">
+            <SkeletonRows />
+          </div>
+        ) : !filtered.length ? (
+          <EmptyState icon={Briefcase} title={items.length ? "No services match." : "No services yet."} />
+        ) : (
+          <ul className="divide-y divide-atelier-border/70">
+            {filtered.map((s) => (
+              <li key={s.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
+                <div className="min-w-0 flex-1">
+                  <p className={`font-medium ${s.active ? "text-atelier-ink" : "text-atelier-faint"}`}>{s.name}</p>
+                  <p className="mt-0.5 text-sm tabular-nums text-atelier-muted">{prices(s)}</p>
                 </div>
-                <p className="shrink-0 text-xs tabular-nums text-gray-dark/70">#{s.order}</p>
+                <div className="flex items-center gap-5">
+                  <span className="flex items-center gap-2 text-sm text-atelier-muted">
+                    <Switch checked={s.active} onChange={(v) => void quickToggle(s, { active: v })} label={`Show ${s.name} on website`} />
+                    On website
+                  </span>
+                  <span className="flex items-center gap-2 text-sm text-atelier-muted">
+                    <Switch checked={s.featured} onChange={(v) => void quickToggle(s, { featured: v })} label={`Feature ${s.name}`} />
+                    Featured
+                  </span>
+                  <RowAction
+                    className="ml-auto sm:ml-0"
+                    onClick={() => {
+                      setFormError(null);
+                      setDraft(s);
+                    }}
+                  >
+                    Edit
+                  </RowAction>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Modal open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? "Edit service" : "Add service"}>
+        {draft ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save();
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Input label="Name" value={draft.name} onChange={(e) => set({ name: e.target.value })} autoComplete="off" />
               </div>
-              <p className="mt-1 text-sm tabular-nums text-gray-dark">
-                USD {s.priceUSD ?? "-"} · NGN {s.priceNGN ?? "-"}
+              <div className="sm:col-span-2">
+                <Textarea label="Description" rows={4} value={draft.description} onChange={(e) => set({ description: e.target.value })} />
+              </div>
+              <Input
+                label="Price in naira"
+                adornment="₦"
+                inputMode="decimal"
+                autoComplete="off"
+                value={draft.priceNGN ?? ""}
+                onChange={(e) => set({ priceNGN: toNumber(e.target.value) })}
+              />
+              <Input
+                label="Price in dollars"
+                adornment="$"
+                inputMode="decimal"
+                autoComplete="off"
+                value={draft.priceUSD ?? ""}
+                onChange={(e) => set({ priceUSD: toNumber(e.target.value) })}
+              />
+              <Input
+                label="Price note"
+                placeholder="e.g. From, per session…"
+                autoComplete="off"
+                value={draft.priceNote ?? ""}
+                onChange={(e) => set({ priceNote: e.target.value })}
+              />
+              <Input
+                label="Position"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={draft.order}
+                onChange={(e) => set({ order: Number(e.target.value) || 0 })}
+              />
+              <SwitchRow label="Show on website" checked={draft.active} onChange={(v) => set({ active: v })} />
+              <SwitchRow label="Featured" checked={draft.featured} onChange={(v) => set({ featured: v })} />
+            </div>
+
+            {formError ? (
+              <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+                {formError}
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  className="rounded-full border border-gray-medium/60 px-3 py-1.5 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
-                  onClick={() => quickToggle(s.id, { featured: !s.featured })}
-                  disabled={loading}
-                >
-                  {s.featured ? "Featured" : "Not featured"}
-                </button>
-                <button
-                  className="rounded-full border border-gray-medium/60 px-3 py-1.5 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
-                  onClick={() => quickToggle(s.id, { active: !s.active })}
-                  disabled={loading}
-                >
-                  {s.active ? "Active" : "Inactive"}
-                </button>
-                <button
-                  className="ml-auto px-2 py-1.5 text-xs font-semibold text-green-dark hover:text-purple-dark"
-                  onClick={() => setEditing(s)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="px-2 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700"
-                  onClick={() => remove(s.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-          {!filtered.length ? (
-            <li className="py-4 text-sm text-gray-dark/70">No services found.</li>
-          ) : null}
-        </ul>
+            ) : null}
 
-        <div className="mt-6 hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[880px] text-sm">
-            <thead>
-              <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-                <th className="py-3 pr-4">Service</th>
-                <th className="py-3 pr-4">Slug</th>
-                <th className="py-3 pr-4">USD</th>
-                <th className="py-3 pr-4">NGN</th>
-                <th className="py-3 pr-4">Featured</th>
-                <th className="py-3 pr-4">Active</th>
-                <th className="py-3 pr-4">Order</th>
-                <th className="py-3 pr-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-medium/60">
-              {filtered.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-3 pr-4 font-semibold text-purple-medium">
-                    {s.name}
-                  </td>
-                  <td className="py-3 pr-4 text-gray-dark/80">{s.slug}</td>
-                  <td className="py-3 pr-4">{s.priceUSD ?? "-"}</td>
-                  <td className="py-3 pr-4">{s.priceNGN ?? "-"}</td>
-                  <td className="py-3 pr-4">
-                    <button
-                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
-                      onClick={() => quickToggle(s.id, { featured: !s.featured })}
-                      disabled={loading}
-                    >
-                      {s.featured ? "Yes" : "No"}
-                    </button>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <button
-                      className="rounded-full border border-gray-medium/60 px-3 py-1 text-xs font-semibold hover:border-green-dark hover:text-green-dark"
-                      onClick={() => quickToggle(s.id, { active: !s.active })}
-                      disabled={loading}
-                    >
-                      {s.active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className="py-3 pr-4">{s.order}</td>
-                  <td className="py-3 pr-4">
-                    <div className="flex gap-3">
-                      <button
-                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                        onClick={() => setEditing(s)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs font-semibold text-red-600 hover:text-red-700"
-                        onClick={() => remove(s.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!filtered.length ? (
-                <tr>
-                  <td className="py-4 text-gray-dark/70" colSpan={8}>
-                    No services found.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <Modal open={creating} onClose={() => setCreating(false)}>
-        <div>
-          <h3 className="font-heading text-xl font-semibold text-purple-dark">
-            Add Service
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Input
-              label="Name"
-              value={draft.name}
-              onChange={(e) => {
-                const name = e.target.value;
-                setDraft((d) => ({ ...d, name, slug: slugify(name) }));
-              }}
-            />
-            <Input
-              label="Slug"
-              value={draft.slug}
-              onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))}
-            />
-            <div className="md:col-span-2">
-              <Textarea
-                label="Description"
-                rows={5}
-                value={draft.description}
-                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-              />
-            </div>
-            <Input
-              label="Price USD"
-              type="number"
-              value={draft.priceUSD ?? ""}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, priceUSD: e.target.value ? Number(e.target.value) : null }))
-              }
-            />
-            <Input
-              label="Price NGN"
-              type="number"
-              value={draft.priceNGN ?? ""}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, priceNGN: e.target.value ? Number(e.target.value) : null }))
-              }
-            />
-            <Input
-              label="Price Note"
-              value={draft.priceNote ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, priceNote: e.target.value }))}
-            />
-            <Input
-              label="Order"
-              type="number"
-              value={draft.order}
-              onChange={(e) => setDraft((d) => ({ ...d, order: Number(e.target.value) }))}
-            />
-            <div className="flex items-center justify-between md:col-span-2">
-              <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                <input
-                  type="checkbox"
-                  checked={draft.featured}
-                  onChange={(e) => setDraft((d) => ({ ...d, featured: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-medium"
-                />
-                Featured
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                <input
-                  type="checkbox"
-                  checked={draft.active}
-                  onChange={(e) => setDraft((d) => ({ ...d, active: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-medium"
-                />
-                Active
-              </label>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setCreating(false)}>
-              Cancel
-            </Button>
-            <Button onClick={create} loading={loading}>
-              Create
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={!!editing} onClose={() => setEditing(null)}>
-        {editing ? (
-          <div>
-            <h3 className="font-heading text-xl font-semibold text-purple-dark">
-              Edit Service
-            </h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Input
-                label="Name"
-                value={editing.name}
-                onChange={(e) =>
-                  setEditing({ ...editing, name: e.target.value })
-                }
-              />
-              <Input
-                label="Slug"
-                value={editing.slug}
-                onChange={(e) =>
-                  setEditing({ ...editing, slug: e.target.value })
-                }
-              />
-              <div className="md:col-span-2">
-                <Textarea
-                  label="Description"
-                  rows={5}
-                  value={editing.description}
-                  onChange={(e) =>
-                    setEditing({ ...editing, description: e.target.value })
-                  }
-                />
-              </div>
-              <Input
-                label="Price USD"
-                type="number"
-                value={editing.priceUSD ?? ""}
-                onChange={(e) =>
-                  setEditing({
-                    ...editing,
-                    priceUSD: e.target.value ? Number(e.target.value) : null
-                  })
-                }
-              />
-              <Input
-                label="Price NGN"
-                type="number"
-                value={editing.priceNGN ?? ""}
-                onChange={(e) =>
-                  setEditing({
-                    ...editing,
-                    priceNGN: e.target.value ? Number(e.target.value) : null
-                  })
-                }
-              />
-              <Input
-                label="Price Note"
-                value={editing.priceNote ?? ""}
-                onChange={(e) =>
-                  setEditing({ ...editing, priceNote: e.target.value })
-                }
-              />
-              <Input
-                label="Order"
-                type="number"
-                value={editing.order}
-                onChange={(e) =>
-                  setEditing({ ...editing, order: Number(e.target.value) })
-                }
-              />
-              <div className="flex items-center justify-between md:col-span-2">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                  <input
-                    type="checkbox"
-                    checked={editing.featured}
-                    onChange={(e) =>
-                      setEditing({ ...editing, featured: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-gray-medium"
-                  />
-                  Featured
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                  <input
-                    type="checkbox"
-                    checked={editing.active}
-                    onChange={(e) =>
-                      setEditing({ ...editing, active: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-gray-medium"
-                  />
-                  Active
-                </label>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setEditing(null)}>
-                Cancel
-              </Button>
-              <Button onClick={save} loading={loading}>
-                Save
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-atelier-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+              {draft.id ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="!text-red-600 hover:!bg-red-50"
+                  onClick={() => void remove(draft as Service)}
+                >
+                  Delete service
+                </Button>
+              ) : (
+                <span />
+              )}
+              <Button type="submit" size="sm" loading={saving}>
+                {draft.id ? "Save changes" : "Add service"}
               </Button>
             </div>
-          </div>
+          </form>
         ) : null}
       </Modal>
       {dialog}
     </div>
   );
 }
-
-

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/admin/ui";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,38 +17,34 @@ export default async function DashboardPage() {
   const m = await getMetrics();
   const cards = [
     {
-      title: "Total Gallery Images",
+      title: "Gallery images",
       value: m.gallery,
       href: "/admin/gallery"
     },
     {
-      title: "Active Services",
+      title: "Active services",
       value: m.services,
       href: "/admin/services"
     },
     {
-      title: "Total Bookings (All Time)",
+      title: "Bookings, all time",
       value: m.totalBookings,
       href: "/admin/bookings"
     }
   ];
   return (
     <div>
-      <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-        Dashboard
-      </h1>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <PageHeader title="Dashboard" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {cards.map((c) => (
-          <a
+          <Link
             key={c.title}
             href={c.href}
-            className="rounded-lg bg-white p-5 shadow-md ring-1 ring-gray-medium/60 transition hover:-translate-y-1 hover:shadow-xl"
+            className="rounded-2xl border border-atelier-border bg-white p-4 transition hover:border-purple-dark/30"
           >
-            <p className="text-sm text-gray-dark/80">{c.title}</p>
-            <p className="mt-3 font-heading text-3xl font-semibold text-green-dark">
-              {c.value}
-            </p>
-          </a>
+            <p className="text-xs font-medium uppercase tracking-wider text-atelier-faint">{c.title}</p>
+            <p className="mt-2 font-cormorant text-3xl font-medium tabular-nums text-atelier-ink">{c.value}</p>
+          </Link>
         ))}
       </div>
     </div>

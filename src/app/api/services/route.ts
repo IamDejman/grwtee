@@ -11,9 +11,9 @@ const createSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
   description: z.string().min(2),
-  priceUSD: z.number().optional(),
-  priceNGN: z.number().optional(),
-  priceNote: z.string().optional(),
+  priceUSD: z.number().nonnegative().nullable().optional(),
+  priceNGN: z.number().nonnegative().nullable().optional(),
+  priceNote: z.string().nullable().optional(),
   featured: z.boolean().optional(),
   active: z.boolean().optional(),
   order: z.number().optional()

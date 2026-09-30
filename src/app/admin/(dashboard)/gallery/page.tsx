@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import { ImagePlus, Images, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Modal } from "@/components/admin/Modal";
+import { useToast } from "@/components/admin/Toast";
+import { EmptyState, FilterChips, PageHeader, RowAction, SearchInput, SwitchRow } from "@/components/admin/ui";
 import { adminFetch } from "@/lib/adminFetch";
 
 type GalleryImage = {
@@ -22,41 +26,56 @@ type GalleryImage = {
 };
 
 const categoryOptions = [
-  { value: "personal", label: "Personal Styling" },
-  { value: "wardrobe", label: "Wardrobe Styling" },
-  { value: "event", label: "Event Styling" },
-  { value: "vacation", label: "Vacation Styling" },
-  { value: "photoshoot", label: "Photoshoot Styling" }
+  { value: "personal", label: "Personal styling" },
+  { value: "wardrobe", label: "Wardrobe styling" },
+  { value: "event", label: "Event styling" },
+  { value: "vacation", label: "Vacation styling" },
+  { value: "photoshoot", label: "Photoshoot styling" }
 ];
+
+const categoryLabel = (value: string) => categoryOptions.find((c) => c.value === value)?.label ?? value;
+
+type Draft = { title: string; description: string; category: string; featured: boolean; order: number };
+const emptyDraft: Draft = { title: "", description: "", category: "personal", featured: false, order: 0 };
+
+function DetailsFields({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+  return (
+    <div className="space-y-4">
+      <Input label="Title" required value={draft.title} onChange={(e) => onChange({ ...draft, title: e.target.value })} placeholder="e.g. Corporate event look…" />
+      <Textarea label="Description" rows={3} value={draft.description} onChange={(e) => onChange({ ...draft, description: e.target.value })} />
+      <div className="grid grid-cols-[1fr_7rem] gap-3">
+        <Select label="Category" options={categoryOptions} value={draft.category} onChange={(e) => onChange({ ...draft, category: e.target.value })} />
+        <Input label="Position" type="number" inputMode="numeric" value={draft.order} onChange={(e) => onChange({ ...draft, order: Number(e.target.value) })} />
+      </div>
+      <SwitchRow label="Feature on the homepage" checked={draft.featured} onChange={(featured) => onChange({ ...draft, featured })} />
+    </div>
+  );
+}
 
 export default function AdminGalleryPage() {
   const [items, setItems] = useState<GalleryImage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("all");
+  const [category, setCategory] = useState("all");
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  const { confirm, dialog } = useConfirm();
 
-  // upload state
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [uploadCategory, setUploadCategory] = useState("personal");
-  const [featured, setFeatured] = useState(false);
-  const [order, setOrder] = useState<number>(0);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // edit state
   const [editing, setEditing] = useState<GalleryImage | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<GalleryImage | null>(null);
+  const [editDraft, setEditDraft] = useState<Draft>(emptyDraft);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((i) => {
-      const matchesQuery = !q
-        ? true
-        : i.title.toLowerCase().includes(q) ||
-          (i.description || "").toLowerCase().includes(q);
-      const matchesCategory = category === "all" ? true : i.category === category;
-      return matchesQuery && matchesCategory;
+      if (category === "featured" ? !i.featured : category !== "all" && i.category !== category) return false;
+      return !q || i.title.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q);
     });
   }, [items, query, category]);
 
@@ -69,7 +88,7 @@ export default function AdminGalleryPage() {
       if (!res.ok) throw new Error("Failed to fetch");
       setItems(json.data || []);
     } catch {
-      setError("Failed to load gallery images.");
+      setError("Couldn't load the gallery. Refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -79,17 +98,34 @@ export default function AdminGalleryPage() {
     void load();
   }, []);
 
-  const uploadAndCreate = async () => {
+  useEffect(() => {
     if (!file) {
-      setError("Please choose an image file.");
+      setPreview(null);
       return;
     }
-    if (!title.trim()) {
-      setError("Please enter a title.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const openUpload = () => {
+    setFile(null);
+    setDraft(emptyDraft);
+    setFormError(null);
+    setUploadOpen(true);
+  };
+
+  const pickFile = (f: File | undefined | null) => {
+    if (!f) return;
+    setFile(f);
+    if (!draft.title) setDraft((d) => ({ ...d, title: f.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ") }));
+  };
+
+  const uploadAndCreate = async () => {
+    if (!file) return setFormError("Choose an image.");
+    if (!draft.title.trim()) return setFormError("Add a title.");
+    setBusy(true);
+    setFormError(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -102,320 +138,215 @@ export default function AdminGalleryPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
+          title: draft.title.trim(),
+          description: draft.description.trim() || undefined,
           imageUrl: upJson.data.imageUrl,
           cloudinaryId: upJson.data.cloudinaryId,
-          category: uploadCategory,
-          featured,
-          order
+          category: draft.category,
+          featured: draft.featured,
+          order: draft.order
         })
       });
       if (!create.ok) throw new Error("Create failed");
-      setFile(null);
-      setTitle("");
-      setDescription("");
-      setFeatured(false);
-      setOrder(0);
+      setUploadOpen(false);
+      toast.success("Image added to the gallery.");
       await load();
     } catch {
-      setError("Upload failed. Check Cloudinary + env variables.");
+      setFormError("Upload failed. Try again, or try a smaller image.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) setFile(f);
+  const openEdit = (img: GalleryImage) => {
+    setEditing(img);
+    setEditDraft({
+      title: img.title,
+      description: img.description ?? "",
+      category: img.category,
+      featured: img.featured,
+      order: img.order
+    });
   };
 
-  const saveEdit = async (img: GalleryImage) => {
-    setLoading(true);
-    setError(null);
+  const saveEdit = async () => {
+    if (!editing) return;
+    setBusy(true);
     try {
-      const res = await adminFetch(`/api/gallery/${img.id}`, {
+      const res = await adminFetch(`/api/gallery/${editing.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: img.title,
-          description: img.description || undefined,
-          category: img.category,
-          featured: img.featured,
-          order: img.order
-        })
+        body: JSON.stringify({ ...editDraft, description: editDraft.description.trim() || undefined })
       });
       if (!res.ok) throw new Error("Update failed");
       setEditing(null);
+      toast.success("Changes saved.");
       await load();
     } catch {
-      setError("Failed to save changes.");
+      toast.error("Couldn't save changes. Try again.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  const doDelete = async (img: GalleryImage) => {
-    setLoading(true);
-    setError(null);
+  const remove = async (img: GalleryImage) => {
+    const ok = await confirm({
+      title: `Delete "${img.title}"?`,
+      body: "It's removed from the site and from image storage. This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await adminFetch(`/api/gallery/${img.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
-      setConfirmDelete(null);
-      await load();
+      setItems((prev) => prev.filter((x) => x.id !== img.id));
+      setEditing(null);
+      toast.success("Image deleted.");
     } catch {
-      setError("Failed to delete image.");
-    } finally {
-      setLoading(false);
+      toast.error("Couldn't delete the image. Try again.");
     }
   };
 
+  const countFor = (value: string) => items.filter((i) => i.category === value).length;
+
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Gallery Management
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" onClick={load} disabled={loading}>
-            Refresh
+      <PageHeader
+        title="Gallery"
+        actions={
+          <Button size="sm" onClick={openUpload}>
+            Upload image
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-1">
-          <h2 className="font-accent text-sm font-semibold tracking-wider text-green-dark">
-            Upload Images
-          </h2>
-          <div className="mt-4 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-dark">
-                Image File
-              </label>
-              <div
-                className="mt-2 rounded-lg border-2 border-dashed border-gray-medium/70 bg-cream-light px-4 py-6 text-center text-sm text-gray-dark/70"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDrop}
-              >
-                <p className="font-semibold text-gray-dark">Drag & drop an image here</p>
-                <p className="mt-1">or click to select a file</p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-3 w-full text-sm"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-              </div>
-              {file ? (
-                <p className="mt-1 text-xs text-gray-dark/70">
-                  Selected: {file.name}
-                </p>
-              ) : null}
-            </div>
-            <Input
-              label="Title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Corporate event look"
-            />
-            <Textarea
-              label="Description"
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-            <Select
-              label="Category"
-              options={categoryOptions}
-              value={uploadCategory}
-              onChange={(e) => setUploadCategory(e.target.value)}
-            />
-            <div className="flex items-center justify-between">
-              <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                <input
-                  type="checkbox"
-                  checked={featured}
-                  onChange={(e) => setFeatured(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-medium"
-                />
-                Featured
-              </label>
-              <div className="w-28">
-                <Input
-                  label="Order"
-                  type="number"
-                  value={order}
-                  onChange={(e) => setOrder(Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <Button type="button" onClick={uploadAndCreate} loading={loading}>
-              Upload
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex w-full gap-3">
-              <div className="flex-1">
-                <Input
-                  label="Search"
-                  placeholder="Search by title/description"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
-              <div className="w-56">
-                <Select
-                  label="Filter"
-                  options={[
-                    { value: "all", label: "All categories" },
-                    ...categoryOptions
-                  ]}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {!loading && !items.length ? (
-              <div className="col-span-full flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-medium/60 bg-cream-light/50 px-6 py-12 text-center">
-                <p className="font-heading text-lg font-semibold text-purple-dark">
-                  No gallery images yet
-                </p>
-              </div>
-            ) : !filtered.length ? (
-              <p className="col-span-full text-sm text-gray-dark/70">No images match your search or filter.</p>
-            ) : null}
-            {filtered.map((img) => (
-              <div
-                key={img.id}
-                className="overflow-hidden rounded-xl border border-gray-medium/60"
-              >
-                <div className="relative aspect-[3/4] bg-cream">
-                  <Image
-                    src={img.imageUrl}
-                    alt={img.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 50vw, 33vw"
-                  />
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-accent text-sm font-semibold text-purple-medium">
-                        {img.title}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-dark/70">
-                        {img.category} • {img.featured ? "Featured" : "-"} • #{img.order}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                        onClick={() => setEditing(img)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs font-semibold text-red-600 hover:text-red-700"
-                        onClick={() => setConfirmDelete(img)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <FilterChips
+          label="Filter by category"
+          value={category}
+          onChange={setCategory}
+          options={[
+            { value: "all", label: "All", count: items.length },
+            { value: "featured", label: "Featured", count: items.filter((i) => i.featured).length },
+            ...categoryOptions.map((c) => ({ value: c.value, label: c.label.replace(" styling", ""), count: countFor(c.value) }))
+          ]}
+        />
+        <div className="lg:w-72">
+          <SearchInput label="Search gallery" placeholder="Search titles…" value={query} onChange={setQuery} />
         </div>
       </div>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)}>
-        {editing ? (
-          <div>
-            <h3 className="font-heading text-xl font-semibold text-purple-dark">
-              Edit Image
-            </h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-cream">
-                <Image
-                  src={editing.imageUrl}
-                  alt={editing.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="space-y-4">
-                <Input
-                  label="Title"
-                  value={editing.title}
-                  onChange={(e) =>
-                    setEditing({ ...editing, title: e.target.value })
-                  }
-                />
-                <Textarea
-                  label="Description"
-                  rows={4}
-                  value={editing.description || ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, description: e.target.value })
-                  }
-                />
-                <Select
-                  label="Category"
-                  options={categoryOptions}
-                  value={editing.category}
-                  onChange={(e) =>
-                    setEditing({ ...editing, category: e.target.value })
-                  }
-                />
-                <div className="flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-                    <input
-                      type="checkbox"
-                      checked={editing.featured}
-                      onChange={(e) =>
-                        setEditing({ ...editing, featured: e.target.checked })
-                      }
-                      className="h-4 w-4 rounded border-gray-medium"
-                    />
+      {loading && !items.length ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4" aria-busy="true" aria-label="Loading">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-atelier-border/60" />
+          ))}
+        </div>
+      ) : !filtered.length ? (
+        <div className="rounded-2xl border border-atelier-border bg-white">
+          <EmptyState
+            icon={Images}
+            title={items.length ? "No images match." : "No images yet."}
+            action={
+              items.length ? null : (
+                <Button size="sm" variant="outline" onClick={openUpload}>
+                  Upload the first one
+                </Button>
+              )
+            }
+          />
+        </div>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((img) => (
+            <li key={img.id} className="overflow-hidden rounded-2xl border border-atelier-border bg-white">
+              <button type="button" onClick={() => openEdit(img)} className="group relative block aspect-[3/4] w-full bg-atelier-canvas" aria-label={`Edit ${img.title}`}>
+                <Image src={img.imageUrl} alt="" fill className="object-cover transition duration-300 group-hover:scale-[1.03]" sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw" />
+                {img.featured ? (
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-[#8A6420] backdrop-blur">
+                    <Star className="h-3 w-3 fill-current" aria-hidden />
                     Featured
-                  </label>
-                  <div className="w-28">
-                    <Input
-                      label="Order"
-                      type="number"
-                      value={editing.order}
-                      onChange={(e) =>
-                        setEditing({ ...editing, order: Number(e.target.value) })
-                      }
-                    />
-                  </div>
+                  </span>
+                ) : null}
+              </button>
+              <div className="flex items-start justify-between gap-2 p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-atelier-ink">{img.title}</p>
+                  <p className="truncate text-xs text-atelier-faint">{categoryLabel(img.category)}</p>
                 </div>
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={() => setEditing(null)}>
+                <RowAction className="-mr-1 -mt-1 hidden shrink-0 sm:inline-flex" onClick={() => openEdit(img)}>
+                  Edit
+                </RowAction>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Modal open={uploadOpen} onClose={() => !busy && setUploadOpen(false)} title="Upload image">
+        <div className="grid gap-5 md:grid-cols-2">
+          <label
+            className="relative flex aspect-[3/4] cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-atelier-border bg-atelier-canvas text-center text-sm text-atelier-muted transition hover:border-purple-dark/40 focus-within:ring-2 focus-within:ring-purple-dark/30"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              pickFile(e.dataTransfer.files?.[0]);
+            }}
+          >
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- local blob preview
+              <img src={preview} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <>
+                <ImagePlus className="h-7 w-7 text-purple-dark" aria-hidden />
+                <span className="font-medium text-atelier-ink">Drop an image or tap to choose</span>
+              </>
+            )}
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => pickFile(e.target.files?.[0])} />
+          </label>
+          <div className="flex flex-col">
+            <DetailsFields draft={draft} onChange={setDraft} />
+            {formError ? (
+              <p className="mt-4 text-sm font-medium text-red-600" role="alert">
+                {formError}
+              </p>
+            ) : null}
+            <div className="mt-auto flex justify-end gap-3 pt-6">
+              <Button size="sm" variant="ghost" onClick={() => setUploadOpen(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={uploadAndCreate} loading={busy}>
+                Upload
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!editing} onClose={() => !busy && setEditing(null)} title="Edit image">
+        {editing ? (
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-atelier-canvas">
+              <Image src={editing.imageUrl} alt={editing.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 380px" />
+            </div>
+            <div className="flex flex-col">
+              <DetailsFields draft={editDraft} onChange={setEditDraft} />
+              <div className="mt-auto flex items-center justify-between gap-3 pt-6">
+                <RowAction danger className="-ml-2.5" onClick={() => void remove(editing)} disabled={busy}>
+                  Delete
+                </RowAction>
+                <div className="flex gap-3">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)} disabled={busy}>
                     Cancel
                   </Button>
-                  <Button onClick={() => saveEdit(editing)} loading={loading}>
+                  <Button size="sm" onClick={saveEdit} loading={busy}>
                     Save
                   </Button>
                 </div>
@@ -424,33 +355,7 @@ export default function AdminGalleryPage() {
           </div>
         ) : null}
       </Modal>
-
-      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
-        {confirmDelete ? (
-          <div>
-            <h3 className="font-heading text-xl font-semibold text-purple-dark">
-              Delete image?
-            </h3>
-            <p className="mt-2 text-sm text-gray-dark/80">
-              This action cannot be undone. The image will be deleted from Cloudinary and the database.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setConfirmDelete(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => doDelete(confirmDelete)}
-                loading={loading}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      {dialog}
     </div>
   );
 }
-
-

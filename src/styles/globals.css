@@ -63,6 +63,22 @@ body {
 }
 
 @layer components {
+  /* Admin data tables: quiet headers, hairline rows. */
+  .admin-table {
+    @apply w-full text-left text-sm text-atelier-ink;
+  }
+  .admin-table thead th {
+    @apply border-b border-atelier-border pb-3 pr-4 text-[11px] font-medium uppercase tracking-wider text-atelier-faint;
+  }
+  .admin-table tbody td {
+    @apply border-b border-atelier-border/60 py-3.5 pr-4 align-middle;
+  }
+  .admin-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .admin-table tbody tr {
+    @apply transition-colors hover:bg-atelier-canvas/60;
+  }
   .container-shell {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }

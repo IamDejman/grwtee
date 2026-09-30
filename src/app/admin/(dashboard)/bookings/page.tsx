@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, EmptyState, Field, FilterChips, PageHeader, Panel, SearchInput, SkeletonRows, type Tone } from "@/components/admin/ui";
+import { Modal } from "@/components/admin/Modal";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { formatBookingMessage, formatDateTime, formatServiceLabel } from "@/lib/utils";
 import { adminFetch } from "@/lib/adminFetch";
@@ -20,8 +22,15 @@ type Booking = {
   status: "pending" | "contacted" | "confirmed" | "completed";
 };
 
+const statusTone: Record<Booking["status"], Tone> = {
+  pending: "gold",
+  contacted: "purple",
+  confirmed: "green",
+  completed: "neutral"
+};
+
 const statusOptions = [
-  { value: "all", label: "All statuses" },
+  { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "contacted", label: "Contacted" },
   { value: "confirmed", label: "Confirmed" },
@@ -58,10 +67,11 @@ function toCsv(rows: Booking[]) {
 
 export default function AdminBookingsPage() {
   const [items, setItems] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const toast = useToast();
   const [detail, setDetail] = useState<Booking | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const { confirm, dialog } = useConfirm();
@@ -70,11 +80,7 @@ export default function AdminBookingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const url =
-        status === "all"
-          ? "/api/bookings?full=1&limit=200"
-          : `/api/bookings?full=1&status=${status}&limit=200`;
-      const res = await adminFetch(url);
+      const res = await adminFetch("/api/bookings?full=1&limit=200");
       const json = await res.json();
       if (!res.ok) throw new Error("Failed");
       setItems(json.data || []);
@@ -87,19 +93,24 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    const byStatus = status === "all" ? items : items.filter((b) => b.status === status);
+    if (!q) return byStatus;
+    return byStatus.filter(
       (b) =>
         b.name.toLowerCase().includes(q) ||
         b.email.toLowerCase().includes(q) ||
         b.service.toLowerCase().includes(q)
     );
-  }, [items, query]);
+  }, [items, query, status]);
+
+  const chips = statusOptions.map((o) => ({
+    ...o,
+    count: o.value === "all" ? items.length : items.filter((b) => b.status === o.value).length
+  }));
 
   const updateStatus = async (id: string, next: Booking["status"]) => {
     setSavingStatus(true);
@@ -113,8 +124,9 @@ export default function AdminBookingsPage() {
       if (!res.ok) throw new Error("Failed");
       setItems((prev) => prev.map((b) => (b.id === id ? { ...b, status: next } : b)));
       setDetail((d) => (d && d.id === id ? { ...d, status: next } : d));
+      toast.success(`Marked ${statusOptions.find((o) => o.value === next)?.label.toLowerCase()}.`);
     } catch {
-      setError("Failed to update status.");
+      toast.error("Couldn't update the status. Try again.");
     } finally {
       setSavingStatus(false);
     }
@@ -134,10 +146,11 @@ export default function AdminBookingsPage() {
     try {
       const res = await adminFetch(`/api/bookings/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
-      await load();
+      setItems((prev) => prev.filter((x) => x.id !== id));
       setDetail(null);
+      toast.success("Booking deleted.");
     } catch {
-      setError("Failed to delete booking.");
+      toast.error("Couldn't delete the booking. Try again.");
     } finally {
       setLoading(false);
     }
@@ -155,20 +168,9 @@ export default function AdminBookingsPage() {
   };
 
   const statusPill = (b: Booking) => (
-    <span
-      className={[
-        "rounded-full px-3 py-1 text-xs font-semibold",
-        b.status === "pending"
-          ? "bg-gold/20 text-gray-dark"
-          : b.status === "contacted"
-            ? "bg-green-dark/10 text-green-dark"
-            : b.status === "confirmed"
-              ? "bg-purple-medium/10 text-purple-medium"
-              : "bg-green-600/10 text-green-700"
-      ].join(" ")}
-    >
+    <Badge tone={statusTone[b.status]}>
       {statusOptions.find((o) => o.value === b.status)?.label ?? b.status}
-    </span>
+    </Badge>
   );
 
   async function openDetail(b: Booking) {
@@ -184,168 +186,116 @@ export default function AdminBookingsPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Booking Requests
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            Refresh
-          </Button>
-          <Button variant="secondary" onClick={exportCsv} disabled={loading}>
+      <PageHeader
+        title="Bookings"
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={loading || !filtered.length}>
             Export CSV
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60 sm:p-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <Input
-            label="Search"
-            placeholder="Name, email, service…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Select
-            label="Status"
-            options={statusOptions}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          />
-          <div className="rounded-lg bg-cream-light p-4 text-sm text-gray-dark/80">
-            <p className="font-semibold text-green-dark">Total</p>
-            <p className="mt-1 font-heading text-2xl font-semibold text-purple-dark">
-              {filtered.length}
-            </p>
-          </div>
-        </div>
-
-        {/* Phones: one card per booking. */}
-        <ul className="mt-6 divide-y divide-gray-medium/60 md:hidden">
-          {filtered.map((b) => (
-            <li key={b.id}>
-              <button
-                type="button"
-                onClick={() => openDetail(b)}
-                className="block w-full py-4 text-left"
-              >
-                <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0 font-semibold text-purple-medium">{b.name}</span>
-                  {statusPill(b)}
-                </span>
-                <span className="mt-1 block text-sm text-gray-dark">
-                  {formatServiceLabel(b.service)}
-                </span>
-                <span className="mt-1 block text-xs text-gray-dark/70 [overflow-wrap:anywhere]">
-                  {b.email} · <span className="whitespace-nowrap">{b.phone}</span>
-                </span>
-                <span className="mt-1 block text-xs text-gray-dark/60">
-                  {formatDateTime(b.createdAt)}
-                </span>
-              </button>
-            </li>
-          ))}
-          {!filtered.length ? (
-            <li className="py-4 text-sm text-gray-dark/70">No bookings found.</li>
-          ) : null}
-        </ul>
-
-        <div className="mt-6 hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead>
-              <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-                <th className="py-3 pr-4">Date</th>
-                <th className="py-3 pr-4">Name</th>
-                <th className="py-3 pr-4">Email</th>
-                <th className="py-3 pr-4">Phone</th>
-                <th className="py-3 pr-4">Service</th>
-                <th className="py-3 pr-4">Status</th>
-                <th className="py-3 pr-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-medium/60">
-              {filtered.map((b) => (
-                <tr key={b.id}>
-                  <td className="py-3 pr-4 text-gray-dark/80">
-                    {formatDateTime(b.createdAt)}
-                  </td>
-                  <td className="py-3 pr-4 font-semibold text-purple-medium">
-                    {b.name}
-                  </td>
-                  <td className="py-3 pr-4">{b.email}</td>
-                  <td className="py-3 pr-4">{b.phone}</td>
-                  <td className="py-3 pr-4">{formatServiceLabel(b.service)}</td>
-                  <td className="py-3 pr-4">
-                    {statusPill(b)}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <button
-                      className="text-xs font-semibold text-green-dark hover:text-purple-dark"
-                      onClick={() => openDetail(b)}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {!filtered.length ? (
-                <tr>
-                  <td className="py-4 text-gray-dark/70" colSpan={7}>
-                    No bookings found.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <FilterChips label="Filter by status" value={status} options={chips} onChange={setStatus} />
+        <div className="lg:w-72">
+          <SearchInput label="Search bookings" placeholder="Search name, email, service…" value={query} onChange={setQuery} />
         </div>
       </div>
 
-      <Modal open={!!detail} onClose={() => setDetail(null)}>
+      <Panel className="!p-0 sm:!p-0">
+        {loading && !items.length ? (
+          <div className="p-5">
+            <SkeletonRows />
+          </div>
+        ) : !filtered.length ? (
+          <EmptyState icon={CalendarCheck} title={items.length ? "No bookings match." : "No booking requests yet."} />
+        ) : (
+          <>
+            {/* Phones: one card per booking. */}
+            <ul className="divide-y divide-atelier-border/70 md:hidden">
+              {filtered.map((b) => (
+                <li key={b.id}>
+                  <button type="button" onClick={() => openDetail(b)} className="block w-full px-4 py-4 text-left active:bg-atelier-canvas">
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 font-medium text-atelier-ink">{b.name}</span>
+                      {statusPill(b)}
+                    </span>
+                    <span className="mt-1 block text-sm text-atelier-muted">{formatServiceLabel(b.service)}</span>
+                    <span className="mt-1 block text-xs text-atelier-faint">{formatDateTime(b.createdAt)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden px-6 pb-2 pt-5 md:block">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Service</th>
+                    <th>Status</th>
+                    <th className="text-right">Received</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((b) => (
+                    <tr key={b.id} className="cursor-pointer" onClick={() => openDetail(b)}>
+                      <td>
+                        <button type="button" className="text-left font-medium text-atelier-ink hover:text-purple-dark"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void openDetail(b);
+                          }}
+                        >
+                          {b.name}
+                        </button>
+                        <p className="text-xs text-atelier-faint">{b.email}</p>
+                      </td>
+                      <td className="text-atelier-muted">{formatServiceLabel(b.service)}</td>
+                      <td>{statusPill(b)}</td>
+                      <td className="whitespace-nowrap text-right tabular-nums text-atelier-muted">{formatDateTime(b.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Panel>
+
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name}>
         {detail ? (
           <div>
-            <h3 className="font-heading text-xl font-semibold text-purple-dark">
-              Booking detail
-            </h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg bg-cream-light p-4">
-                <p className="text-xs font-semibold tracking-wider text-green-dark">
-                  Contact
-                </p>
-                <p className="mt-2 text-sm text-gray-dark/85">
-                  <span className="font-semibold">Name:</span> {detail.name}
-                </p>
-                <p className="text-sm text-gray-dark/85">
-                  <span className="font-semibold">Email:</span> {detail.email}
-                </p>
-                <p className="text-sm text-gray-dark/85">
-                  <span className="font-semibold">Phone:</span> {detail.phone}
-                </p>
-                <p className="text-sm text-gray-dark/85">
-                  <span className="font-semibold">Service:</span> {formatServiceLabel(detail.service)}
-                </p>
-                <p className="text-sm text-gray-dark/85">
-                  <span className="font-semibold">Submitted:</span>{" "}
-                  {formatDateTime(detail.createdAt)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-4 ring-1 ring-gray-medium/60">
-                <p className="text-xs font-semibold tracking-wider text-green-dark">
-                  Message
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-gray-dark/85">
-                  {formatBookingMessage(detail.message)}
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {statusPill(detail)}
+              <span className="text-sm text-atelier-muted">{formatServiceLabel(detail.service)}</span>
             </div>
-            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <dl className="mt-6 grid gap-5 sm:grid-cols-2">
+              <Field label="Email">
+                <a className="text-purple-dark underline-offset-2 hover:underline" href={`mailto:${detail.email}`}>
+                  {detail.email}
+                </a>
+              </Field>
+              <Field label="Phone">
+                <a className="text-purple-dark underline-offset-2 hover:underline" href={`tel:${detail.phone}`}>
+                  {detail.phone}
+                </a>
+              </Field>
+              <Field label="Received">{formatDateTime(detail.createdAt)}</Field>
+            </dl>
+            <div className="mt-6 rounded-xl bg-atelier-canvas p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-atelier-faint">Message</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-atelier-ink">
+                {formatBookingMessage(detail.message)}
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col gap-4 border-t border-atelier-border pt-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="sm:w-56">
                 <Select
                   label="Status"
@@ -355,14 +305,9 @@ export default function AdminBookingsPage() {
                   onChange={(e) => void updateStatus(detail.id, e.target.value as Booking["status"])}
                 />
               </div>
-              <div className="flex gap-3">
-                <Button variant="danger" size="sm" onClick={() => void remove(detail)} loading={loading}>
-                  Delete
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setDetail(null)}>
-                  Close
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" className="!text-red-600 hover:!bg-red-50" onClick={() => void remove(detail)} loading={loading}>
+                Delete booking
+              </Button>
             </div>
           </div>
         ) : null}
