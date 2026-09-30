@@ -142,7 +142,7 @@ function Intro({
         GRWTEE x Lagos in December 2026
       </motion.p>
       <RevealText
-        text="Lagos in December, dressed with intention."
+        text="Lagos in December, styled with intention."
         headingRef={headingRef}
         delay={0.2}
         className="mt-5 font-cormorant text-[3.25rem] font-light leading-[0.98] text-cream md:text-[5rem]"
