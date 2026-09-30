@@ -13,10 +13,11 @@ export default async function ClientsPage() {
   const admin = createAdminClient()
   const { data: conversations } = await admin
     .from('conversations')
-    .select('client_id, last_message_at')
+    .select('id, client_id, last_message_at')
     .eq('stylist_id', ownerId)
 
   const clientIds = [...new Set((conversations ?? []).map((c) => c.client_id))]
+  const conversationFor = new Map((conversations ?? []).map((c) => [c.client_id, c.id]))
   let clients: { id: string; full_name: string | null; email: string | null; avatar_url: string | null; body_shape: string | null; style_tags: string[] | null; subscription_tier: string | null; gender_preference: string | null; location: string | null }[] = []
 
   if (clientIds.length > 0) {
@@ -47,7 +48,7 @@ export default async function ClientsPage() {
             {clients.map((client) => {
               const initials = client.full_name ? client.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() : '?'
               return (
-                <Link key={client.id} href={`/admin/clients/${client.id}`} className="group rounded-2xl p-5 transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                <div key={client.id} className="group rounded-2xl p-5 transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                   <div className="flex items-start gap-4">
                     <div className="shrink-0">
                       {client.avatar_url ? (
@@ -76,14 +77,14 @@ export default async function ClientsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #F0EBE3' }}>
-                    <span className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
+                    <Link href={`/admin/clients/${client.id}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
                       <User className="w-3 h-3" /> Profile
-                    </span>
-                    <Link href="/admin/messages" onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}>
+                    </Link>
+                    <Link href={`/admin/messages/${conversationFor.get(client.id)}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}>
                       <MessageSquare className="w-3 h-3" /> Message
                     </Link>
                   </div>
-                </Link>
+                </div>
               )
             })}
           </div>

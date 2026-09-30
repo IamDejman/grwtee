@@ -46,9 +46,18 @@ function greeting(now: Date) {
 async function unreadMessages(): Promise<number> {
   const stylistId = await getStylistId();
   if (!stylistId) return 0;
-  const { data, error } = await createAdminClient().from("conversations").select("unread_count").eq("stylist_id", stylistId);
+  const admin = createAdminClient();
+  const { data: convs, error } = await admin.from("conversations").select("id").eq("stylist_id", stylistId);
   if (error) throw error;
-  return (data ?? []).reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
+  if (!convs?.length) return 0;
+  const { count, error: countError } = await admin
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .in("conversation_id", convs.map((c) => c.id))
+    .neq("sender_id", stylistId)
+    .eq("is_read", false);
+  if (countError) throw countError;
+  return count ?? 0;
 }
 
 async function owed(now: Date) {

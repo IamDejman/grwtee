@@ -18,7 +18,7 @@ export default async function MessagesPage() {
   const admin = createAdminClient()
   const { data: conversations } = await admin
     .from('conversations')
-    .select('id, client_id, last_message_at, unread_count')
+    .select('id, client_id, last_message_at')
     .eq('stylist_id', ownerId)
     .order('last_message_at', { ascending: false })
 
@@ -32,9 +32,13 @@ export default async function MessagesPage() {
 
   const convIds = (conversations ?? []).map((c) => c.id)
   let lastMessages: Record<string, string> = {}
+  const unread: Record<string, number> = {}
   if (convIds.length > 0) {
-    const { data: msgs } = await admin.from('messages').select('conversation_id, content, created_at').in('conversation_id', convIds).order('created_at', { ascending: false })
-    ;(msgs ?? []).forEach((m) => { if (!lastMessages[m.conversation_id]) lastMessages[m.conversation_id] = m.content })
+    const { data: msgs } = await admin.from('messages').select('conversation_id, content, created_at, sender_id, is_read').in('conversation_id', convIds).order('created_at', { ascending: false })
+    ;(msgs ?? []).forEach((m) => {
+      if (!lastMessages[m.conversation_id]) lastMessages[m.conversation_id] = m.content
+      if (!m.is_read && m.sender_id !== ownerId) unread[m.conversation_id] = (unread[m.conversation_id] ?? 0) + 1
+    })
   }
 
   return (
@@ -57,7 +61,8 @@ export default async function MessagesPage() {
               const profile = profileMap[conv.client_id]
               const initials = profile?.full_name ? profile.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() : '?'
               const lastMsg = lastMessages[conv.id]
-              const hasUnread = (conv.unread_count ?? 0) > 0
+              const unreadCount = unread[conv.id] ?? 0
+              const hasUnread = unreadCount > 0
               const msgDate = conv.last_message_at ? new Date(conv.last_message_at) : null
               const dateLabel = msgDate ? (isToday(msgDate) ? msgDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : msgDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ''
 
@@ -74,7 +79,7 @@ export default async function MessagesPage() {
                     </div>
                     <p className="text-xs truncate" style={{ color: hasUnread ? '#5A4D6A' : '#9A8DAA', fontWeight: hasUnread ? 500 : 400 }}>{lastMsg ?? 'No messages yet'}</p>
                   </div>
-                  {hasUnread && <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ backgroundColor: '#CF9D4E', color: '#FFFFFF' }}>{conv.unread_count}</div>}
+                  {hasUnread && <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ backgroundColor: '#CF9D4E', color: '#FFFFFF' }}>{unreadCount}</div>}
                 </Link>
               )
             })}

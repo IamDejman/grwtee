@@ -16,7 +16,7 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
 
   const [convRes, messagesRes] = await Promise.all([
     admin.from('conversations').select('id, client_id, stylist_id').eq('id', id).eq('stylist_id', ownerId).single(),
-    admin.from('messages').select('id, sender_id, content, created_at, message_type, media_url').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200)
+    admin.from('messages').select('id, sender_id, content, created_at, image_url').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200)
   ])
 
   const conv = convRes.data
@@ -27,7 +27,7 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
     admin.from('profiles').select('id, full_name, avatar_url').eq('id', ownerId).single()
   ])
 
-  await admin.from('conversations').update({ unread_count: 0 }).eq('id', id)
+  await admin.from('messages').update({ is_read: true }).eq('conversation_id', id).neq('sender_id', ownerId).eq('is_read', false)
 
   return (
     // Phones: fill the space between the admin top bar and tab bar so the reply box stays visible.

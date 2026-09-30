@@ -11,7 +11,8 @@ const OCCASIONS = [
   'weekend', 'party', 'business_casual'
 ]
 const SEASONS = ['spring', 'summer', 'fall', 'winter', 'all_season']
-const GENDERS = ['female', 'male', 'non_binary', 'all']
+// Leave unselected for looks that suit everyone.
+const GENDERS = ['female', 'male', 'non_binary']
 const BODY_SHAPES = ['apple', 'pear', 'hourglass', 'rectangle', 'inverted_triangle', 'oval', 'athletic', 'slim']
 const STYLE_TAGS = ['Minimalist', 'Streetwear', 'Classic', 'Bohemian', 'Preppy', 'Edgy', 'Romantic', 'Sporty', 'Vintage', 'Avant-Garde', 'Smart Casual', 'Afrocentric']
 const ITEM_CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'accessory', 'jewelry', 'hat', 'wig', 'other']

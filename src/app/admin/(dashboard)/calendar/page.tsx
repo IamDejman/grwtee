@@ -32,7 +32,7 @@ export default async function CalendarPage({
 
   const [calendarRes, looksRes] = await Promise.all([
     admin
-      .from('stylist_calendar')
+      .from('stylist_calendars')
       .select('id, title, is_published, month, year')
       .eq('stylist_id', ownerId)
       .eq('month', month)

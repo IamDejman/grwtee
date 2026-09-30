@@ -13,10 +13,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id } = await params
   const admin = createAdminClient()
 
-  const [profileRes, wardrobeRes, lookbooksRes] = await Promise.all([
+  const [profileRes, wardrobeRes, lookbooksRes, conversationRes] = await Promise.all([
     admin.from('profiles').select('*').eq('id', id).single(),
     admin.from('wardrobe_items').select('id, name, category, image_url, brand, color, is_favorite').eq('user_id', id).limit(12),
-    admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false })
+    admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false }),
+    admin.from('conversations').select('id').eq('stylist_id', ownerId).eq('client_id', id).maybeSingle()
   ])
 
   const profile = profileRes.data
@@ -45,7 +46,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </Link>
           <h1 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Client Profile</h1>
         </div>
-        <Link href="/admin/messages" className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-medium" style={{ backgroundColor: '#422D64', color: '#FFFFFF' }}>
+        <Link href={conversationRes.data ? `/admin/messages/${conversationRes.data.id}` : '/admin/messages'} className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-medium" style={{ backgroundColor: '#422D64', color: '#FFFFFF' }}>
           <MessageSquare className="w-4 h-4" /> Message
         </Link>
       </div>
