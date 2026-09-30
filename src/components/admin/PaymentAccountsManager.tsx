@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/admin/Modal";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, EmptyState, Panel, RowAction, SkeletonRows, SwitchRow, type Tone } from "@/components/admin/ui";
+import { Landmark } from "lucide-react";
 
 export type AccountType = "bank" | "paypal" | "wise" | "other";
 export type AccountCurrency = "NGN" | "USD" | "GBP" | "EUR";
@@ -68,12 +71,17 @@ const TYPE_LABELS: Record<AccountType, string> = {
   other: "Other"
 };
 
-const TYPE_BADGE_CLASS: Record<AccountType, string> = {
-  bank: "bg-purple-medium/10 text-purple-medium",
-  paypal: "bg-blue-600/10 text-blue-700",
-  wise: "bg-green-600/10 text-green-700",
-  other: "bg-gray-medium/30 text-gray-dark"
+const TYPE_TONE: Record<AccountType, Tone> = {
+  bank: "purple",
+  paypal: "neutral",
+  wise: "green",
+  other: "neutral"
 };
+
+async function apiError(res: Response): Promise<string> {
+  const json = (await res.json().catch(() => null)) as { error?: string } | null;
+  return typeof json?.error === "string" ? json.error : "";
+}
 
 function accountSummary(acc: PaymentAccount): string {
   if (acc.type === "bank") {
@@ -87,27 +95,30 @@ function accountSummary(acc: PaymentAccount): string {
 
 export function PaymentAccountsManager() {
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const toast = useToast();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
+  // Asked for inside the add/edit window; every change to payment details needs it.
   const [stepUpPassword, setStepUpPassword] = useState("");
-  const [reencryptMsg, setReencryptMsg] = useState<string | null>(null);
   const { askPassword, dialog } = useConfirm();
 
   const load = async () => {
+    setLoadError(false);
     setLoading(true);
-    setError(null);
     try {
       const res = await adminFetch("/api/payment-accounts");
-      const json = await res.json();
+      const json = (await res.json()) as { data?: PaymentAccount[] };
       if (!res.ok) throw new Error("Failed");
       setAccounts(json.data || []);
     } catch {
-      setError("Failed to load payment accounts.");
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -120,6 +131,8 @@ export function PaymentAccountsManager() {
   const openNew = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setError(null);
+    setStepUpPassword("");
     setShowForm(true);
   };
 
@@ -139,6 +152,8 @@ export function PaymentAccountsManager() {
       notes: acc.notes || "",
       active: acc.active
     });
+    setError(null);
+    setStepUpPassword("");
     setShowForm(true);
   };
 
@@ -194,7 +209,7 @@ export function PaymentAccountsManager() {
       return;
     }
     if (!stepUpPassword) {
-      setError("Enter your current password to confirm this change.");
+      setError("Enter your password to save this account.");
       return;
     }
     setSubmitting(true);
@@ -225,13 +240,15 @@ export function PaymentAccountsManager() {
             body: JSON.stringify(body)
           });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        const j = (await res.json().catch(() => null)) as { error?: unknown } | null;
         throw new Error(typeof j?.error === "string" ? j.error : "Failed");
       }
       setShowForm(false);
+      setStepUpPassword("");
+      toast.success(editingId ? "Account saved." : "Account added.");
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save account.");
+      setError(e instanceof Error ? e.message : "Couldn't save the account. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -245,227 +262,134 @@ export function PaymentAccountsManager() {
       danger: true
     });
     if (!currentPassword) return;
-    setLoading(true);
-    setError(null);
+    setBusyId(acc.id);
     try {
       const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword })
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error(await apiError(res));
+      toast.success("Account deleted.");
       await load();
-    } catch {
-      setError("Failed to delete account.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error && e.message ? e.message : "Couldn't delete the account. Try again.");
     } finally {
-      setLoading(false);
+      setBusyId(null);
     }
   };
 
   const toggleActive = async (acc: PaymentAccount) => {
-    const currentPassword =
-      stepUpPassword ||
-      (await askPassword({
-        title: `${acc.active ? "Deactivate" : "Activate"} "${acc.label}"?`,
-        confirmLabel: acc.active ? "Deactivate" : "Activate"
-      }));
+    const currentPassword = await askPassword({
+      title: acc.active ? `Hide "${acc.label}" from invoices?` : `Show "${acc.label}" on invoices?`,
+      confirmLabel: acc.active ? "Hide" : "Show"
+    });
     if (!currentPassword) return;
-    setLoading(true);
-    setError(null);
+    setBusyId(acc.id);
     try {
       const res = await adminFetch(`/api/payment-accounts/${acc.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !acc.active, currentPassword })
       });
-      if (!res.ok) throw new Error("Failed");
-      await load();
-    } catch {
-      setError("Failed to update account.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const reencryptAll = async () => {
-    const currentPassword =
-      stepUpPassword || (await askPassword({ title: "Re-encrypt payment details?", confirmLabel: "Re-encrypt" }));
-    if (!currentPassword) return;
-    setLoading(true);
-    setError(null);
-    setReencryptMsg(null);
-    try {
-      const res = await adminFetch("/api/payment-accounts/re-encrypt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed");
-      setReencryptMsg(
-        `Re-encrypted ${json.data?.updated ?? 0} account(s). ${json.data?.skipped ?? 0} already encrypted.`
-      );
+      if (!res.ok) throw new Error(await apiError(res));
+      toast.success(acc.active ? "Hidden from invoices." : "Shown on invoices.");
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to re-encrypt accounts.");
+      toast.error(e instanceof Error && e.message ? e.message : "Couldn't update the account. Try again.");
     } finally {
-      setLoading(false);
+      setBusyId(null);
     }
   };
 
   return (
-    <div>
+    <Panel
+      title="Payment accounts"
+      actions={
+        <Button onClick={openNew} size="sm">
+          Add account
+        </Button>
+      }
+    >
       {dialog}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
-            Payment accounts
-          </h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={reencryptAll} size="sm" variant="outline" loading={loading}>
-            Re-encrypt stored data
-          </Button>
-          <Button onClick={openNew} size="sm">
-            Add account
-          </Button>
-        </div>
-      </div>
+      <p className="-mt-2 mb-4 text-sm text-atelier-muted">Where clients pay you. Accounts that are shown appear on invoices and booking emails.</p>
 
-      {reencryptMsg ? (
-        <p className="mt-4 text-sm font-semibold text-green-dark" role="status">
-          {reencryptMsg}
+      {loadError ? (
+        <p className="text-sm text-red-700" role="alert">
+          Couldn&apos;t load your payment accounts.{" "}
+          <button type="button" onClick={() => void load()} className="font-medium underline underline-offset-2">
+            Try again
+          </button>
         </p>
-      ) : null}
-
-      {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="mt-4 max-w-md">
-        <label className="block text-sm font-semibold text-gray-dark" htmlFor="stepUpPassword">
-          Current password (required for changes)
-        </label>
-        <input
-          id="stepUpPassword"
-          type="password"
-          value={stepUpPassword}
-          onChange={(e) => setStepUpPassword(e.target.value)}
-          className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2"
-          placeholder="Enter before save, delete, or toggle"
-        />
-      </div>
-
-      <div className="mt-6 space-y-3">
-        {accounts.map((acc) => (
-          <div
-            key={acc.id}
-            className={`rounded-lg border p-4 ${
-              acc.active
-                ? "border-gray-medium/60 bg-white"
-                : "border-gray-medium/40 bg-cream-light opacity-70"
-            }`}
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-purple-dark">{acc.label}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${TYPE_BADGE_CLASS[acc.type]}`}
-                  >
-                    {TYPE_LABELS[acc.type]}
-                  </span>
-                  <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-dark">
-                    {acc.currency}
-                  </span>
-                  {!acc.active ? (
-                    <span className="rounded-full bg-gray-medium/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-dark">
-                      Hidden
-                    </span>
-                  ) : null}
+      ) : loading && !accounts.length ? (
+        <SkeletonRows rows={3} />
+      ) : !accounts.length ? (
+        <EmptyState icon={Landmark} title="No payment accounts yet." />
+      ) : (
+        <ul className="space-y-3">
+          {accounts.map((acc) => (
+            <li
+              key={acc.id}
+              className={`rounded-xl border border-atelier-border p-4 ${acc.active ? "bg-white" : "bg-atelier-canvas/70"}`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`font-medium ${acc.active ? "text-atelier-ink" : "text-atelier-muted"}`}>{acc.label}</span>
+                    <Badge tone={TYPE_TONE[acc.type]}>{TYPE_LABELS[acc.type]}</Badge>
+                    <Badge tone="gold">{acc.currency}</Badge>
+                    {!acc.active ? <Badge>Hidden</Badge> : null}
+                  </div>
+                  <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    {(acc.type === "bank"
+                      ? [
+                          ["Bank", acc.bankName],
+                          ["Account name", acc.accountName],
+                          ["Account number", acc.accountNumber],
+                          ["SWIFT", acc.swiftCode],
+                          ["IBAN", acc.iban],
+                          ["Sort code", acc.sortCode]
+                        ]
+                      : acc.type === "paypal" || acc.type === "wise"
+                        ? [["Email", acc.email]]
+                        : []
+                    )
+                      .filter(([, v]) => v)
+                      .map(([label, value]) => (
+                        <div key={label} className="min-w-0">
+                          <dt className="text-xs text-atelier-faint">{label}</dt>
+                          <dd className="tabular-nums text-atelier-ink [overflow-wrap:anywhere]">{value}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                  {acc.notes ? <p className="mt-2 whitespace-pre-wrap text-xs text-atelier-muted">{acc.notes}</p> : null}
+                  <span className="sr-only">{accountSummary(acc)}</span>
                 </div>
-                <div className="mt-2 grid gap-1 text-sm text-gray-dark/85 sm:grid-cols-2">
-                  {acc.type === "bank" ? (
-                    <>
-                      <div>
-                        <span className="text-gray-dark/60">Bank:</span> {acc.bankName}
-                      </div>
-                      <div>
-                        <span className="text-gray-dark/60">Account name:</span>{" "}
-                        {acc.accountName}
-                      </div>
-                      <div>
-                        <span className="text-gray-dark/60">Account number:</span>{" "}
-                        <span className="font-mono">{acc.accountNumber}</span>
-                      </div>
-                      {acc.swiftCode ? (
-                        <div>
-                          <span className="text-gray-dark/60">SWIFT:</span>{" "}
-                          <span className="font-mono">{acc.swiftCode}</span>
-                        </div>
-                      ) : null}
-                      {acc.iban ? (
-                        <div>
-                          <span className="text-gray-dark/60">IBAN:</span>{" "}
-                          <span className="font-mono">{acc.iban}</span>
-                        </div>
-                      ) : null}
-                      {acc.sortCode ? (
-                        <div>
-                          <span className="text-gray-dark/60">Sort code:</span>{" "}
-                          <span className="font-mono">{acc.sortCode}</span>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : acc.type === "paypal" || acc.type === "wise" ? (
-                    <div className="sm:col-span-2">
-                      <span className="text-gray-dark/60">Email:</span>{" "}
-                      <span className="font-mono">{acc.email}</span>
-                    </div>
-                  ) : null}
+                <div className="-mx-1 flex shrink-0 flex-wrap gap-1">
+                  <RowAction disabled={busyId === acc.id} onClick={() => openEdit(acc)} aria-label={`Edit ${acc.label}`}>
+                    Edit
+                  </RowAction>
+                  <RowAction disabled={busyId === acc.id} onClick={() => void toggleActive(acc)} aria-label={`${acc.active ? "Hide" : "Show"} ${acc.label}`}>
+                    {acc.active ? "Hide" : "Show"}
+                  </RowAction>
+                  <RowAction danger disabled={busyId === acc.id} onClick={() => void remove(acc)} aria-label={`Delete ${acc.label}`}>
+                    Delete
+                  </RowAction>
                 </div>
-                {acc.notes ? (
-                  <p className="mt-2 whitespace-pre-wrap text-xs text-gray-dark/70">
-                    {acc.notes}
-                  </p>
-                ) : null}
-                {/* Screen-reader friendly summary for list views */}
-                <span className="sr-only">{accountSummary(acc)}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className="min-h-[36px] rounded-md border border-purple-dark px-3 py-1.5 text-xs font-semibold text-purple-dark hover:bg-purple-dark/10"
-                  onClick={() => openEdit(acc)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="min-h-[36px] rounded-md border border-gray-medium px-3 py-1.5 text-xs font-semibold text-gray-dark hover:bg-gray-medium/20"
-                  onClick={() => toggleActive(acc)}
-                >
-                  {acc.active ? "Hide" : "Show"}
-                </button>
-                <button
-                  className="min-h-[36px] rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  onClick={() => remove(acc)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {!accounts.length && !loading ? (
-          <p className="rounded-lg border border-dashed border-gray-medium/60 p-6 text-center text-sm text-gray-dark/70">
-            No payment accounts yet.
-          </p>
-        ) : null}
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Modal open={showForm} onClose={() => setShowForm(false)}>
-        <div>
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
           <h3 className="font-cormorant text-2xl font-medium text-atelier-ink">
             {editingId ? "Edit account" : "New payment account"}
           </h3>
@@ -540,6 +464,8 @@ export function PaymentAccountsManager() {
                 />
                 <Input
                   label="Account number"
+                  autoComplete="off"
+                  spellCheck={false}
                   required
                   value={form.accountNumber}
                   onChange={(e) =>
@@ -548,6 +474,8 @@ export function PaymentAccountsManager() {
                 />
                 <Input
                   label="SWIFT / BIC"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={form.swiftCode}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, swiftCode: e.target.value }))
@@ -555,6 +483,8 @@ export function PaymentAccountsManager() {
                 />
                 <Input
                   label="IBAN"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={form.iban}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, iban: e.target.value }))
@@ -562,6 +492,8 @@ export function PaymentAccountsManager() {
                 />
                 <Input
                   label="Sort code"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={form.sortCode}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, sortCode: e.target.value }))
@@ -574,6 +506,8 @@ export function PaymentAccountsManager() {
               <div className="md:col-span-2">
                 <Input
                   type="email"
+                  autoComplete="off"
+                  spellCheck={false}
                   label={`${TYPE_LABELS[form.type]} email`}
                   required
                   placeholder="your.email@example.com"
@@ -616,28 +550,41 @@ export function PaymentAccountsManager() {
             ) : null}
 
             <div className="md:col-span-2">
-              <label className="flex items-center gap-2 text-sm text-gray-dark">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={form.active}
-                  onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-                />
-                Active (shown on invoices)
-              </label>
+              <SwitchRow
+                label="Show on invoices and booking emails"
+                checked={form.active}
+                onChange={(active) => setForm((f) => ({ ...f, active }))}
+              />
+            </div>
+
+            <div className="border-t border-atelier-border pt-4 md:col-span-2">
+              <Input
+                label="Your password"
+                type="password"
+                autoComplete="current-password"
+                value={stepUpPassword}
+                onChange={(e) => setStepUpPassword(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-atelier-faint">Needed to save payment details.</p>
             </div>
           </div>
+
+          {error ? (
+            <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+              {error}
+            </p>
+          ) : null}
 
           <div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <Button variant="outline" onClick={() => setShowForm(false)} type="button">
               Cancel
             </Button>
-            <Button onClick={save} loading={submitting} type="button">
+            <Button loading={submitting} type="submit">
               {editingId ? "Save changes" : "Add account"}
             </Button>
           </div>
-        </div>
+        </form>
       </Modal>
-    </div>
+    </Panel>
   );
 }

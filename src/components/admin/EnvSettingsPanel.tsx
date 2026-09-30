@@ -2,48 +2,75 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, Panel, SkeletonRows } from "@/components/admin/ui";
+import { useUnsavedChanges } from "@/components/admin/useUnsavedChanges";
 
 type EnvRow = {
   value: string;
   source: "database" | "environment";
 };
 
-const ENV_LABELS: Record<string, string> = {
-  NEXTAUTH_SECRET: "NextAuth secret",
-  NEXTAUTH_URL: "NextAuth URL",
-  NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: "Cloudinary cloud name",
-  CLOUDINARY_API_KEY: "Cloudinary API key",
-  CLOUDINARY_API_SECRET: "Cloudinary API secret",
-  RESEND_API_KEY: "Resend API key",
-  RESEND_FROM: "Resend from address",
-  CONTACT_EMAIL: "Contact email (server)",
-  NEXT_PUBLIC_SITE_URL: "Public site URL",
-  NEXT_PUBLIC_INSTAGRAM_URL: "Instagram URL",
-  NEXT_PUBLIC_CONTACT_EMAIL: "Public contact email",
-  NEXT_PUBLIC_GA_MEASUREMENT_ID: "Google Analytics ID"
-};
+const GROUPS: { title: string; keys: [string, string][] }[] = [
+  {
+    title: "Website",
+    keys: [
+      ["NEXT_PUBLIC_SITE_URL", "Website address"],
+      ["NEXT_PUBLIC_CONTACT_EMAIL", "Public contact email"],
+      ["NEXT_PUBLIC_INSTAGRAM_URL", "Instagram link"],
+      ["NEXT_PUBLIC_GA_MEASUREMENT_ID", "Google Analytics ID"]
+    ]
+  },
+  {
+    title: "Email (Resend)",
+    keys: [
+      ["RESEND_API_KEY", "API key"],
+      ["RESEND_FROM", "Send from address"],
+      ["CONTACT_EMAIL", "Where enquiries are sent"]
+    ]
+  },
+  {
+    title: "Images (Cloudinary)",
+    keys: [
+      ["NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", "Cloud name"],
+      ["CLOUDINARY_API_KEY", "API key"],
+      ["CLOUDINARY_API_SECRET", "API secret"]
+    ]
+  },
+  {
+    title: "Sign-in",
+    keys: [
+      ["NEXTAUTH_URL", "Sign-in address"],
+      ["NEXTAUTH_SECRET", "Sign-in secret (changing it signs everyone out)"]
+    ]
+  }
+];
+
+async function apiError(res: Response, fallback: string) {
+  const json = (await res.json().catch(() => null)) as { error?: string } | null;
+  return typeof json?.error === "string" ? json.error : fallback;
+}
 
 export function EnvSettingsPanel() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [rows, setRows] = useState<Record<string, EnvRow>>({});
+  const toast = useToast();
+  const { askPassword, dialog } = useConfirm();
+  const [rows, setRows] = useState<Record<string, EnvRow> | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [reencrypting, setReencrypting] = useState(false);
 
   const load = async () => {
-    setLoading(true);
-    setError(null);
+    setLoadError(false);
     try {
       const res = await adminFetch("/api/settings/env");
-      const json = await res.json();
-      if (!res.ok) throw new Error("Failed");
-      setRows(json.data || {});
+      const json = (await res.json()) as { data?: Record<string, EnvRow> };
+      if (!res.ok) throw new Error();
+      setRows(json.data ?? {});
     } catch {
-      setError("Failed to load integration settings.");
-    } finally {
-      setLoading(false);
+      setLoadError(true);
     }
   };
 
@@ -51,134 +78,142 @@ export function EnvSettingsPanel() {
     void load();
   }, []);
 
+  const changes = Object.entries(draft)
+    .filter(([, value]) => value.trim() !== "")
+    .map(([key, value]) => ({ key, value: value.trim() }));
+
+  useUnsavedChanges(changes.length > 0);
+
   const save = async () => {
-    const vars = Object.entries(draft)
-      .filter(([, value]) => value.trim() !== "")
-      .map(([key, value]) => ({ key, value: value.trim() }));
-
-    if (!vars.length) {
-      setError("Enter at least one new value to save.");
-      return;
-    }
-    if (!currentPassword) {
-      setError("Enter your current password to confirm changes.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+    const currentPassword = await askPassword({
+      title: `Save ${changes.length} ${changes.length === 1 ? "change" : "changes"}?`,
+      body: "The site starts using new values straight away.",
+      confirmLabel: "Save"
+    });
+    if (!currentPassword) return;
+    setSaving(true);
     try {
       const res = await adminFetch("/api/settings/env", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vars, currentPassword })
+        body: JSON.stringify({ vars: changes, currentPassword })
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed");
+      if (!res.ok) throw new Error(await apiError(res, "Couldn't save. Try again."));
       setDraft({});
-      setCurrentPassword("");
-      setSuccess("Integration settings updated.");
+      toast.success("Connections saved.");
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save integration settings.");
+      toast.error(e instanceof Error ? e.message : "Couldn't save. Try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const keys = Object.keys(ENV_LABELS);
+  const reencrypt = async () => {
+    const currentPassword = await askPassword({
+      title: "Re-encrypt payment details?",
+      body: "Stored bank and payment details are encrypted again with the current key. Only needed after the encryption key changes.",
+      confirmLabel: "Re-encrypt"
+    });
+    if (!currentPassword) return;
+    setReencrypting(true);
+    try {
+      const res = await adminFetch("/api/payment-accounts/re-encrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword })
+      });
+      const json = (await res.json().catch(() => null)) as { error?: string; data?: { updated?: number; skipped?: number } } | null;
+      if (!res.ok) throw new Error(json?.error || "Couldn't re-encrypt. Try again.");
+      const updated = json?.data?.updated ?? 0;
+      toast.success(updated ? `Re-encrypted ${updated} ${updated === 1 ? "account" : "accounts"}.` : "Everything was already up to date.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Couldn't re-encrypt. Try again.");
+    } finally {
+      setReencrypting(false);
+    }
+  };
 
   return (
-    <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6 lg:col-span-2">
-      <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
-        Integration settings
-      </h2>
+    <div className="space-y-5">
+      {dialog}
+      <p className="rounded-xl bg-gold/10 px-4 py-3 text-sm text-[#8A6420]">
+        These connect the site to email, image storage and analytics. A wrong value can stop emails or uploads working, so only
+        change them if you know the new value is right.
+      </p>
 
-      {error ? (
-        <p className="mt-3 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="mt-3 text-sm text-green-dark" role="status">
-          {success}
-        </p>
-      ) : null}
+      <Panel
+        title="Connections"
+        actions={
+          changes.length ? (
+            <>
+              <Button size="sm" variant="ghost" disabled={saving} onClick={() => setDraft({})}>
+                Discard
+              </Button>
+              <Button size="sm" loading={saving} onClick={() => void save()}>
+                Save {changes.length === 1 ? "change" : `${changes.length} changes`}
+              </Button>
+            </>
+          ) : null
+        }
+      >
+        {loadError ? (
+          <p className="text-sm text-red-700" role="alert">
+            Couldn&apos;t load these settings.{" "}
+            <button type="button" onClick={() => void load()} className="font-medium underline underline-offset-2">
+              Try again
+            </button>
+          </p>
+        ) : !rows ? (
+          <SkeletonRows rows={6} />
+        ) : (
+          <div className="space-y-6">
+            {GROUPS.map((group) => (
+              <section key={group.title}>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-atelier-faint">{group.title}</h3>
+                <ul className="divide-y divide-atelier-border rounded-xl border border-atelier-border">
+                  {group.keys.map(([key, label]) => {
+                    const configured = rows[key]?.value === "[configured]";
+                    return (
+                      <li key={key} className="grid gap-2 p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:items-center">
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-atelier-ink">
+                            {label}
+                            {configured ? <Badge tone="green">Set</Badge> : <Badge tone="gold">Not set</Badge>}
+                          </p>
+                          <p className="truncate font-mono text-xs text-atelier-faint" translate="no">
+                            {key}
+                          </p>
+                        </div>
+                        <input
+                          type="password"
+                          name={key}
+                          autoComplete="new-password"
+                          spellCheck={false}
+                          aria-label={`New value for ${label}`}
+                          placeholder={configured ? "Replace with a new value…" : "Add a value…"}
+                          value={draft[key] ?? ""}
+                          onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                          className="w-full rounded-md border border-gray-medium px-3 py-2 text-sm outline-none transition focus:border-green-dark"
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+      </Panel>
 
-      {/* Phones: each setting stacks (name and status, then the input); a table from md up. */}
-      <div className="mt-4">
-        <table className="block w-full text-sm md:table">
-          <thead className="hidden md:table-header-group">
-            <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-              <th className="py-2 pr-4">Setting</th>
-              <th className="py-2 pr-4">Status</th>
-              <th className="py-2 pr-4">New value</th>
-            </tr>
-          </thead>
-          <tbody className="block divide-y divide-gray-medium/40 md:table-row-group">
-            {keys.map((key) => {
-              const row = rows[key];
-              const configured = row?.value === "[configured]";
-              return (
-                <tr key={key} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 py-3 md:table-row md:py-0">
-                  <td className="min-w-0 align-top md:table-cell md:py-3 md:pr-4">
-                    <p className="font-semibold text-gray-dark">{ENV_LABELS[key]}</p>
-                    <p className="mt-0.5 break-all font-mono text-xs text-gray-dark/60">{key}</p>
-                  </td>
-                  <td className="align-top md:table-cell md:py-3 md:pr-4">
-                    {configured ? (
-                      <span className="rounded-full bg-green-dark/10 px-2 py-1 text-xs font-semibold text-green-dark">
-                        {row.source === "database" ? "DB" : "Env"}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-gold/20 px-2 py-1 text-xs font-semibold text-gray-dark">
-                        Not set
-                      </span>
-                    )}
-                  </td>
-                  <td className="col-span-2 align-top md:table-cell md:py-3 md:pr-4">
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      aria-label={`New value for ${ENV_LABELS[key]}`}
-                      placeholder={configured ? "Enter new value to replace" : "Set value"}
-                      value={draft[key] || ""}
-                      onChange={(e) =>
-                        setDraft((prev) => ({ ...prev, [key]: e.target.value }))
-                      }
-                      className="w-full rounded-md border md:min-w-[220px] border-gray-medium px-3 py-2"
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 max-w-md">
-        <label className="block text-sm font-semibold text-gray-dark" htmlFor="env-current-password">
-          Current password
-        </label>
-        <input
-          id="env-current-password"
-          type="password"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          className="mt-1 w-full rounded-md border border-gray-medium px-3 py-2"
-        />
-      </div>
-
-      <div className="mt-4 flex gap-3">
-        <Button variant="outline" onClick={load} disabled={loading}>
-          Refresh
-        </Button>
-        <Button onClick={save} loading={loading}>
-          Save integration settings
-        </Button>
-      </div>
+      <Panel title="Payment details encryption">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-atelier-muted">Only needed if you or your developer changed the encryption key.</p>
+          <Button size="sm" variant="outline" loading={reencrypting} onClick={() => void reencrypt()}>
+            Re-encrypt payment details
+          </Button>
+        </div>
+      </Panel>
     </div>
   );
 }
