@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const admin = createAdminClient()
   const { data } = await admin
-    .from('stylist_calendar')
+    .from('stylist_calendars')
     .select('*')
     .eq('stylist_id', ownerId)
     .eq('month', searchParams.get('month'))
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const { stylist_id: _ignored, ...calendarData } = body
   const admin = createAdminClient()
   const { data: calendar, error } = await admin
-    .from('stylist_calendar')
+    .from('stylist_calendars')
     .insert({ ...calendarData, stylist_id: ownerId })
     .select().single()
 

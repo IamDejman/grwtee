@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const admin = createAdminClient()
 
   const { data, error } = await admin
-    .from('stylist_calendar')
+    .from('stylist_calendars')
     .update(patchData)
     .eq('id', calendarId)
     .eq('stylist_id', ownerId)

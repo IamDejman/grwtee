@@ -9,8 +9,7 @@ interface Message {
   sender_id: string
   content: string
   created_at: string
-  message_type: string | null
-  media_url: string | null
+  image_url: string | null
 }
 
 interface Profile {
@@ -72,7 +71,7 @@ export function MessageThread({ conversationId, initialMessages, currentUserId, 
     const res = await fetch(`/api/stylist/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: conversationId, content: text, message_type: 'text' })
+      body: JSON.stringify({ conversation_id: conversationId, content: text })
     })
 
     setSending(false)
@@ -150,8 +149,8 @@ export function MessageThread({ conversationId, initialMessages, currentUserId, 
                     borderBottomLeftRadius: isMine ? '16px' : '4px'
                   }}
                 >
-                  {msg.media_url && (
-                    <img src={msg.media_url} alt="Image" className="w-full rounded-xl mb-2 max-w-xs" />
+                  {msg.image_url && (
+                    <img src={msg.image_url} alt="Image" className="w-full rounded-xl mb-2 max-w-xs" />
                   )}
                   {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
                   <p className={`text-[10px] mt-1 ${isMine ? 'text-right text-purple-200' : 'text-right'}`} style={{ color: isMine ? 'rgba(255,255,255,0.5)' : '#9A8DAA' }}>

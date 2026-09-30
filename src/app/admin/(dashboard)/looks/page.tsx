@@ -14,7 +14,7 @@ export default async function LooksPage() {
   const admin = createAdminClient()
   const { data: looks } = await admin
     .from('looks')
-    .select('id, title, description, occasion, season, is_published, is_premium, primary_image_url, likes_count, saves_count, views_count, created_at, look_images(image_url, is_primary)')
+    .select('id, title, description, occasion, season, is_published, is_premium, primary_image_url, likes_count, saves_count, views_count, created_at')
     .eq('stylist_id', ownerId)
     .order('created_at', { ascending: false })
 

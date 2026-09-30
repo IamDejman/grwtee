@@ -4,7 +4,7 @@ import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/styli
 
 async function assertCalendarOwner(admin: ReturnType<typeof createAdminClient>, calendarId: string, ownerId: string) {
   const { data } = await admin
-    .from('stylist_calendar')
+    .from('stylist_calendars')
     .select('id')
     .eq('id', calendarId)
     .eq('stylist_id', ownerId)

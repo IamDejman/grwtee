@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (!ownerId) return stylistUnauthorized()
 
   const body = await request.json()
-  const { conversation_id, content, message_type, media_url } = body
+  const { conversation_id, content } = body
 
   if (!conversation_id || !content?.trim()) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -28,9 +28,7 @@ export async function POST(request: NextRequest) {
     .insert({
       conversation_id,
       sender_id: ownerId,
-      content: content.trim(),
-      message_type: message_type ?? 'text',
-      media_url: media_url ?? null
+      content: content.trim()
     })
     .select().single()
 
