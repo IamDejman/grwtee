@@ -1,7 +1,7 @@
 import { SubscribePageForm } from "@/components/SubscribePageForm";
 
 export const metadata = {
-  title: "Join the mailing list | GRWTEE",
+  title: "Join the mailing list",
   description:
     "Subscribe to the GRWTEE mailing list for styling stories, service drops, and exclusive updates."
 };

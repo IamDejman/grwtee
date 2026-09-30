@@ -31,6 +31,20 @@ const WORDS: Record<Step, string> = {
   done: "Booked"
 };
 
+// Browser tab title per step; the intro keeps the page's metadata title.
+const TITLES: Record<Step, string> = {
+  intro: "Lagos in December",
+  name: "Your name",
+  contact: "Your contact details",
+  occasions: "Your occasions",
+  looks: "Your looks",
+  timeline: "Your December dates",
+  style: "Your style",
+  brief: "Your brief",
+  time: "Choose a time",
+  done: "You're booked"
+};
+
 const STORAGE_KEY = "grwtee-december-brief-v1";
 
 interface Saved {
@@ -208,6 +222,10 @@ export function DecemberFlow({ initialCountry, fee, full }: { initialCountry: st
   // Draft from a previous visit; read once on the client, null during SSR.
   const savedRaw = useSyncExternalStore(noopSubscribe, readRaw, () => null);
   const saved = useMemo(() => parseSaved(savedRaw), [savedRaw]);
+
+  useEffect(() => {
+    document.title = step === "intro" ? "Lagos in December | GRWTEE" : `${TITLES[step]} | Lagos in December | GRWTEE`;
+  }, [step]);
 
   // Save a server draft on each step change (not on every keystroke).
   const draftedStep = useRef<Step | null>(null);
