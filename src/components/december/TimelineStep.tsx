@@ -1,13 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { EASE, Label, textareaClass } from "./primitives";
 import { StepFrame, type StepProps } from "./steps";
 
 const YEAR = 2026;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const lead = (new Date(Date.UTC(YEAR, 11, 1)).getUTCDay() + 6) % 7;
+
+/** Weeks are grid rows; the editor opens under the row of the tapped date. */
+const rowOf = (day: number) => Math.floor((lead + day - 1) / 7);
+const endsRow = (day: number) => (lead + day) % 7 === 0 || day === 31;
 
 function dayLabel(day: number): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -16,6 +20,96 @@ function dayLabel(day: number): string {
     month: "long",
     timeZone: "UTC"
   }).format(new Date(Date.UTC(YEAR, 11, day)));
+}
+
+function DayEditor({
+  day,
+  draft,
+  setDraft,
+  quickPicks,
+  hasEvent,
+  onSave,
+  onRemove
+}: {
+  day: number;
+  draft: string;
+  setDraft: (v: string) => void;
+  quickPicks: string[];
+  hasEvent: boolean;
+  onSave: () => void;
+  onRemove: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.35, ease: EASE }}
+      onAnimationComplete={(def) => {
+        // Keep the whole editor on screen once it has opened (short phones, bottom rows).
+        if (typeof def === "object" && def !== null && "height" in def && def.height === "auto") {
+          ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }}
+      className="col-span-7 overflow-hidden"
+    >
+      <div className="my-2 rounded-xl border border-gold/40 bg-night-raised/80 p-5">
+        <label htmlFor="event-title" className="block font-cormorant text-2xl text-cream">
+          What&apos;s on, {dayLabel(day)}?
+        </label>
+        <input
+          id="event-title"
+          autoFocus
+          autoComplete="off"
+          enterKeyHint="done"
+          className="mt-3 w-full border-0 border-b border-night-line bg-transparent px-0 pb-2 font-body text-lg text-cream placeholder:text-lilac/50 focus:border-gold focus:outline-none focus:ring-0"
+          placeholder="A concert, a brunch, a party…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onSave();
+            }
+          }}
+        />
+        {quickPicks.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {quickPicks.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => setDraft(o)}
+                className="rounded-full border border-night-line px-3 py-1 font-body text-xs text-lilac hover:border-gold/60 hover:text-cream"
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-4 flex gap-4">
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-full bg-cream px-5 py-2 font-accent text-sm font-semibold text-night hover:bg-white"
+          >
+            Save date
+          </button>
+          {hasEvent ? (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="font-body text-sm text-lilac underline-offset-4 hover:text-cream hover:underline"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export function TimelineStep({ brief, update, next, headingRef }: StepProps) {
@@ -43,7 +137,7 @@ export function TimelineStep({ brief, update, next, headingRef }: StepProps) {
   return (
     <StepFrame
       title="Walk us through your December."
-      helper="Tap a date to add what's happening. Skip anything you haven't planned yet."
+      helper="Tap a date and tell us what's on. Skip anything you haven't planned yet."
       headingRef={headingRef}
       onValid={next}
     >
@@ -60,7 +154,8 @@ export function TimelineStep({ brief, update, next, headingRef }: StepProps) {
           const day = i + 1;
           const ev = eventOn(day);
           const active = openDay === day;
-          return (
+          const editorHere = endsRow(day) && openDay !== null && rowOf(openDay) === rowOf(day);
+          return [
             <motion.button
               key={day}
               type="button"
@@ -93,79 +188,29 @@ export function TimelineStep({ brief, update, next, headingRef }: StepProps) {
                   />
                 ) : null}
               </AnimatePresence>
-            </motion.button>
-          );
-        })}
-      </div>
-
-      <AnimatePresence initial={false} mode="wait">
-        {openDay !== null ? (
-          <motion.div
-            key={openDay}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.35, ease: EASE }}
-            className="overflow-hidden"
-          >
-            <div className="mt-6 rounded-xl border border-night-line bg-night-raised/70 p-5">
-              <p className="font-cormorant text-2xl text-cream">{dayLabel(openDay)}</p>
-              <label htmlFor="event-title" className="sr-only">
-                What&apos;s happening on {dayLabel(openDay)}
-              </label>
-              <input
-                id="event-title"
-                autoFocus
-                className="mt-3 w-full border-0 border-b border-night-line bg-transparent px-0 pb-2 font-body text-lg text-cream placeholder:text-lilac/50 focus:border-gold focus:outline-none focus:ring-0"
-                placeholder="What's happening?"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    save();
-                  }
-                }}
-              />
-              {quickPicks.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {quickPicks.map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => setDraft(o)}
-                      className="rounded-full border border-night-line px-3 py-1 font-body text-xs text-lilac hover:border-gold/60 hover:text-cream"
-                    >
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <div className="mt-4 flex gap-4">
-                <button
-                  type="button"
-                  onClick={save}
-                  className="rounded-full bg-cream px-5 py-2 font-accent text-sm font-semibold text-night hover:bg-white"
-                >
-                  Save date
-                </button>
-                {eventOn(openDay) ? (
-                  <button
-                    type="button"
-                    onClick={() => {
+            </motion.button>,
+            endsRow(day) ? (
+              <AnimatePresence key={`editor-${rowOf(day)}`} initial={false}>
+                {editorHere && openDay !== null ? (
+                  <DayEditor
+                    key={openDay}
+                    day={openDay}
+                    draft={draft}
+                    setDraft={setDraft}
+                    quickPicks={quickPicks}
+                    hasEvent={Boolean(eventOn(openDay))}
+                    onSave={save}
+                    onRemove={() => {
                       update({ events: brief.events.filter((e) => e.day !== openDay) });
                       setOpenDay(null);
                     }}
-                    className="font-body text-sm text-lilac underline-offset-4 hover:text-cream hover:underline"
-                  >
-                    Remove
-                  </button>
+                  />
                 ) : null}
-              </div>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+              </AnimatePresence>
+            ) : null
+          ];
+        })}
+      </div>
 
       {brief.events.length ? (
         <ul className="mt-8 space-y-2" aria-label="Your December dates">

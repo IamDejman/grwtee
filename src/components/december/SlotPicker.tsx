@@ -80,16 +80,52 @@ export function nearestSlot(days: SlotDays, target: string): string | null {
   return best;
 }
 
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "YYYY-MM-DD" of an instant in a time zone. */
+function localDate(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone }).format(
+    new Date(iso)
+  );
+}
+
+function monthTitle(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, 1))
+  );
+}
+
+/** Calendar cells for a "YYYY-MM" month, Monday first; null pads the first week. */
+function monthCells(month: string): (string | null)[] {
+  const [y, m] = month.split("-").map(Number);
+  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: count }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`)
+  ];
+}
+
+function Arrow({ dir }: { dir: -1 | 1 }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d={dir === -1 ? "M12.5 4.5 7 10l5.5 5.5" : "M7.5 4.5 13 10l-5.5 5.5"} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function Skeleton() {
   return (
     <div aria-hidden="true">
-      <div className="flex gap-2">
-        {Array.from({ length: 6 }, (_, i) => (
+      <div className="h-6 w-40 rounded bg-night-raised" />
+      <div className="mt-5 grid max-w-md grid-cols-7 gap-1.5">
+        {Array.from({ length: 35 }, (_, i) => (
           <motion.span
             key={i}
-            className="h-[5.5rem] w-[4.5rem] shrink-0 rounded-xl bg-night-raised"
-            animate={{ opacity: [0.4, 0.9, 0.4] }}
-            transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.08 }}
+            className="aspect-square rounded-lg bg-night-raised"
+            animate={{ opacity: [0.35, 0.8, 0.35] }}
+            transition={{ duration: 1.6, repeat: Infinity, delay: (i % 7) * 0.05 }}
           />
         ))}
       </div>
@@ -123,10 +159,21 @@ export function SlotPicker({
   const days = state.status === "ready" ? state.days : [];
   const valueDay = days.find(([, slots]) => value && slots.includes(value))?.[0];
   const [pickedDay, setPickedDay] = useState<string | undefined>();
+  const [monthDir, setMonthDir] = useState(1);
   // The day the client tapped, else the day of the selected time, else the first open day.
   const day = (days.some(([d]) => d === pickedDay) ? pickedDay : undefined) ?? valueDay ?? days[0]?.[0];
   const slots = days.find(([d]) => d === day)?.[1] ?? [];
   const isLagos = matchesLagos(slots, tz);
+  const slotsByDay = new Map(days);
+  const months = [...new Set(days.map(([d]) => d.slice(0, 7)))];
+  const month = day?.slice(0, 7) ?? months[0];
+  const monthIndex = months.indexOf(month);
+  const goMonth = (step: -1 | 1) => {
+    const target = months[monthIndex + step];
+    if (!target) return;
+    setMonthDir(step);
+    setPickedDay(days.find(([d]) => d.startsWith(target))?.[0]);
+  };
 
   if (state.status === "loading") {
     return (
@@ -160,59 +207,100 @@ export function SlotPicker({
 
   return (
     <>
-      <div
-        role="radiogroup"
-        aria-label="Day"
-        className="-mx-5 flex snap-x scroll-px-5 gap-2 overflow-x-auto px-5 pb-3 [scrollbar-width:none] md:mx-0 md:scroll-px-0 md:px-0"
-      >
-        {days.map(([d, daySlots], i) => {
-          const selected = d === day;
-          const first = daySlots[0];
-          return (
-            <motion.button
-              key={d}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={formatDay(first, tz)}
-              onClick={() => setPickedDay(d)}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 + Math.min(i, 8) * 0.04, duration: 0.5, ease: EASE }}
-              className="relative flex w-[4.5rem] shrink-0 snap-start flex-col items-center rounded-xl py-3 font-body"
-            >
-              {selected ? (
-                <motion.span
-                  layoutId="day-pill"
-                  aria-hidden="true"
-                  className="absolute inset-0 rounded-xl bg-cream"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                />
-              ) : (
-                <span aria-hidden="true" className="absolute inset-0 rounded-xl border border-night-line" />
-              )}
-              <span className={`relative text-xs ${selected ? "text-night/70" : "text-lilac"}`}>
-                {new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: tz }).format(new Date(first))}
-              </span>
-              <span
-                className={`relative font-cormorant text-3xl leading-tight tabular-nums lining-nums ${selected ? "text-night" : "text-cream"}`}
+      <div className="max-w-md">
+        <div className="flex items-center justify-between">
+          <p className="font-cormorant text-2xl text-cream" aria-live="polite">
+            {monthTitle(month)}
+          </p>
+          {months.length > 1 ? (
+            <div className="flex gap-1">
+              {([-1, 1] as const).map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => goMonth(step)}
+                  disabled={!months[monthIndex + step]}
+                  aria-label={step === -1 ? "Previous month" : "Next month"}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-night-line text-lilac transition-colors hover:border-gold/60 hover:text-cream disabled:opacity-30 disabled:hover:border-night-line disabled:hover:text-lilac"
+                >
+                  <Arrow dir={step} />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid grid-cols-7 gap-1.5" aria-hidden="true">
+          {WEEKDAYS.map((w) => (
+            <span key={w} className="text-center font-body text-xs text-lilac/70">
+              {w}
+            </span>
+          ))}
+        </div>
+        <motion.div
+          key={month}
+          role="radiogroup"
+          aria-label={`Day in ${monthTitle(month)}`}
+          className="mt-2 grid grid-cols-7 gap-1.5"
+          initial={{ opacity: 0, x: monthDir * 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.45, ease: EASE }}
+        >
+          {monthCells(month).map((d, i) => {
+            if (!d) return <span key={`pad-${i}`} aria-hidden="true" />;
+            const daySlots = slotsByDay.get(d);
+            const open = Boolean(daySlots?.length);
+            const selected = d === day;
+            const dayNumber = Number(d.slice(8));
+            return (
+              <motion.button
+                key={d}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={!open}
+                aria-label={
+                  open && daySlots
+                    ? `${formatDay(daySlots[0], "Africa/Lagos")}, ${daySlots.length} ${daySlots.length === 1 ? "time" : "times"}`
+                    : undefined
+                }
+                onClick={() => setPickedDay(d)}
+                whileTap={open ? { scale: 0.92 } : undefined}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 + Math.floor(i / 7) * 0.04, duration: 0.4, ease: EASE }}
+                className={[
+                  "relative flex aspect-square flex-col items-center justify-center rounded-lg font-body text-sm tabular-nums lining-nums transition-colors sm:text-base",
+                  selected
+                    ? "bg-cream text-night"
+                    : open
+                      ? "border border-night-line text-cream hover:border-gold/60"
+                      : "cursor-default text-lilac/30"
+                ].join(" ")}
               >
-                {new Intl.DateTimeFormat("en-GB", { day: "numeric", timeZone: tz }).format(new Date(first))}
-              </span>
-              <span className={`relative text-xs ${selected ? "text-night/70" : "text-lilac"}`}>
-                {new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: tz }).format(new Date(first))}
-              </span>
-            </motion.button>
-          );
-        })}
+                {dayNumber}
+                {open ? (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute bottom-1.5 h-1 w-1 rounded-full ${selected ? "bg-night/60" : "bg-gold"}`}
+                  />
+                ) : null}
+              </motion.button>
+            );
+          })}
+        </motion.div>
       </div>
+
+      {day && slots[0] ? (
+        <p className="mt-8 font-body text-sm text-lilac">{formatDay(slots[0], "Africa/Lagos")}</p>
+      ) : null}
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={day}
           role="radiogroup"
           aria-label="Time"
-          className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4"
+          className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"
           initial="hidden"
           animate="show"
           exit="hidden"
@@ -253,6 +341,7 @@ export function SlotPicker({
                 {!isLagos ? (
                   <span className={`relative text-xs tabular-nums lining-nums ${selected ? "text-night/70" : "text-lilac"}`}>
                     {formatTime(s, "Africa/Lagos")} Lagos
+                    {localDate(s, tz) !== day ? ", your next day" : ""}
                   </span>
                 ) : null}
               </motion.button>

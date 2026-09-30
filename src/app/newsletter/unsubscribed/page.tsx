@@ -5,7 +5,7 @@ type Props = {
 };
 
 export const metadata = {
-  title: "Unsubscribed | GRWTEE",
+  title: "Unsubscribed",
   robots: { index: false }
 };
 
