@@ -1,14 +1,16 @@
 import { PrismaClient } from "@prisma/client";
+import { runtimeDatabaseUrl } from "./database-url";
 
 declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Prisma automatically reads DATABASE_URL from environment variables
-// No need to explicitly pass datasources - it will use the schema's env("DATABASE_URL")
+const datasourceUrl = runtimeDatabaseUrl(process.env.DATABASE_URL);
+
 export const prisma =
   global.prisma ||
   new PrismaClient({
+    ...(datasourceUrl ? { datasourceUrl } : {}),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"]
   });
 
