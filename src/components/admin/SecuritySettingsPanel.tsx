@@ -145,9 +145,9 @@ export function SecuritySettingsPanel() {
   };
 
   return (
-    <div className="mt-10 rounded-xl border border-gray-medium/60 bg-white p-4 sm:p-6">
+    <div className="mt-6 rounded-2xl border border-atelier-border bg-white p-4 sm:p-6">
       {dialog}
-      <h2 className="font-heading text-xl font-semibold text-purple-dark">Security</h2>
+      <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">Security</h2>
 
       {error ? <p className="mt-3 text-sm text-red-600" role="alert">{error}</p> : null}
       {success ? <p className="mt-3 text-sm text-green-dark">{success}</p> : null}

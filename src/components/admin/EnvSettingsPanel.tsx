@@ -90,8 +90,8 @@ export function EnvSettingsPanel() {
   const keys = Object.keys(ENV_LABELS);
 
   return (
-    <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
-      <h2 className="font-heading text-xl font-semibold text-purple-dark">
+    <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6 lg:col-span-2">
+      <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
         Integration settings
       </h2>
 

@@ -20,6 +20,7 @@ import {
   X,
   type LucideIcon
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useState } from "react";
@@ -61,28 +62,35 @@ function isActive(pathname: string, href: string) {
 function SidebarLinks({ pathname }: { pathname: string }) {
   const renderLink = (l: NavLink) => {
     const active = isActive(pathname, l.href);
+    const Icon = l.icon;
     return (
       <Link
         key={l.href}
         href={l.href}
         aria-current={active ? "page" : undefined}
-        className={`block rounded-md px-3 py-2 text-sm font-medium ${
-          active ? "bg-purple-dark text-white" : "text-gray-dark hover:bg-cream-light"
+        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          active ? "bg-atelier-active text-white" : "text-atelier-nav-text hover:bg-white/5 hover:text-white"
         }`}
       >
+        {active ? <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gold" aria-hidden="true" /> : null}
+        <Icon
+          className={`h-4 w-4 shrink-0 ${active ? "text-gold" : "text-atelier-faint group-hover:text-white"}`}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
         {l.label}
       </Link>
     );
   };
   return (
-    <nav aria-label="Admin" className="px-2 pb-6">
+    <nav aria-label="Admin" className="flex flex-1 flex-col gap-0.5 px-3 pb-4">
+      <p className="px-3 pb-2 text-[10px] font-medium tracking-[0.2em] uppercase text-atelier-faint/70">Website</p>
       {websiteLinks.map(renderLink)}
-      <div className="mx-3 my-3 border-t border-gray-medium/40" />
-      <p className="px-3 py-1 text-[10px] font-semibold tracking-widest uppercase text-gray-dark/50">
-        Stylist
-      </p>
+      <p className="px-3 pb-2 pt-6 text-[10px] font-medium tracking-[0.2em] uppercase text-atelier-faint/70">Stylist</p>
       {stylistLinks.map(renderLink)}
-      <AdminSignOutButton />
+      <div className="mt-auto border-t border-white/10 pt-3">
+        <AdminSignOutButton />
+      </div>
     </nav>
   );
 }
@@ -100,7 +108,7 @@ function SheetGrid({
 }) {
   return (
     <div>
-      <p className="px-1 text-[10px] font-semibold tracking-widest uppercase text-gray-dark/50">
+      <p className="px-1 text-[10px] font-medium tracking-[0.2em] uppercase text-atelier-faint">
         {title}
       </p>
       <div className="mt-2 grid grid-cols-3 gap-2">
@@ -116,7 +124,7 @@ function SheetGrid({
               className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-center text-xs font-medium ${
                 active
                   ? "bg-purple-dark text-white"
-                  : "bg-white text-gray-dark ring-1 ring-gray-medium/50 active:bg-cream-light"
+                  : "bg-white text-atelier-ink ring-1 ring-atelier-border active:bg-atelier-lavender"
               }`}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
@@ -138,18 +146,16 @@ export function AdminSidebar() {
   return (
     <>
       {/* Phones and tablets: page name up top, section tabs along the bottom. */}
-      <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-gray-medium/60 bg-cream/95 px-4 backdrop-blur lg:hidden">
-        <span className="font-accent text-xs font-semibold tracking-widest text-green-dark">
-          ADMIN
-        </span>
+      <header className="sticky top-0 z-30 flex h-12 items-center gap-3 bg-atelier-surface px-4 lg:hidden">
+        <Image src="/logo.svg" alt="GRWTEE" width={72} height={14} className="brightness-0 invert" style={{ width: 72, height: "auto" }} />
         {current ? (
-          <span className="truncate text-sm font-medium text-gray-dark">{current.label}</span>
+          <span className="truncate border-l border-white/15 pl-3 text-sm text-atelier-nav-text">{current.label}</span>
         ) : null}
       </header>
 
       <nav
         aria-label="Admin sections"
-        className="fixed inset-x-0 bottom-0 z-40 touch-manipulation border-t border-gray-medium/60 bg-cream/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 touch-manipulation border-t border-atelier-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       >
         <ul className="grid grid-cols-5">
           {tabs.map((t) => {
@@ -161,7 +167,7 @@ export function AdminSidebar() {
                   href={t.href}
                   aria-current={active ? "page" : undefined}
                   className={`flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-                    active ? "text-purple-dark" : "text-gray-dark/60"
+                    active ? "text-purple-dark" : "text-atelier-faint"
                   }`}
                 >
                   <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
@@ -176,7 +182,7 @@ export function AdminSidebar() {
               onClick={() => setMoreOpen(true)}
               aria-expanded={moreOpen}
               className={`flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-                !onTab && current ? "text-purple-dark" : "text-gray-dark/60"
+                !onTab && current ? "text-purple-dark" : "text-atelier-faint"
               }`}
             >
               <Ellipsis className="h-5 w-5" aria-hidden="true" />
@@ -208,10 +214,10 @@ export function AdminSidebar() {
             leaveFrom="translate-y-0"
             leaveTo="translate-y-full"
           >
-            <Dialog.Panel className="fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-cream px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl">
+            <Dialog.Panel className="fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-atelier-canvas px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl">
               <div className="mx-auto h-1 w-10 rounded-full bg-gray-medium" aria-hidden="true" />
               <div className="mt-2 flex items-center justify-between">
-                <Dialog.Title className="font-heading text-lg font-semibold text-purple-dark">
+                <Dialog.Title className="font-cormorant text-2xl font-medium text-atelier-ink">
                   All sections
                 </Dialog.Title>
                 <button
@@ -236,7 +242,7 @@ export function AdminSidebar() {
                   pathname={pathname}
                   onNavigate={() => setMoreOpen(false)}
                 />
-                <AdminSignOutButton />
+                <AdminSignOutButton tone="light" />
               </div>
             </Dialog.Panel>
           </Transition.Child>
@@ -244,12 +250,11 @@ export function AdminSidebar() {
       </Transition>
 
       {/* Desktop: the sidebar stays in view while the page scrolls. */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-gray-medium/60 bg-cream lg:block">
-        <div className="px-4 py-4">
-          <p className="font-accent text-xs font-semibold tracking-widest text-green-dark">
-            ADMIN
-          </p>
-        </div>
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto bg-atelier-surface lg:flex [&_*:focus-visible]:outline-gold">
+        <Link href="/admin/dashboard" className="flex items-baseline gap-2 px-6 pb-8 pt-7">
+          <Image src="/logo.svg" alt="GRWTEE" width={96} height={18} className="brightness-0 invert" style={{ width: 96, height: "auto" }} />
+          <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-gold">Admin</span>
+        </Link>
         <SidebarLinks pathname={pathname} />
       </aside>
     </>

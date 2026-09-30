@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
+import { Modal } from "@/components/admin/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SkeletonRows, Stat, type Tone } from "@/components/admin/ui";
 import { adminFetch } from "@/lib/adminFetch";
 import { formatSlot, whatsappLink } from "@/lib/december/format";
 
@@ -88,22 +92,9 @@ const shortDate = (iso: string) =>
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 function StatusPill({ status }: { status: Status }) {
-  const styles: Record<Status, string> = {
-    scheduled: "bg-gold/20 text-gray-dark",
-    paid: "bg-green-600/10 text-green-700",
-    cancelled: "bg-gray-medium/40 text-gray-dark/70"
-  };
+  const tones: Record<Status, Tone> = { scheduled: "gold", paid: "green", cancelled: "neutral" };
   const labels: Record<Status, string> = { scheduled: "Unpaid", paid: "Paid", cancelled: "Cancelled" };
-  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${styles[status]}`}>{labels[status]}</span>;
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg bg-cream-light p-4 text-sm text-gray-dark/80">
-      <p className="font-semibold text-green-dark">{label}</p>
-      <p className="mt-1 font-heading text-2xl font-semibold tabular-nums text-purple-dark">{value}</p>
-    </div>
-  );
+  return <Badge tone={tones[status]}>{labels[status]}</Badge>;
 }
 
 function BriefDetail({ b }: { b: Booking }) {
@@ -138,11 +129,11 @@ function BriefDetail({ b }: { b: Booking }) {
     ["Paid", b.paidAt ? shortDate(b.paidAt) : "-"]
   ];
   return (
-    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[8rem_1fr] sm:gap-y-3">
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-[8rem_1fr] sm:gap-y-3">
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="mt-2 text-xs text-gray-dark/70 sm:mt-0 sm:text-sm">{label}</dt>
-          <dd className="whitespace-pre-line text-gray-dark">{value}</dd>
+          <dt className="mt-3 text-xs font-medium uppercase tracking-wider text-atelier-faint sm:mt-0.5">{label}</dt>
+          <dd className="whitespace-pre-line text-atelier-ink [overflow-wrap:anywhere] [&_a]:text-purple-dark">{value}</dd>
         </div>
       ))}
     </dl>
@@ -150,6 +141,7 @@ function BriefDetail({ b }: { b: Booking }) {
 }
 
 function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => void }) {
+  const toast = useToast();
   const text = (n: number | null) => (n === null ? "" : String(n));
   const [feeNgn, setFeeNgn] = useState(text(initial.feeNgn));
   const [feeUsd, setFeeUsd] = useState(text(initial.feeUsd));
@@ -157,7 +149,6 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
   const [rules, setRules] = useState(initial.rules);
   const [noticeHours, setNoticeHours] = useState(String(initial.rules.minNoticeMinutes / 60));
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const num = (v: string) => Number.parseInt(v, 10);
   const optional = (v: string) => (v.trim() ? num(v.replace(/[^\d]/g, "")) : null);
@@ -166,7 +157,6 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setMessage(null);
     try {
       const body: Settings = {
         feeNgn: optional(feeNgn),
@@ -181,10 +171,10 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Failed to save.");
-      setMessage({ ok: true, text: "Saved." });
+      toast.success("Settings saved.");
       onSaved();
     } catch (err) {
-      setMessage({ ok: false, text: err instanceof Error ? err.message : "Failed to save." });
+      toast.error(err instanceof Error ? err.message : "Couldn't save settings.");
     } finally {
       setSaving(false);
     }
@@ -227,7 +217,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
       </section>
 
       <section>
-        <h2 className="font-heading text-lg font-semibold text-purple-dark">Consultation times (Lagos time)</h2>
+        <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">Consultation times (Lagos time)</h2>
         <fieldset className="mt-4">
           <legend className="text-sm font-semibold text-gray-dark">Days</legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -237,7 +227,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
                 <label
                   key={label}
                   className={`relative cursor-pointer rounded-full border px-4 py-1.5 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-gold has-[:focus-visible]:ring-offset-2 ${
-                    on ? "border-purple-dark bg-purple-dark text-white" : "border-gray-medium text-gray-dark"
+                    on ? "border-atelier-ink bg-atelier-ink text-white" : "border-atelier-border bg-white text-atelier-muted"
                   }`}
                 >
                   <input
@@ -266,15 +256,10 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
         </div>
       </section>
 
-      <div className="flex items-center gap-4">
-        <Button type="submit" loading={saving}>
+      <div>
+        <Button type="submit" size="sm" loading={saving}>
           Save settings
         </Button>
-        {message ? (
-          <p role="status" className={`text-sm font-semibold ${message.ok ? "text-green-700" : "text-red-600"}`}>
-            {message.text}
-          </p>
-        ) : null}
       </div>
     </form>
   );
@@ -286,7 +271,8 @@ export default function AdminDecemberPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [detail, setDetail] = useState<Booking | null>(null);
-  const [confirmCancel, setConfirmCancel] = useState<Booking | null>(null);
+  const { confirm, dialog } = useConfirm();
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setError(null);
@@ -296,7 +282,7 @@ export default function AdminDecemberPage() {
       if (!res.ok || !json.data) throw new Error("Failed");
       setData(json.data);
     } catch {
-      setError("Failed to load December bookings.");
+      setError("Couldn't load December bookings.");
     }
   }, []);
 
@@ -305,8 +291,16 @@ export default function AdminDecemberPage() {
   }, [load]);
 
   const act = async (b: Booking, action: "paid" | "unpaid" | "cancel") => {
+    if (action === "cancel") {
+      const ok = await confirm({
+        title: `Cancel ${b.name}'s consultation?`,
+        body: `${lagosSlot(b.slotStart)} Lagos time. The calendar event is deleted, Google emails ${firstName(b.name)} a cancellation and the time opens up again.`,
+        confirmLabel: "Cancel consultation",
+        danger: true
+      });
+      if (!ok) return;
+    }
     setBusy(b.id);
-    setError(null);
     try {
       const res = await adminFetch(`/api/admin/december/bookings/${b.id}`, {
         method: "POST",
@@ -316,12 +310,18 @@ export default function AdminDecemberPage() {
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Update failed.");
       await load();
+      setDetail(null);
+      toast.success(
+        action === "paid"
+          ? `${firstName(b.name)} marked paid.`
+          : action === "unpaid"
+            ? `${firstName(b.name)} marked unpaid.`
+            : `${firstName(b.name)}'s consultation cancelled.`
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed.");
+      toast.error(err instanceof Error ? err.message : "Update failed.");
     } finally {
       setBusy(null);
-      setConfirmCancel(null);
-      setDetail(null);
     }
   };
 
@@ -337,40 +337,46 @@ export default function AdminDecemberPage() {
   }, [data]);
 
   const unpaid = upcoming.filter((b) => b.status === "scheduled").length;
-  const tabs: [Tab, string][] = [
-    ["upcoming", `Upcoming (${upcoming.length})`],
-    ["past", `Past and cancelled (${past.length})`],
-    ["drafts", `Didn't book (${data?.drafts.length ?? 0})`],
-    ["settings", "Settings"]
+  const tabs: { value: Tab; label: string; count?: number }[] = [
+    { value: "upcoming", label: "Upcoming", count: upcoming.length },
+    { value: "past", label: "Past and cancelled", count: past.length },
+    { value: "drafts", label: "Didn't book", count: data?.drafts.length ?? 0 },
+    { value: "settings", label: "Settings" }
   ];
 
   const bookingActions = (b: Booking) => (
-    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold">
-      <button type="button" className="text-green-dark hover:text-purple-dark" onClick={() => setDetail(b)}>
-        View brief
-      </button>
+    <div className="-ml-2.5 flex flex-wrap items-center gap-1">
+      <RowAction onClick={() => setDetail(b)}>Brief</RowAction>
       {b.status === "scheduled" ? (
-        <button type="button" className="text-green-dark hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "paid")}>
+        <RowAction disabled={busy === b.id} onClick={() => void act(b, "paid")}>
           Mark paid
-        </button>
+        </RowAction>
       ) : null}
       {b.status === "paid" ? (
-        <button type="button" className="text-gray-dark/70 hover:text-purple-dark disabled:opacity-50" disabled={busy === b.id} onClick={() => act(b, "unpaid")}>
+        <RowAction disabled={busy === b.id} onClick={() => void act(b, "unpaid")}>
           Mark unpaid
-        </button>
+        </RowAction>
       ) : null}
+      <a
+        className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark hover:bg-atelier-lavender"
+        href={whatsappLink(b.whatsapp)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        WhatsApp
+      </a>
       {b.status !== "cancelled" && Date.parse(b.slotStart) > Date.now() ? (
-        <button type="button" className="text-red-600 hover:text-red-700 disabled:opacity-50" disabled={busy === b.id} onClick={() => setConfirmCancel(b)}>
+        <RowAction danger disabled={busy === b.id} onClick={() => void act(b, "cancel")}>
           Cancel
-        </button>
+        </RowAction>
       ) : null}
     </div>
   );
 
   const draftActions = (d: Draft) => (
-    <div className="flex flex-wrap gap-3 text-xs font-semibold">
+    <div className="-ml-2.5 flex flex-wrap gap-1">
       <a
-        className="text-green-dark hover:text-purple-dark"
+        className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark hover:bg-atelier-lavender"
         href={whatsappLink(
           d.whatsapp,
           `Hi ${firstName(d.name)}, it's GRWTEE. We saw you started your Lagos in December brief. Would you like help choosing a consultation time?`
@@ -380,95 +386,71 @@ export default function AdminDecemberPage() {
       >
         WhatsApp
       </a>
-      <a className="text-green-dark hover:text-purple-dark" href={`mailto:${d.email}`}>
+      <a className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark hover:bg-atelier-lavender" href={`mailto:${d.email}`}>
         Email
       </a>
     </div>
   );
 
-  const bookingTable = (rows: Booking[], empty: string) => (
-    <>
-      {/* Phones: one card per booking. */}
-      <ul className="divide-y divide-gray-medium/60 md:hidden">
-        {rows.map((b) => (
-          <li key={b.id} className="py-4 first:pt-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-semibold text-purple-medium">{b.name}</p>
-                <p className="mt-0.5 text-sm tabular-nums text-gray-dark">{lagosSlot(b.slotStart)} Lagos</p>
+  const bookingTable = (rows: Booking[], empty: string) =>
+    !rows.length ? (
+      <EmptyState icon={Sparkles} title={empty} />
+    ) : (
+      <>
+        {/* Phones: one card per booking. */}
+        <ul className="divide-y divide-atelier-border/70 md:hidden">
+          {rows.map((b) => (
+            <li key={b.id} className="px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-atelier-ink">{b.name}</p>
+                  <p className="mt-0.5 text-sm tabular-nums text-atelier-muted">{lagosSlot(b.slotStart)} Lagos</p>
+                </div>
+                <StatusPill status={b.status} />
               </div>
-              <StatusPill status={b.status} />
-            </div>
-            <p className="mt-1 break-all text-xs text-gray-dark/70">
-              {b.looks} looks · {b.email} ·{" "}
-              <a className="underline" href={whatsappLink(b.whatsapp)} target="_blank" rel="noreferrer">
-                WhatsApp
-              </a>
-            </p>
-            <div className="mt-3">{bookingActions(b)}</div>
-          </li>
-        ))}
-        {!rows.length ? <li className="text-sm text-gray-dark/70">{empty}</li> : null}
-      </ul>
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead>
-            <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-              <th className="py-3 pr-4">Call (Lagos)</th>
-              <th className="py-3 pr-4">Client</th>
-              <th className="py-3 pr-4">Looks</th>
-              <th className="py-3 pr-4">Status</th>
-              <th className="py-3 pr-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-medium/60">
-            {rows.map((b) => (
-              <tr key={b.id}>
-                <td className="py-3 pr-4 tabular-nums text-gray-dark">{lagosSlot(b.slotStart)}</td>
-                <td className="py-3 pr-4">
-                  <p className="font-semibold text-purple-medium">{b.name}</p>
-                  <p className="text-xs text-gray-dark/70">
-                    {b.email} ·{" "}
-                    <a className="underline" href={whatsappLink(b.whatsapp)} target="_blank" rel="noreferrer">
-                      WhatsApp
-                    </a>
-                  </p>
-                </td>
-                <td className="py-3 pr-4 tabular-nums">{b.looks}</td>
-                <td className="py-3 pr-4">
-                  <StatusPill status={b.status} />
-                </td>
-                <td className="py-3 pr-4">
-                  {bookingActions(b)}
-                </td>
-              </tr>
-            ))}
-            {!rows.length ? (
+              <p className="mt-1 text-xs text-atelier-faint">{b.looks} looks</p>
+              <div className="mt-2">{bookingActions(b)}</div>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden px-6 pb-2 pt-5 md:block">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <td className="py-4 text-gray-dark/70" colSpan={5}>
-                  {empty}
-                </td>
+                <th>Call (Lagos)</th>
+                <th>Client</th>
+                <th>Looks</th>
+                <th>Status</th>
+                <th />
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+            </thead>
+            <tbody>
+              {rows.map((b) => (
+                <tr key={b.id}>
+                  <td className="whitespace-nowrap tabular-nums">{lagosSlot(b.slotStart)}</td>
+                  <td>
+                    <p className="font-medium">{b.name}</p>
+                    <p className="text-xs text-atelier-faint">{b.email}</p>
+                  </td>
+                  <td className="tabular-nums text-atelier-muted">{b.looks}</td>
+                  <td>
+                    <StatusPill status={b.status} />
+                  </td>
+                  <td>{bookingActions(b)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    );
 
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">Lagos in December</h1>
-        </div>
-        <Button variant="outline" onClick={load}>
-          Refresh
-        </Button>
-      </div>
+      <PageHeader title="Lagos in December" />
 
       {data && data.mode !== "live" ? (
-        <p className="mt-4 rounded-lg bg-gold/15 p-4 text-sm text-gray-dark" role="status">
+        <p className="mb-4 rounded-xl bg-gold/15 px-4 py-3 text-sm text-atelier-ink" role="status">
           {data.mode === "off"
             ? "Google Calendar isn't connected, so the booking page can't take bookings yet."
             : "Test mode: Google Calendar isn't connected. Bookings are saved without calendar events or emails."}
@@ -476,131 +458,99 @@ export default function AdminDecemberPage() {
       ) : null}
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
 
       {data ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Upcoming calls" value={upcoming.length} />
-          <Stat label="Awaiting payment" value={unpaid} />
+          <Stat label="Awaiting payment" value={unpaid} tone={unpaid ? "gold" : undefined} />
           <Stat label="Didn't book" value={data.drafts.length} />
-          <Stat label="Capacity" value={data.settings.capacity === null ? `${data.active} booked` : `${data.active} of ${data.settings.capacity}`} />
+          <Stat
+            label="Booked"
+            value={data.settings.capacity === null ? data.active : `${data.active} / ${data.settings.capacity}`}
+          />
         </div>
       ) : null}
 
-      <div className="mt-6 rounded-xl bg-white p-4 shadow-md ring-1 ring-gray-medium/60 sm:p-6">
-        <div aria-label="December views" className="-mx-4 flex gap-2 overflow-x-auto border-b border-gray-medium/60 px-4 pb-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-          {tabs.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={tab === key}
-              onClick={() => setTab(key)}
-              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition sm:py-1.5 ${
-                tab === key ? "bg-purple-dark text-white" : "text-gray-dark/80 hover:bg-purple-dark/10"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="mb-4">
+        <FilterChips label="December views" value={tab} options={tabs} onChange={setTab} />
+      </div>
 
-        <div className="mt-6">
-          {!data ? (
-            <p className="text-sm text-gray-dark/70">{error ? "-" : "Loading…"}</p>
-          ) : tab === "upcoming" ? (
-            bookingTable(upcoming, "No upcoming consultations yet.")
-          ) : tab === "past" ? (
-            bookingTable(past, "Nothing here yet.")
-          ) : tab === "drafts" ? (
-            <div>
-              <ul className="divide-y divide-gray-medium/60 md:hidden">
+      <Panel className={tab === "settings" ? "" : "!p-0 sm:!p-0"}>
+        {!data ? (
+          error ? (
+            <EmptyState title="-" />
+          ) : (
+            <div className="p-5">
+              <SkeletonRows />
+            </div>
+          )
+        ) : tab === "upcoming" ? (
+          bookingTable(upcoming, "No upcoming consultations yet.")
+        ) : tab === "past" ? (
+          bookingTable(past, "Nothing here yet.")
+        ) : tab === "drafts" ? (
+          !data.drafts.length ? (
+            <EmptyState icon={Sparkles} title="No one has dropped off." />
+          ) : (
+            <>
+              <ul className="divide-y divide-atelier-border/70 md:hidden">
                 {data.drafts.map((d) => (
-                  <li key={d.id} className="py-4 first:pt-0">
-                    <p className="font-semibold text-purple-medium">{d.name}</p>
-                    <p className="mt-0.5 break-all text-xs text-gray-dark/70">{d.email}</p>
-                    <p className="mt-1 text-xs text-gray-dark/80">
+                  <li key={d.id} className="px-4 py-4">
+                    <p className="font-medium text-atelier-ink">{d.name}</p>
+                    <p className="mt-0.5 text-sm text-atelier-muted">
                       Reached {STEP_LABELS[d.step] ?? d.step} · {shortDate(d.updatedAt)}
                     </p>
-                    <div className="mt-3">{draftActions(d)}</div>
+                    <div className="mt-2">{draftActions(d)}</div>
                   </li>
                 ))}
-                {!data.drafts.length ? <li className="text-sm text-gray-dark/70">No one has dropped off yet.</li> : null}
               </ul>
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[640px] text-sm">
+              <div className="hidden px-6 pb-2 pt-5 md:block">
+                <table className="admin-table">
                   <thead>
-                    <tr className="border-b border-gray-medium/60 text-left text-xs font-semibold uppercase tracking-wider text-gray-dark/70">
-                      <th className="py-3 pr-4">Name</th>
-                      <th className="py-3 pr-4">Reached</th>
-                      <th className="py-3 pr-4">Last active</th>
-                      <th className="py-3 pr-4">Follow up</th>
+                    <tr>
+                      <th>Name</th>
+                      <th>Reached</th>
+                      <th>Last active</th>
+                      <th />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-medium/60">
+                  <tbody>
                     {data.drafts.map((d) => (
                       <tr key={d.id}>
-                        <td className="py-3 pr-4">
-                          <p className="font-semibold text-purple-medium">{d.name}</p>
-                          <p className="text-xs text-gray-dark/70">{d.email}</p>
+                        <td>
+                          <p className="font-medium">{d.name}</p>
+                          <p className="text-xs text-atelier-faint">{d.email}</p>
                         </td>
-                        <td className="py-3 pr-4">{STEP_LABELS[d.step] ?? d.step}</td>
-                        <td className="py-3 pr-4 tabular-nums text-gray-dark/80">{shortDate(d.updatedAt)}</td>
-                        <td className="py-3 pr-4">
-                          {draftActions(d)}
-                        </td>
+                        <td className="text-atelier-muted">{STEP_LABELS[d.step] ?? d.step}</td>
+                        <td className="whitespace-nowrap tabular-nums text-atelier-muted">{shortDate(d.updatedAt)}</td>
+                        <td>{draftActions(d)}</td>
                       </tr>
                     ))}
-                    {!data.drafts.length ? (
-                      <tr>
-                        <td className="py-4 text-gray-dark/70" colSpan={4}>
-                          No one has dropped off yet.
-                        </td>
-                      </tr>
-                    ) : null}
                   </tbody>
                 </table>
               </div>
-            </div>
-          ) : (
-            <SettingsForm initial={data.settings} onSaved={load} />
-          )}
-        </div>
-      </div>
+            </>
+          )
+        ) : (
+          <SettingsForm initial={data.settings} onSaved={load} />
+        )}
+      </Panel>
 
-      <Modal open={detail !== null} onClose={() => setDetail(null)}>
+      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.name}>
         {detail ? (
           <div>
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <h2 className="font-heading text-xl font-semibold text-purple-dark">{detail.name}</h2>
+            <div className="mb-6">
               <StatusPill status={detail.status} />
             </div>
             <BriefDetail b={detail} />
           </div>
         ) : null}
       </Modal>
-
-      <Modal open={confirmCancel !== null} onClose={() => setConfirmCancel(null)}>
-        {confirmCancel ? (
-          <div>
-            <h2 className="font-heading text-xl font-semibold text-purple-dark">Cancel {confirmCancel.name}&apos;s consultation?</h2>
-            <p className="mt-3 text-sm text-gray-dark/80">
-              {lagosSlot(confirmCancel.slotStart)} Lagos time. The calendar event is deleted and Google emails the client
-              a cancellation. The time opens up for someone else.
-            </p>
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" onClick={() => setConfirmCancel(null)}>
-                Keep it
-              </Button>
-              <Button loading={busy === confirmCancel.id} onClick={() => act(confirmCancel, "cancel")}>
-                Cancel consultation
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      {dialog}
     </div>
   );
 }

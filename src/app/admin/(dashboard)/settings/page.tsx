@@ -9,6 +9,8 @@ import { PaymentAccountsManager } from "@/components/admin/PaymentAccountsManage
 import { SecuritySettingsPanel } from "@/components/admin/SecuritySettingsPanel";
 import { EnvSettingsPanel } from "@/components/admin/EnvSettingsPanel";
 import { adminFetch } from "@/lib/adminFetch";
+import { useToast } from "@/components/admin/Toast";
+import { PageHeader, SwitchRow } from "@/components/admin/ui";
 import { validatePassword } from "@/lib/security/password-policy";
 
 type Settings = {
@@ -39,6 +41,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -79,9 +82,9 @@ export default function AdminSettingsPage() {
         body: JSON.stringify(settings)
       });
       if (!res.ok) throw new Error("Failed");
-      setSuccess("Settings saved.");
+      toast.success("Settings saved.");
     } catch {
-      setError("Failed to save settings.");
+      toast.error("Couldn't save settings. Try again.");
     } finally {
       setLoading(false);
     }
@@ -124,37 +127,30 @@ export default function AdminSettingsPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Settings
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            Refresh
+      <PageHeader
+        title="Settings"
+        actions={
+          <Button size="sm" onClick={save} loading={loading}>
+            Save changes
           </Button>
-          <Button onClick={save} loading={loading}>
-            Save
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
-        <p className="mt-4 text-sm font-semibold text-red-600" role="alert">
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="mt-4 text-sm font-semibold text-green-700" role="status">
+        <p className="mb-4 rounded-xl bg-green-dark/10 px-4 py-3 text-sm font-medium text-green-dark" role="status">
           {success}
         </p>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
-          <h2 className="font-heading text-xl font-semibold text-purple-dark">
-            Site Settings
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6">
+          <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
+            Site
           </h2>
           <div className="mt-4 space-y-4">
             <Input
@@ -186,26 +182,17 @@ export default function AdminSettingsPage() {
                 setSettings((s) => ({ ...s, businessHours: e.target.value }))
               }
             />
-            <label className="inline-flex items-center gap-2 text-sm text-gray-dark/80">
-              <input
-                type="checkbox"
-                checked={settings.adminEmailNotifications}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    adminEmailNotifications: e.target.checked
-                  }))
-                }
-                className="h-4 w-4 rounded border-gray-medium"
-              />
-              Admin email notifications
-            </label>
+            <SwitchRow
+              label="Email me about new enquiries"
+              checked={settings.adminEmailNotifications}
+              onChange={(adminEmailNotifications) => setSettings((s) => ({ ...s, adminEmailNotifications }))}
+            />
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
-          <h2 className="font-heading text-xl font-semibold text-purple-dark">
-            Invoice Branding
+        <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6">
+          <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
+            Invoices
           </h2>
           <div className="mt-4 space-y-4">
             <Input
@@ -245,15 +232,15 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60 lg:col-span-2">
+        <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6 lg:col-span-2">
           <PaymentAccountsManager />
         </div>
 
         <EnvSettingsPanel />
 
-        <div className="rounded-xl bg-white p-4 shadow-md sm:p-6 ring-1 ring-gray-medium/60">
-          <h2 className="font-heading text-xl font-semibold text-purple-dark">
-            Admin Profile
+        <div className="rounded-2xl border border-atelier-border bg-white p-4 sm:p-6">
+          <h2 className="font-cormorant text-2xl font-medium text-atelier-ink">
+            Password
           </h2>
           <div className="mt-4 space-y-4">
             <div>
@@ -366,7 +353,7 @@ export default function AdminSettingsPage() {
               loading={loading}
               disabled={!passwordReady}
             >
-              Update Password
+              Update password
             </Button>
           </div>
         </div>

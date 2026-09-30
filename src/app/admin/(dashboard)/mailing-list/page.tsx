@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { Mail, Send } from "lucide-react";
+import { ButtonLink } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/admin/Toast";
+import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SkeletonRows, Stat, type Tone } from "@/components/admin/ui";
 import { adminFetch } from "@/lib/adminFetch";
 
 type Subscriber = {
@@ -27,25 +28,30 @@ type Broadcast = {
 
 type Counts = { confirmed: number; pending: number; unsubscribed: number };
 
-const statusOptions = [
-  { value: "", label: "All statuses" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "pending", label: "Pending" },
-  { value: "unsubscribed", label: "Unsubscribed" }
-];
+type StatusFilter = "" | Subscriber["status"];
+
+const STATUS: Record<Subscriber["status"], { label: string; tone: Tone }> = {
+  confirmed: { label: "Confirmed", tone: "green" },
+  pending: { label: "Awaiting confirmation", tone: "gold" },
+  unsubscribed: { label: "Unsubscribed", tone: "neutral" }
+};
 
 function formatDate(iso: string | null): string {
   if (!iso) return "-";
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
+
+const pillLink =
+  "inline-flex items-center rounded-full border border-atelier-border bg-white px-4 py-2 text-sm font-medium text-atelier-ink transition hover:bg-atelier-canvas";
 
 export default function MailingListPage() {
   const [tab, setTab] = useState<"subscribers" | "broadcasts">("subscribers");
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [counts, setCounts] = useState<Counts>({ confirmed: 0, pending: 0, unsubscribed: 0 });
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<StatusFilter>("");
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
 
@@ -59,7 +65,8 @@ export default function MailingListPage() {
       setSubscribers(data.data);
       setCounts(data.counts);
     } catch (e) {
-      setError((e as Error).message);
+      console.error("[Mailing list] load failed", e);
+      setError("Couldn't load subscribers. Refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -74,15 +81,16 @@ export default function MailingListPage() {
       if (!data.success) throw new Error(data.error || "Failed to load");
       setBroadcasts(data.data);
     } catch (e) {
-      setError((e as Error).message);
+      console.error("[Mailing list] broadcasts failed", e);
+      setError("Couldn't load broadcasts. Refresh to try again.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (tab === "subscribers") loadSubscribers();
-    else loadBroadcasts();
+    if (tab === "subscribers") void loadSubscribers();
+    else void loadBroadcasts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, status]);
 
@@ -90,203 +98,134 @@ export default function MailingListPage() {
     const email = subscribers.find((s) => s.id === id)?.email ?? "this subscriber";
     const ok = await confirm({ title: `Delete ${email}?`, body: "This can't be undone.", confirmLabel: "Delete", danger: true });
     if (!ok) return;
-    setError(null);
     const res = await adminFetch(`/api/admin/subscribers/${id}`, { method: "DELETE" }).catch(() => null);
     if (res?.ok) {
       setSubscribers((prev) => prev.filter((s) => s.id !== id));
+      toast.success(`${email} deleted.`);
     } else {
-      setError(`Couldn't delete ${email}. Try again.`);
+      toast.error(`Couldn't delete ${email}. Try again.`);
     }
   }
 
-  const statusPill = (s: Subscriber) => (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        s.status === "confirmed"
-          ? "bg-green-dark/10 text-green-dark"
-          : s.status === "pending"
-          ? "bg-gold-light/30 text-purple-dark"
-          : "bg-gray-medium/20 text-gray-dark"
-      }`}
-    >
-      {s.status}
-    </span>
-  );
+  const statusBadge = (s: Subscriber) => <Badge tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Badge>;
+  const total = counts.confirmed + counts.pending + counts.unsubscribed;
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-purple-dark">
-            Mailing list
-          </h1>
-        </div>
-        <Link href="/admin/mailing-list/new">
-          <Button>New broadcast</Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Mailing list"
+        actions={
+          <ButtonLink href="/admin/mailing-list/new" size="sm">
+            New broadcast
+          </ButtonLink>
+        }
+      />
 
-      <div className="mb-4 flex gap-4 border-b border-gray-medium/40">
-        <button
-          onClick={() => setTab("subscribers")}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${
-            tab === "subscribers"
-              ? "border-purple-medium text-purple-dark"
-              : "border-transparent text-gray-dark/60 hover:text-gray-dark"
-          }`}
-        >
-          Subscribers
-        </button>
-        <button
-          onClick={() => setTab("broadcasts")}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${
-            tab === "broadcasts"
-              ? "border-purple-medium text-purple-dark"
-              : "border-transparent text-gray-dark/60 hover:text-gray-dark"
-          }`}
-        >
-          Broadcasts
-        </button>
-      </div>
-
-      {error && (
-        <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+      {error ? (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {error}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      {tab === "subscribers" && (
-        <div>
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap gap-2 text-sm text-gray-dark sm:gap-3">
-              <span className="rounded-full bg-green-dark/10 px-3 py-1 font-medium text-green-dark">
-                {counts.confirmed} confirmed
-              </span>
-              <span className="rounded-full bg-gold-light/20 px-3 py-1 font-medium text-purple-dark">
-                {counts.pending} pending
-              </span>
-              <span className="rounded-full bg-gray-medium/20 px-3 py-1 font-medium text-gray-dark">
-                {counts.unsubscribed} unsubscribed
-              </span>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-44"
-                options={statusOptions}
-              />
-              {/* API download route, not a page: a full navigation is required */}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a
-                href="/api/admin/subscribers/export"
-                className="inline-flex items-center rounded-full border border-gray-medium/60 bg-white px-4 py-2 text-sm font-medium text-gray-dark transition hover:bg-cream-light"
-              >
-                Export CSV
-              </a>
-            </div>
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <Stat label="Confirmed" value={counts.confirmed} />
+        <Stat label="Awaiting" value={counts.pending} tone={counts.pending ? "gold" : undefined} />
+        <Stat label="Unsubscribed" value={counts.unsubscribed} />
+      </div>
+
+      <div className="mb-4">
+        <FilterChips
+          label="Mailing list views"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "subscribers", label: "Subscribers" },
+            { value: "broadcasts", label: "Broadcasts" }
+          ]}
+        />
+      </div>
+
+      {tab === "subscribers" ? (
+        <>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <FilterChips
+              label="Filter by status"
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: "", label: "All", count: total },
+                { value: "confirmed", label: "Confirmed", count: counts.confirmed },
+                { value: "pending", label: "Awaiting", count: counts.pending },
+                { value: "unsubscribed", label: "Unsubscribed", count: counts.unsubscribed }
+              ]}
+            />
+            {/* API download route, not a page: a full navigation is required */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/api/admin/subscribers/export" className={`${pillLink} self-start`}>
+              Export CSV
+            </a>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-medium/40 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
-                <tr>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="hidden px-4 py-3 sm:table-cell">Status</th>
-                  <th className="hidden px-4 py-3 sm:table-cell">Subscribed</th>
-                  <th className="hidden px-4 py-3 md:table-cell">Confirmed</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-dark/60">
-                      Loading…
-                    </td>
-                  </tr>
-                )}
-                {!loading && subscribers.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-dark/60">
-                      No subscribers.
-                    </td>
-                  </tr>
-                )}
+          <Panel className="!p-0 sm:!p-0">
+            {loading && !subscribers.length ? (
+              <div className="p-5">
+                <SkeletonRows />
+              </div>
+            ) : !subscribers.length ? (
+              <EmptyState icon={Mail} title="No subscribers here." />
+            ) : (
+              <ul className="divide-y divide-atelier-border/70">
                 {subscribers.map((s) => (
-                  <tr key={s.id} className="border-t border-gray-medium/30">
-                    <td className="px-4 py-3 font-medium text-gray-dark [overflow-wrap:anywhere]">
-                      {s.email}
-                      <span className="mt-1 flex items-center gap-2 font-normal sm:hidden">
-                        {statusPill(s)}
-                        <span className="text-xs text-gray-dark/70">{formatDate(s.createdAt)}</span>
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-3 sm:table-cell">{statusPill(s)}</td>
-                    <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(s.createdAt)}</td>
-                    <td className="hidden px-4 py-3 text-gray-dark/80 md:table-cell">{formatDate(s.confirmedAt)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => deleteSubscriber(s.id)}
-                        className="py-1 text-xs font-medium text-red-600 hover:underline"
-                      >
+                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3.5 sm:px-6">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-atelier-ink [overflow-wrap:anywhere]">{s.email}</p>
+                      <p className="text-sm text-atelier-faint">Joined {formatDate(s.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {statusBadge(s)}
+                      <RowAction danger onClick={() => void deleteSubscriber(s.id)}>
                         Delete
-                      </button>
-                    </td>
-                  </tr>
+                      </RowAction>
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {tab === "broadcasts" && (
-        <div className="overflow-hidden rounded-lg border border-gray-medium/40 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-cream-light text-left text-xs uppercase tracking-wider text-gray-dark/60">
-              <tr>
-                <th className="px-4 py-3">Subject</th>
-                <th className="hidden px-4 py-3 sm:table-cell">Sent</th>
-                <th className="px-4 py-3">Recipients</th>
-                <th className="px-4 py-3">Failed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-dark/60">
-                    Loading…
-                  </td>
-                </tr>
-              )}
-              {!loading && broadcasts.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-dark/60">
-                    No broadcasts yet.
-                  </td>
-                </tr>
-              )}
+              </ul>
+            )}
+          </Panel>
+        </>
+      ) : (
+        <Panel className="!p-0 sm:!p-0">
+          {loading && !broadcasts.length ? (
+            <div className="p-5">
+              <SkeletonRows />
+            </div>
+          ) : !broadcasts.length ? (
+            <EmptyState
+              icon={Send}
+              title="No broadcasts yet."
+              action={
+                <ButtonLink href="/admin/mailing-list/new" size="sm" variant="outline">
+                  Write one
+                </ButtonLink>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-atelier-border/70">
               {broadcasts.map((b) => (
-                <tr key={b.id} className="border-t border-gray-medium/30">
-                  <td className="px-4 py-3 font-medium text-gray-dark">
-                    {b.subject}
-                    <span className="mt-0.5 block text-xs font-normal text-gray-dark/70 sm:hidden">{formatDate(b.sentAt)}</span>
-                  </td>
-                  <td className="hidden px-4 py-3 text-gray-dark/80 sm:table-cell">{formatDate(b.sentAt)}</td>
-                  <td className="px-4 py-3 text-gray-dark/80">{b.sentCount}</td>
-                  <td
-                    className={`px-4 py-3 ${
-                      b.failedCount > 0 ? "text-red-600" : "text-gray-dark/80"
-                    }`}
-                  >
-                    {b.failedCount}
-                  </td>
-                </tr>
+                <li key={b.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3.5 sm:px-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-atelier-ink">{b.subject}</p>
+                    <p className="text-sm text-atelier-faint">{b.sentAt ? `Sent ${formatDate(b.sentAt)}` : "Not sent"}</p>
+                  </div>
+                  <p className="text-sm tabular-nums text-atelier-muted">
+                    {b.sentCount} delivered
+                    {b.failedCount > 0 ? <span className="text-red-600"> · {b.failedCount} failed</span> : null}
+                  </p>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+          )}
+        </Panel>
       )}
       {dialog}
     </div>
