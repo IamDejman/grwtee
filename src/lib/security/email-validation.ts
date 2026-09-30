@@ -29,7 +29,7 @@ const emailSchema = z
 export function parseEmail(value: unknown): { ok: true; email: string } | { ok: false; message: string } {
   const result = emailSchema.safeParse(value);
   if (result.success) return { ok: true, email: result.data };
-  return { ok: false, message: result.error.errors[0]?.message ?? "Invalid email" };
+  return { ok: false, message: result.error.issues[0]?.message ?? "Invalid email" };
 }
 
 export const emailField = emailSchema;

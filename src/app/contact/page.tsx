@@ -16,9 +16,7 @@ const schema = z.object({
   phone: z.string().min(7, "Enter a valid phone number"),
   service: z.string().min(1, "Select a service"),
   message: z.string().optional(),
-  agree: z.literal(true, {
-    errorMap: () => ({ message: "You must agree to the Terms & Policies" })
-  })
+  agree: z.literal(true, { error: "You must agree to the Terms & Policies" })
 });
 
 type FormData = z.infer<typeof schema>;
