@@ -1,19 +1,22 @@
+import { notFound, redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { notFound } from 'next/navigation'
 import { LookForm } from '@/components/stylist/LookForm'
+import { getStylistId } from '@/lib/stylist-auth'
 
-export const metadata = { title: 'Edit Look' }
+export const metadata = { title: 'Edit look' }
 
 export default async function EditLookPage({ params }: { params: Promise<{ id: string }> }) {
+  const ownerId = await getStylistId()
+  if (!ownerId) redirect('/admin/login')
+
   const { id } = await params
-  const admin = createAdminClient()
-
-  const { data: look } = await admin
+  const { data: look } = await createAdminClient()
     .from('looks')
-    .select('*, look_items(*), look_images(*)')
+    .select('*, look_items(*)')
     .eq('id', id)
-    .single()
-
+    .eq('stylist_id', ownerId)
+    .order('sort_order', { referencedTable: 'look_items' })
+    .maybeSingle()
   if (!look) notFound()
 
   return <LookForm initialData={look} />

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Send, Paperclip, Image as ImageIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Send } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
+import { useToast } from '@/components/admin/Toast'
 
 interface Message {
   id: string
@@ -12,150 +13,113 @@ interface Message {
   image_url: string | null
 }
 
-interface Profile {
-  id: string
-  full_name: string | null
-  avatar_url: string | null
-}
-
 interface MessageThreadProps {
   conversationId: string
   initialMessages: Message[]
   currentUserId: string
-  clientProfile: Profile | null
-  stylistProfile: Profile | null
 }
 
-export function MessageThread({ conversationId, initialMessages, currentUserId, clientProfile, stylistProfile }: MessageThreadProps) {
+const LAGOS = 'Africa/Lagos'
+const dayLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: LAGOS })
+const timeLabel = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: LAGOS })
+
+export function MessageThread({ conversationId, initialMessages, currentUserId }: MessageThreadProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const toast = useToast()
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  // Subscribe to new messages via Supabase realtime
+  // New messages from the client arrive live.
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
+    const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
     const channel = supabase
       .channel(`conversation:${conversationId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-      }, (payload) => {
-        const newMsg = payload.new as Message
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === newMsg.id)) return prev
-          return [...prev, newMsg]
-        })
-      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          const msg = payload.new as Message
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+        }
+      )
       .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      void supabase.removeChannel(channel)
+    }
   }, [conversationId])
 
-  async function sendMessage() {
-    const text = input.trim()
-    if (!text || sending) return
-    setInput('')
-    setSending(true)
-
-    const res = await fetch(`/api/stylist/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: conversationId, content: text })
-    })
-
-    setSending(false)
-    if (!res.ok) setInput(text)
+  function resize() {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+  async function send() {
+    const text = input.trim()
+    if (!text || sending) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/stylist/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: conversationId, content: text })
+      })
+      const data = (await res.json().catch(() => null)) as { message?: Message } | null
+      if (!res.ok || !data?.message) throw new Error()
+      const sent = data.message
+      // Show it straight away; the live feed skips it later because the id matches.
+      setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
+      setInput('')
+      requestAnimationFrame(resize)
+    } catch {
+      toast.error("Couldn't send your message. Try again.")
+    } finally {
+      setSending(false)
+      inputRef.current?.focus()
     }
   }
 
-  function getAvatar(senderId: string) {
-    const profile = senderId === currentUserId ? stylistProfile : clientProfile
-    const name = profile?.full_name ?? '?'
-    const initials = name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-    return { avatar_url: profile?.avatar_url, initials }
-  }
-
-  // Group messages by date
-  const formatDay = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-
   return (
     <>
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-8 py-4 space-y-1">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center" style={{ color: '#9A8DAA' }}>
-            <p className="text-sm">No messages yet</p>
-            <p className="text-xs">Start the conversation below</p>
-          </div>
-        )}
+      <div className="flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6" aria-live="polite">
+        {!messages.length ? (
+          <p className="flex h-full items-center justify-center text-sm text-atelier-faint">No messages yet. Say hello below.</p>
+        ) : null}
 
         {messages.map((msg, i) => {
-          const isMine = msg.sender_id === currentUserId
-          const date = new Date(msg.created_at)
-          const dateStr = formatDay(msg.created_at)
-          const showDate = i === 0 || formatDay(messages[i - 1].created_at) !== dateStr
-
-          const { avatar_url, initials } = getAvatar(msg.sender_id)
-
+          const mine = msg.sender_id === currentUserId
+          const day = dayLabel(msg.created_at)
+          const newDay = i === 0 || dayLabel(messages[i - 1].created_at) !== day
           return (
             <div key={msg.id}>
-              {showDate && (
-                <div className="flex items-center gap-3 py-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#EAE4D8' }} />
-                  <span className="text-[11px] font-medium" style={{ color: '#9A8DAA' }}>{dateStr}</span>
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#EAE4D8' }} />
+              {newDay ? (
+                <div className="flex items-center gap-3 py-3" role="separator">
+                  <span className="h-px flex-1 bg-atelier-border" />
+                  <span className="text-xs font-medium text-atelier-faint">{day}</span>
+                  <span className="h-px flex-1 bg-atelier-border" />
                 </div>
-              )}
-
-              <div className={`flex items-end gap-2.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-                {/* Avatar */}
-                {avatar_url ? (
-                  <img src={avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 mb-0.5" />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 mb-0.5"
-                    style={{ backgroundColor: isMine ? '#422D64' : '#F2EDF8', color: isMine ? '#FFFFFF' : '#422D64' }}
-                  >
-                    {initials}
-                  </div>
-                )}
-
-                {/* Bubble */}
+              ) : null}
+              <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className="max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
-                  style={{
-                    backgroundColor: isMine ? '#422D64' : '#FFFFFF',
-                    color: isMine ? '#FFFFFF' : '#1A1428',
-                    border: isMine ? 'none' : '1px solid #EAE4D8',
-                    borderBottomRightRadius: isMine ? '4px' : '16px',
-                    borderBottomLeftRadius: isMine ? '16px' : '4px'
-                  }}
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed sm:max-w-[70%] ${
+                    mine ? 'rounded-br-md bg-purple-dark text-white' : 'rounded-bl-md bg-white text-atelier-ink ring-1 ring-inset ring-atelier-border'
+                  }`}
                 >
-                  {msg.image_url && (
-                    <img src={msg.image_url} alt="Image" className="w-full rounded-xl mb-2 max-w-xs" />
-                  )}
-                  {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
-                  <p className={`text-[10px] mt-1 ${isMine ? 'text-right text-purple-200' : 'text-right'}`} style={{ color: isMine ? 'rgba(255,255,255,0.5)' : '#9A8DAA' }}>
-                    {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                  </p>
+                  {msg.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={msg.image_url} alt="Photo from the conversation" className="mb-1.5 w-full max-w-xs rounded-xl" />
+                  ) : null}
+                  {msg.content ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p> : null}
+                  <p className={`mt-0.5 text-right text-[11px] tabular-nums ${mine ? 'text-white/60' : 'text-atelier-faint'}`}>{timeLabel(msg.created_at)}</p>
                 </div>
               </div>
             </div>
@@ -164,46 +128,46 @@ export function MessageThread({ conversationId, initialMessages, currentUserId, 
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div
-        className="shrink-0 px-4 lg:px-8 py-4"
-        style={{ borderTop: '1px solid #EAE4D8', backgroundColor: 'rgba(248,245,238,0.95)', backdropFilter: 'blur(12px)' }}
+      <form
+        className="shrink-0 border-t border-atelier-border bg-white px-3 py-3 sm:px-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void send()
+        }}
       >
-        <div
-          className="flex items-end gap-3 rounded-2xl px-4 py-3"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #D4C9BB' }}
-        >
+        <div className="flex items-end gap-2 rounded-2xl border border-atelier-border bg-atelier-canvas/60 py-1.5 pl-4 pr-1.5 focus-within:border-purple-dark/40 focus-within:ring-2 focus-within:ring-purple-dark/10">
+          <label htmlFor="reply" className="sr-only">
+            Message
+          </label>
           <textarea
+            id="reply"
+            ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Write a message…"
             rows={1}
-            className="flex-1 resize-none outline-none text-sm leading-relaxed bg-transparent"
-            style={{ color: '#1A1428', minHeight: '24px', maxHeight: '120px' }}
-            onInput={(e) => {
-              const el = e.currentTarget
-              el.style.height = 'auto'
-              el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+            placeholder="Write a message…"
+            onChange={(e) => {
+              setInput(e.target.value)
+              resize()
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                void send()
+              }
+            }}
+            className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed text-atelier-ink outline-none placeholder:text-atelier-faint"
           />
           <button
-            type="button"
-            onClick={sendMessage}
+            type="submit"
+            aria-label="Send"
             disabled={!input.trim() || sending}
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
-            style={{
-              backgroundColor: input.trim() ? '#422D64' : '#F2EDF8',
-              color: input.trim() ? '#FFFFFF' : '#B0A0C4'
-            }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-dark text-white transition hover:bg-purple-medium disabled:bg-atelier-lavender disabled:text-atelier-faint"
           >
-            <Send className="w-4 h-4" />
+            <Send className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <p className="text-[10px] mt-1.5 text-center" style={{ color: '#B0A0C4' }}>
-          Enter to send · Shift+Enter for new line
-        </p>
-      </div>
+        <p className="mt-1.5 hidden text-center text-xs text-atelier-faint sm:block">Enter to send, Shift + Enter for a new line</p>
+      </form>
     </>
   )
 }

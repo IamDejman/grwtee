@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Users } from 'lucide-react'
 import { getStylistId } from '@/lib/stylist-auth'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { Users, MessageSquare, User } from 'lucide-react'
+import { clientName, getStylistClients } from '@/lib/stylist-clients'
+import { stylistLabel } from '@/lib/stylist-labels'
+import { Badge, EmptyState, PageHeader } from '@/components/admin/ui'
+import { ClientAvatar } from '@/components/stylist/ClientAvatar'
 
 export const metadata = { title: 'Clients' }
 
@@ -10,86 +13,61 @@ export default async function ClientsPage() {
   const ownerId = await getStylistId()
   if (!ownerId) redirect('/admin/login')
 
-  const admin = createAdminClient()
-  const { data: conversations } = await admin
-    .from('conversations')
-    .select('id, client_id, last_message_at')
-    .eq('stylist_id', ownerId)
-
-  const clientIds = [...new Set((conversations ?? []).map((c) => c.client_id))]
-  const conversationFor = new Map((conversations ?? []).map((c) => [c.client_id, c.id]))
-  let clients: { id: string; full_name: string | null; email: string | null; avatar_url: string | null; body_shape: string | null; style_tags: string[] | null; subscription_tier: string | null; gender_preference: string | null; location: string | null }[] = []
-
-  if (clientIds.length > 0) {
-    const { data } = await admin
-      .from('profiles')
-      .select('id, full_name, email, avatar_url, body_shape, style_tags, subscription_tier, gender_preference, location')
-      .in('id', clientIds)
-    clients = data ?? []
-  }
+  const { clients, error } = await getStylistClients(ownerId)
 
   return (
-    <div className="min-h-full" style={{ backgroundColor: '#F8F5EE' }}>
-      <div className="sticky top-12 z-10 px-6 lg:top-0 lg:px-8 py-5" style={{ backgroundColor: 'rgba(248,245,238,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
-        <p className="text-xs font-medium tracking-widest uppercase" style={{ color: '#9A8DAA' }}>People</p>
-        <h1 className="text-2xl lg:text-3xl font-light leading-tight mt-0.5" style={{ fontFamily: 'var(--font-cormorant), Cormorant Garamond, serif', color: '#1A1428' }}>Clients</h1>
-      </div>
-      <div className="px-6 lg:px-8 py-6">
-        {clients.length === 0 ? (
-          <div className="rounded-2xl p-16 flex flex-col items-center justify-center gap-3 text-center" style={{ backgroundColor: '#FFFFFF', border: '1px dashed #D4C9BB' }}>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F2EDF8' }}>
-              <Users className="w-5 h-5" style={{ color: '#B0A0C4' }} />
-            </div>
-            <p className="text-sm font-medium" style={{ color: '#5A4D6A' }}>No clients yet</p>
-            <p className="text-xs" style={{ color: '#9A8DAA' }}>Clients who message you will appear here</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clients.map((client) => {
-              const initials = client.full_name ? client.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() : '?'
-              return (
-                <div key={client.id} className="group rounded-2xl p-5 transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE4D8', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0">
-                      {client.avatar_url ? (
-                        <img src={client.avatar_url} alt={client.full_name ?? ''} className="w-12 h-12 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>{initials}</div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: '#1A1428' }}>{client.full_name ?? 'Unknown Client'}</p>
-                      {client.email && <p className="text-xs truncate mt-0.5" style={{ color: '#9A8DAA' }}>{client.email}</p>}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {client.subscription_tier && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium capitalize" style={{ backgroundColor: client.subscription_tier === 'premium' ? '#FEF9E7' : '#F2EDF8', color: client.subscription_tier === 'premium' ? '#CF9D4E' : '#9A8DAA' }}>{client.subscription_tier}</span>
-                        )}
-                        {client.body_shape && <span className="text-[10px] px-2 py-0.5 rounded-full capitalize" style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}>{client.body_shape}</span>}
-                        {client.location && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}>{client.location}</span>}
-                      </div>
-                      {client.style_tags && client.style_tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {client.style_tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#F2EDF8', color: '#5A4D6A' }}>{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #F0EBE3' }}>
-                    <Link href={`/admin/clients/${client.id}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-                      <User className="w-3 h-3" /> Profile
-                    </Link>
-                    <Link href={`/admin/messages/${conversationFor.get(client.id)}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F8F5EE', color: '#9A8DAA' }}>
-                      <MessageSquare className="w-3 h-3" /> Message
-                    </Link>
+    <div>
+      <PageHeader title="Clients" />
+
+      {error ? (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+          Couldn&apos;t load your clients. Refresh to try again.
+        </p>
+      ) : !clients.length ? (
+        <div className="rounded-2xl border border-atelier-border bg-white">
+          <EmptyState icon={Users} title="No clients yet. People who message you in the app will show up here." />
+        </div>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {clients.map((client) => {
+            const details = [client.body_shape, client.location].filter(Boolean) as string[]
+            return (
+              <li key={client.id} className="flex flex-col rounded-2xl border border-atelier-border bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <ClientAvatar name={clientName(client)} src={client.avatar_url} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-medium text-atelier-ink">
+                      <span className="truncate">{clientName(client)}</span>
+                      {client.subscription_tier === 'premium' ? <Badge tone="gold">Premium</Badge> : null}
+                    </p>
+                    {client.email && client.full_name ? <p className="truncate text-xs text-atelier-faint">{client.email}</p> : null}
+                    {details.length ? (
+                      <p className="mt-1 truncate text-xs text-atelier-muted">
+                        {details.map((d, i) => (i === 0 && client.body_shape ? stylistLabel(d) : d)).join(' · ')}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                {client.style_tags?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {client.style_tags.slice(0, 3).map((tag) => (
+                      <Badge key={tag} tone="purple">{tag}</Badge>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="-mx-1 mt-auto flex gap-1 pt-3">
+                  <Link href={`/admin/clients/${client.id}`} className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark transition hover:bg-atelier-lavender">
+                    View profile
+                  </Link>
+                  <Link href={`/admin/messages/${client.conversation_id}`} className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark transition hover:bg-atelier-lavender">
+                    Message
+                  </Link>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

@@ -1,9 +1,11 @@
-import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
+import { notFound, redirect } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { getStylistId } from '@/lib/stylist-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { clientName } from '@/lib/stylist-clients'
 import { MessageThread } from '@/components/stylist/MessageThread'
+import { ClientAvatar } from '@/components/stylist/ClientAvatar'
 
 export const metadata = { title: 'Conversation' }
 
@@ -15,49 +17,45 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
   const admin = createAdminClient()
 
   const [convRes, messagesRes] = await Promise.all([
-    admin.from('conversations').select('id, client_id, stylist_id').eq('id', id).eq('stylist_id', ownerId).single(),
-    admin.from('messages').select('id, sender_id, content, created_at, image_url').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200)
+    admin.from('conversations').select('id, client_id').eq('id', id).eq('stylist_id', ownerId).maybeSingle(),
+    // Newest 200, shown oldest first.
+    admin.from('messages').select('id, sender_id, content, created_at, image_url').eq('conversation_id', id).order('created_at', { ascending: false }).limit(200)
   ])
-
   const conv = convRes.data
   if (!conv) notFound()
 
-  const [clientRes, stylistRes] = await Promise.all([
-    admin.from('profiles').select('id, full_name, avatar_url, email').eq('id', conv.client_id).single(),
-    admin.from('profiles').select('id, full_name, avatar_url').eq('id', ownerId).single()
+  const [{ data: client }, { error: readError }] = await Promise.all([
+    admin.from('profiles').select('id, full_name, avatar_url, email').eq('id', conv.client_id).maybeSingle(),
+    admin.from('messages').update({ is_read: true }).eq('conversation_id', id).neq('sender_id', ownerId).eq('is_read', false)
   ])
+  if (readError) console.error('Could not mark messages read', readError.message)
 
-  await admin.from('messages').update({ is_read: true }).eq('conversation_id', id).neq('sender_id', ownerId).eq('is_read', false)
+  const name = client ? clientName(client) : 'Client'
 
   return (
-    // Phones: fill the space between the admin top bar and tab bar so the reply box stays visible.
-    <div className="fixed inset-x-0 top-12 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col lg:static lg:h-screen" style={{ backgroundColor: '#F8F5EE' }}>
-      <div className="shrink-0 px-6 lg:px-8 py-4 flex items-center gap-4" style={{ backgroundColor: 'rgba(248,245,238,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #EAE4D8' }}>
-        <Link href="/admin/messages" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-          <ArrowLeft className="w-4 h-4" />
+    // Phones: fill the space between the top bar and the tab bar so the reply box stays in view.
+    <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] top-12 z-20 flex flex-col bg-atelier-canvas lg:static lg:h-[calc(100dvh-4rem)] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-atelier-border lg:bg-white">
+      <div className="flex shrink-0 items-center gap-3 border-b border-atelier-border bg-white px-4 py-3 sm:px-5">
+        <Link
+          href="/admin/messages"
+          aria-label="Back to messages"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-purple-dark transition hover:bg-atelier-lavender"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
         </Link>
-        {clientRes.data?.avatar_url ? (
-          <img src={clientRes.data.avatar_url} alt={clientRes.data.full_name ?? ''} className="w-9 h-9 rounded-full object-cover" />
-        ) : (
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-            {clientRes.data?.full_name ? clientRes.data.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : '?'}
-          </div>
-        )}
-        <div>
-          <p className="text-sm font-medium" style={{ color: '#1A1428' }}>{clientRes.data?.full_name ?? 'Client'}</p>
-          {clientRes.data?.email && <p className="text-xs" style={{ color: '#9A8DAA' }}>{clientRes.data.email}</p>}
+        <ClientAvatar name={name} src={client?.avatar_url ?? null} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-atelier-ink">{name}</p>
+          {client?.email && client.full_name ? <p className="truncate text-xs text-atelier-faint">{client.email}</p> : null}
         </div>
-        <Link href={`/admin/clients/${conv.client_id}`} className="ml-auto px-3 h-8 rounded-xl text-xs font-medium" style={{ backgroundColor: '#F2EDF8', color: '#422D64' }}>
-          View Profile
+        <Link
+          href={`/admin/clients/${conv.client_id}`}
+          className="shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-medium text-purple-dark transition hover:bg-atelier-lavender"
+        >
+          Profile
         </Link>
       </div>
-      <MessageThread
-        conversationId={id}
-        initialMessages={messagesRes.data ?? []}
-        currentUserId={ownerId}
-        clientProfile={clientRes.data ?? null}
-        stylistProfile={stylistRes.data ?? null}
-      />
+      <MessageThread conversationId={id} initialMessages={(messagesRes.data ?? []).reverse()} currentUserId={ownerId} />
     </div>
   )
 }
