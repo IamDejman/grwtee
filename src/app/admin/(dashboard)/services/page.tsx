@@ -173,9 +173,6 @@ export default function AdminServicesPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Services Management
           </h1>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Create, edit, reorder, and toggle featured/active services.
-          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={load} disabled={loading}>

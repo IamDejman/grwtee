@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { DecemberFlow } from "@/components/december/DecemberFlow";
 import { activeBookingCount, decemberEnabled } from "@/lib/december/booking";
-import { getSettings } from "@/lib/december/settings";
+import { feeLabel, getSettings } from "@/lib/december/settings";
 
 export const metadata: Metadata = {
   title: "Lagos in December",
@@ -25,6 +25,6 @@ export default async function DecemberPage() {
   const country = requestHeaders.get("x-vercel-ip-country")?.toUpperCase() ?? "";
   const full = settings.capacity !== null && (await activeBookingCount().catch(() => 0)) >= settings.capacity;
   return (
-    <DecemberFlow initialCountry={isSupportedCountry(country) ? country : ""} fee={settings.fee} full={full} />
+    <DecemberFlow initialCountry={isSupportedCountry(country) ? country : ""} fee={feeLabel(settings)} full={full} />
   );
 }

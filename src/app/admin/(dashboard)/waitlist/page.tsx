@@ -53,9 +53,6 @@ export default function WaitlistPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Inner Circle waitlist
           </h1>
-          <p className="mt-1 text-sm text-gray-dark/70">
-            Mobile app waiting list signups.
-          </p>
         </div>
       </div>
 

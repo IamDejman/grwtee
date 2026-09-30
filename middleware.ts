@@ -7,6 +7,7 @@ const adminProtected = [
   "/admin/gallery",
   "/admin/services",
   "/admin/bookings",
+  "/admin/december",
   "/admin/invoices",
   "/admin/settings",
   "/admin/mailing-list",

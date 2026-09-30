@@ -52,7 +52,7 @@ type Rules = {
   windowDays: number;
 };
 
-type Settings = { rules: Rules; fee: string; capacity: number | null };
+type Settings = { rules: Rules; feeNgn: number | null; feeUsd: number | null; capacity: number | null };
 
 type Data = {
   bookings: Booking[];
@@ -150,14 +150,17 @@ function BriefDetail({ b }: { b: Booking }) {
 }
 
 function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => void }) {
-  const [fee, setFee] = useState(initial.fee);
-  const [capacity, setCapacity] = useState(initial.capacity === null ? "" : String(initial.capacity));
+  const text = (n: number | null) => (n === null ? "" : String(n));
+  const [feeNgn, setFeeNgn] = useState(text(initial.feeNgn));
+  const [feeUsd, setFeeUsd] = useState(text(initial.feeUsd));
+  const [capacity, setCapacity] = useState(text(initial.capacity));
   const [rules, setRules] = useState(initial.rules);
   const [noticeHours, setNoticeHours] = useState(String(initial.rules.minNoticeMinutes / 60));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const num = (v: string) => Number.parseInt(v, 10);
+  const optional = (v: string) => (v.trim() ? num(v.replace(/[^\d]/g, "")) : null);
   const setRule = (key: keyof Rules, value: string) => setRules((r) => ({ ...r, [key]: num(value) }));
 
   const save = async (e: React.FormEvent) => {
@@ -166,8 +169,9 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
     setMessage(null);
     try {
       const body: Settings = {
-        fee: fee.trim(),
-        capacity: capacity.trim() ? num(capacity) : null,
+        feeNgn: optional(feeNgn),
+        feeUsd: optional(feeUsd),
+        capacity: optional(capacity),
         rules: { ...rules, weekdays: [...rules.weekdays].sort(), minNoticeMinutes: Math.round(Number(noticeHours) * 60) }
       };
       const res = await adminFetch("/api/admin/december/settings", {
@@ -177,7 +181,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Failed to save.");
-      setMessage({ ok: true, text: "Saved. New times show on the booking page within a minute." });
+      setMessage({ ok: true, text: "Saved." });
       onSaved();
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : "Failed to save." });
@@ -188,14 +192,26 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
 
   return (
     <form onSubmit={save} className="grid max-w-3xl gap-8">
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-3">
         <Input
-          label="Consultation fee"
-          name="fee"
+          label="Fee in naira"
+          name="feeNgn"
           autoComplete="off"
-          placeholder="e.g. ₦50,000 / $40…"
-          value={fee}
-          onChange={(e) => setFee(e.target.value)}
+          inputMode="numeric"
+          adornment="₦"
+          placeholder="50000"
+          value={feeNgn}
+          onChange={(e) => setFeeNgn(e.target.value)}
+        />
+        <Input
+          label="Fee in dollars"
+          name="feeUsd"
+          autoComplete="off"
+          inputMode="numeric"
+          adornment="$"
+          placeholder="40"
+          value={feeUsd}
+          onChange={(e) => setFeeUsd(e.target.value)}
         />
         <Input
           label="December capacity (clients)"
@@ -208,10 +224,6 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
           value={capacity}
           onChange={(e) => setCapacity(e.target.value)}
         />
-        <p className="text-xs text-gray-dark/70 md:col-span-2">
-          The fee appears in confirmation emails with your active payment accounts. Leave it empty to leave payment out.
-          Once capacity is reached, the booking page stops taking new bookings.
-        </p>
       </section>
 
       <section>
@@ -252,10 +264,6 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
           <Input label="Minimum notice (hours)" name="minNoticeHours" autoComplete="off" type="number" min={0} step={0.5} value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} />
           <Input label="Book up to (days ahead)" name="windowDays" autoComplete="off" type="number" min={1} max={180} value={rules.windowDays} onChange={(e) => setRule("windowDays", e.target.value)} />
         </div>
-        <p className="mt-3 text-xs text-gray-dark/70">
-          Anything already in book@grwtee.com&apos;s Google Calendar is blocked automatically. To take a day off, add an
-          all-day event there.
-        </p>
       </section>
 
       <div className="flex items-center gap-4">
@@ -453,9 +461,6 @@ export default function AdminDecemberPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">Lagos in December</h1>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Consultations booked through /december, people who started but didn&apos;t book, and booking settings.
-          </p>
         </div>
         <Button variant="outline" onClick={load}>
           Refresh
@@ -511,9 +516,6 @@ export default function AdminDecemberPage() {
             bookingTable(past, "Nothing here yet.")
           ) : tab === "drafts" ? (
             <div>
-              <p className="mb-4 text-sm text-gray-dark/80">
-                People who gave their contact details but haven&apos;t booked. Drafts are deleted after 90 days.
-              </p>
               <ul className="divide-y divide-gray-medium/60 md:hidden">
                 {data.drafts.map((d) => (
                   <li key={d.id} className="py-4 first:pt-0">

@@ -129,9 +129,6 @@ export default function AdminSettingsPage() {
           <h1 className="font-heading text-2xl font-semibold text-purple-dark">
             Settings
           </h1>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Update site metadata, contact info, business hours, and admin profile.
-          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={load} disabled={loading}>
@@ -210,10 +207,6 @@ export default function AdminSettingsPage() {
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Invoice Branding
           </h2>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Business info printed on every invoice PDF. The logo comes from{" "}
-            <code className="rounded bg-cream-light px-1 text-xs">/public/logo.png</code>.
-          </p>
           <div className="mt-4 space-y-4">
             <Input
               label="Business name"
@@ -249,9 +242,6 @@ export default function AdminSettingsPage() {
                 setSettings((s) => ({ ...s, invoiceFooterTerms: e.target.value }))
               }
             />
-            <p className="text-xs text-gray-dark/70">
-              These appear at the bottom of every invoice PDF.
-            </p>
           </div>
         </div>
 
@@ -265,9 +255,6 @@ export default function AdminSettingsPage() {
           <h2 className="font-heading text-xl font-semibold text-purple-dark">
             Admin Profile
           </h2>
-          <p className="mt-2 text-sm text-gray-dark/80">
-            Change password (recommended after initial seed).
-          </p>
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-dark" htmlFor="current-password">
