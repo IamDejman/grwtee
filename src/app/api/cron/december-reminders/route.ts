@@ -1,22 +1,17 @@
-import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { pruneDrafts } from "@/lib/december/drafts";
 import { expireHolds } from "@/lib/december/booking";
 import { sendDueReminders } from "@/lib/december/reminders";
+import { cronAuthorised } from "@/lib/security/cron-auth";
 
 export const dynamic = "force-dynamic";
 
-/** Daily December job: lapsed holds, reminders, then old drafts. Called by Vercel Cron, which sends `Authorization: Bearer $CRON_SECRET`. */
-function authorised(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const given = Buffer.from(req.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
-
+/**
+ * Daily December job (Vercel Cron): lapsed holds, reminders, then old drafts. Holds are also
+ * released hourly by /api/cron/december-holds; sweeping here too covers that job being down.
+ */
 export async function GET(req: Request) {
-  if (!authorised(req)) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  if (!cronAuthorised(req)) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   try {
     const expiredHolds = await expireHolds();
     const result = await sendDueReminders();
