@@ -147,8 +147,8 @@ export async function insertEvent(input: {
   end: Date;
   summary: string;
   description: string;
-  attendeeEmail: string;
-  attendeeName: string;
+  /** Omitted while a slot is only held: the event blocks the time but nobody is invited yet. */
+  attendee: { email: string; name: string } | null;
 }): Promise<{ id: string; meetUrl: string | null }> {
   const event = await call<GoogleEvent>("/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all", {
     method: "POST",
@@ -157,7 +157,7 @@ export async function insertEvent(input: {
       description: input.description,
       start: { dateTime: input.start.toISOString(), timeZone: "Africa/Lagos" },
       end: { dateTime: input.end.toISOString(), timeZone: "Africa/Lagos" },
-      attendees: [{ email: input.attendeeEmail, displayName: input.attendeeName }],
+      attendees: input.attendee ? [{ email: input.attendee.email, displayName: input.attendee.name }] : [],
       guestsCanModify: false,
       guestsCanInviteOthers: false,
       guestsCanSeeOtherGuests: false,
@@ -177,6 +177,14 @@ export async function moveEvent(eventId: string, start: Date, end: Date): Promis
       start: { dateTime: start.toISOString(), timeZone: "Africa/Lagos" },
       end: { dateTime: end.toISOString(), timeZone: "Africa/Lagos" }
     })
+  });
+}
+
+/** Adds the client to a held event and renames it; Google emails them the invite with the Meet link. */
+export async function inviteAttendee(eventId: string, input: { summary: string; email: string; name: string }): Promise<void> {
+  await call(`/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+    method: "PATCH",
+    body: JSON.stringify({ summary: input.summary, attendees: [{ email: input.email, displayName: input.name }] })
   });
 }
 

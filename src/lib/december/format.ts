@@ -48,6 +48,14 @@ export function describeSlot(date: Date, timeZone: string): string {
     : `${local.day}, ${local.time} your time (${lagos.time} in Lagos)`;
 }
 
+/** "14:00 on Thursday 1 October, your time", or Lagos time when they match. */
+export function describeDeadline(date: Date, timeZone: string): string {
+  const local = formatSlot(date, timeZone);
+  const lagos = formatSlot(date, "Africa/Lagos");
+  const same = local.time === lagos.time && local.day === lagos.day;
+  return `${local.time} on ${local.day}, ${same ? "Lagos time" : "your time"}`;
+}
+
 export function whatsappLink(e164: string, message?: string): string {
   const base = `https://wa.me/${e164.replace(/\D/g, "")}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;

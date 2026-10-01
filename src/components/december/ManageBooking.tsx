@@ -13,6 +13,8 @@ export interface ManageInitial {
   status: string;
   slotStart: string;
   meetUrl: string | null;
+  /** Set while the time is only held pending payment. */
+  holdExpiresAt: string | null;
   canChange: boolean;
 }
 
@@ -143,7 +145,10 @@ export function ManageBooking({ token, initial }: { token: string; initial: Mana
   const [error, setError] = useState<string>();
   const [cancelling, setCancelling] = useState(false);
 
-  const cancelled = booking.status === "cancelled";
+  // An expired hold reads like a cancellation: the time is gone and they can book again.
+  const expired = booking.status === "expired";
+  const cancelled = booking.status === "cancelled" || expired;
+  const held = booking.status === "pending" ? booking.holdExpiresAt : null;
   const local = formatTime(booking.slotStart, tz);
   const lagos = formatTime(booking.slotStart, "Africa/Lagos");
 
@@ -160,11 +165,13 @@ export function ManageBooking({ token, initial }: { token: string; initial: Mana
     setNotice(undefined);
   };
 
-  const title = cancelled
-    ? "Your consultation is cancelled."
-    : booking.canChange
-      ? `Your consultation, ${booking.name.split(" ")[0]}.`
-      : "This consultation has passed.";
+  const title = expired
+    ? "Your hold has lapsed."
+    : cancelled
+      ? "Your consultation is cancelled."
+      : booking.canChange
+        ? `Your consultation, ${booking.name.split(" ")[0]}.`
+        : "This consultation has passed.";
 
   return (
     <div className="relative min-h-svh overflow-hidden bg-night text-cream">
@@ -225,6 +232,26 @@ export function ManageBooking({ token, initial }: { token: string; initial: Mana
           )}
         </motion.div>
 
+        {held && !notice ? (
+          <p className="mt-5 font-body text-sm leading-relaxed text-lilac">
+            Held until{" "}
+            <span className="text-cream">
+              {formatTime(held, tz)} on {formatDay(held, tz)}
+            </span>{" "}
+            while we wait for your payment. Your calendar invite with the Google Meet link follows once payment is
+            confirmed.
+          </p>
+        ) : null}
+        {expired ? (
+          <p className="mt-5 font-body text-sm leading-relaxed text-lilac">
+            Payment wasn&apos;t confirmed within 24 hours, so the time was released. Already paid? Email{" "}
+            <a href="mailto:book@grwtee.com" className="text-cream underline underline-offset-4">
+              book@grwtee.com
+            </a>{" "}
+            with your receipt.
+          </p>
+        ) : null}
+
         {notice ? (
           <p role="status" className="mt-5 font-body text-sm text-gold">
             {notice}
@@ -242,14 +269,18 @@ export function ManageBooking({ token, initial }: { token: string; initial: Mana
               onDone={(slotStart) => {
                 setBooking((b) => ({ ...b, slotStart }));
                 setMode("view");
-                setNotice("Done. Your calendar invite has been updated with the new time.");
+                setNotice(
+                  held
+                    ? "Done. Your time has moved. Your invite follows once payment is confirmed."
+                    : "Done. Your calendar invite has been updated with the new time."
+                );
               }}
             />
           ) : mode === "cancel" ? (
             <motion.div key="cancel" {...panel} className="mt-10 rounded-2xl border border-night-line p-6">
               <p className="font-body text-base leading-relaxed text-cream">
-                Cancel your consultation on {formatDay(booking.slotStart, tz)} at {local}? The consultation fee is
-                non-refundable.
+                Cancel your consultation on {formatDay(booking.slotStart, tz)} at {local}?
+                {held ? " The time will be released." : " The consultation fee is non-refundable."}
               </p>
               <FieldError message={error} />
               <div className="mt-6 flex flex-wrap items-center gap-5">

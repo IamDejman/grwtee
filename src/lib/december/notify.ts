@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import type { DecemberBooking } from "@prisma/client";
-import { notifyStylist, sendConfirmation } from "./emails";
+import { notifyStylist, sendConfirmation, sendExpired, sendPaid } from "./emails";
 import { calendarConfig } from "./google-calendar";
 
 /**
@@ -44,4 +44,14 @@ export function notifyRescheduled(booking: DecemberBooking, previousStart: Date,
 
 export function notifyCancelled(booking: DecemberBooking, siteUrl: string) {
   background("cancel", () => notifyStylist(booking, { kind: "cancelled" }, siteUrl));
+}
+
+export function notifyPaid(booking: DecemberBooking) {
+  background("payment", () => sendPaid(booking));
+}
+
+export function notifyExpired(booking: DecemberBooking, siteUrl: string) {
+  background("expiry", async () => {
+    await Promise.all([sendExpired(booking, siteUrl), notifyStylist(booking, { kind: "expired" }, siteUrl)]);
+  });
 }

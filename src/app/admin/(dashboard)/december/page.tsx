@@ -11,7 +11,10 @@ import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SkeletonR
 import { adminFetch } from "@/lib/adminFetch";
 import { formatSlot, whatsappLink } from "@/lib/december/format";
 
-type Status = "scheduled" | "paid" | "cancelled";
+// pending: held, no invite until marked paid. scheduled: invited, unpaid. expired: hold lapsed unpaid.
+type Status = "pending" | "scheduled" | "paid" | "cancelled" | "expired";
+
+const ACTIVE: Status[] = ["pending", "scheduled", "paid"];
 
 type Booking = {
   id: string;
@@ -32,6 +35,7 @@ type Booking = {
   timezone: string;
   slotStart: string;
   meetUrl: string | null;
+  holdExpiresAt: string | null;
   paidAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -93,8 +97,14 @@ const shortDate = (iso: string) =>
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 function StatusPill({ status }: { status: Status }) {
-  const tones: Record<Status, Tone> = { scheduled: "gold", paid: "green", cancelled: "neutral" };
-  const labels: Record<Status, string> = { scheduled: "Unpaid", paid: "Paid", cancelled: "Cancelled" };
+  const tones: Record<Status, Tone> = { pending: "gold", scheduled: "gold", paid: "green", cancelled: "neutral", expired: "neutral" };
+  const labels: Record<Status, string> = {
+    pending: "Awaiting payment",
+    scheduled: "Unpaid",
+    paid: "Paid",
+    cancelled: "Cancelled",
+    expired: "Hold lapsed"
+  };
   return <Badge tone={tones[status]}>{labels[status]}</Badge>;
 }
 
@@ -127,6 +137,7 @@ function BriefDetail({ b }: { b: Booking }) {
     ["Comments", b.comments || "-"],
     ["Meet", b.meetUrl ? <a key="m" className="underline" href={b.meetUrl} target="_blank" rel="noreferrer">{b.meetUrl}</a> : "-"],
     ["Booked", shortDate(b.createdAt)],
+    ...(b.status === "pending" && b.holdExpiresAt ? [["Held until", `${shortDate(b.holdExpiresAt)} Lagos`] as [string, string]] : []),
     ["Paid", b.paidAt ? shortDate(b.paidAt) : "-"]
   ];
   return (
@@ -300,12 +311,23 @@ export default function AdminDecemberPage() {
   }, [load]);
 
   const act = async (b: Booking, action: "paid" | "unpaid" | "cancel") => {
+    const held = b.status === "pending";
     if (action === "cancel") {
       const ok = await confirm({
-        title: `Cancel ${b.name}'s consultation?`,
-        body: `${lagosSlot(b.slotStart)} Lagos time. The calendar event is deleted, Google emails ${firstName(b.name)} a cancellation and the time opens up again.`,
-        confirmLabel: "Cancel consultation",
+        title: held ? `Release ${b.name}'s hold?` : `Cancel ${b.name}'s consultation?`,
+        body: held
+          ? `${lagosSlot(b.slotStart)} Lagos time. No invite has gone out yet. The time opens up again.`
+          : `${lagosSlot(b.slotStart)} Lagos time. The calendar event is deleted, Google emails ${firstName(b.name)} a cancellation and the time opens up again.`,
+        confirmLabel: held ? "Release hold" : "Cancel consultation",
         danger: true
+      });
+      if (!ok) return;
+    }
+    if (action === "paid" && held) {
+      const ok = await confirm({
+        title: `Mark ${b.name} paid?`,
+        body: `${lagosSlot(b.slotStart)} Lagos time. Google emails ${firstName(b.name)} the calendar invite with the Meet link, and we send a payment confirmation.`,
+        confirmLabel: "Mark paid and send invite"
       });
       if (!ok) return;
     }
@@ -322,10 +344,14 @@ export default function AdminDecemberPage() {
       setDetail(null);
       toast.success(
         action === "paid"
-          ? `${firstName(b.name)} marked paid.`
+          ? held
+            ? `${firstName(b.name)} marked paid. Invite sent.`
+            : `${firstName(b.name)} marked paid.`
           : action === "unpaid"
             ? `${firstName(b.name)} marked unpaid.`
-            : `${firstName(b.name)}'s consultation cancelled.`
+            : held
+              ? `${firstName(b.name)}'s hold released.`
+              : `${firstName(b.name)}'s consultation cancelled.`
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed.");
@@ -338,14 +364,14 @@ export default function AdminDecemberPage() {
     const now = Date.now();
     const all = data?.bookings ?? [];
     return {
-      upcoming: all.filter((b) => b.status !== "cancelled" && Date.parse(b.slotStart) >= now - 30 * 60_000),
+      upcoming: all.filter((b) => ACTIVE.includes(b.status) && Date.parse(b.slotStart) >= now - 30 * 60_000),
       past: all
-        .filter((b) => b.status === "cancelled" || Date.parse(b.slotStart) < now - 30 * 60_000)
+        .filter((b) => !ACTIVE.includes(b.status) || Date.parse(b.slotStart) < now - 30 * 60_000)
         .reverse()
     };
   }, [data]);
 
-  const unpaid = upcoming.filter((b) => b.status === "scheduled").length;
+  const unpaid = upcoming.filter((b) => b.status === "pending" || b.status === "scheduled").length;
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: "upcoming", label: "Upcoming", count: upcoming.length },
     { value: "past", label: "Past and cancelled", count: past.length },
@@ -356,7 +382,7 @@ export default function AdminDecemberPage() {
   const bookingActions = (b: Booking) => (
     <div className="-ml-2.5 flex flex-wrap items-center gap-1">
       <RowAction onClick={() => setDetail(b)}>Brief</RowAction>
-      {b.status === "scheduled" ? (
+      {b.status === "pending" || b.status === "scheduled" ? (
         <RowAction disabled={busy === b.id} onClick={() => void act(b, "paid")}>
           Mark paid
         </RowAction>
@@ -374,9 +400,9 @@ export default function AdminDecemberPage() {
       >
         WhatsApp
       </a>
-      {b.status !== "cancelled" && Date.parse(b.slotStart) > Date.now() ? (
+      {ACTIVE.includes(b.status) && Date.parse(b.slotStart) > Date.now() ? (
         <RowAction danger disabled={busy === b.id} onClick={() => void act(b, "cancel")}>
-          Cancel
+          {b.status === "pending" ? "Release" : "Cancel"}
         </RowAction>
       ) : null}
     </div>
@@ -417,7 +443,10 @@ export default function AdminDecemberPage() {
                 </div>
                 <StatusPill status={b.status} />
               </div>
-              <p className="mt-1 text-xs text-atelier-faint">{b.looks} looks</p>
+              <p className="mt-1 text-xs text-atelier-faint">
+                {b.looks} looks
+                {b.status === "pending" && b.holdExpiresAt ? ` · held until ${shortDate(b.holdExpiresAt)}` : null}
+              </p>
               <div className="mt-2">{bookingActions(b)}</div>
             </li>
           ))}
@@ -444,6 +473,11 @@ export default function AdminDecemberPage() {
                   <td className="tabular-nums text-atelier-muted">{b.looks}</td>
                   <td>
                     <StatusPill status={b.status} />
+                    {b.status === "pending" && b.holdExpiresAt ? (
+                      <p className="mt-1 whitespace-nowrap text-xs tabular-nums text-atelier-faint">
+                        Held until {shortDate(b.holdExpiresAt)}
+                      </p>
+                    ) : null}
                   </td>
                   <td>{bookingActions(b)}</td>
                 </tr>

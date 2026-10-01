@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { createVerify, generateKeyPairSync } from "crypto";
-import { CalendarError, deleteEvent, insertEvent, queryBusy, signServiceAccountJwt } from "../google-calendar";
+import { CalendarError, deleteEvent, insertEvent, inviteAttendee, queryBusy, signServiceAccountJwt } from "../google-calendar";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -93,8 +93,7 @@ describe("google-calendar", () => {
       end: new Date("2026-12-01T10:30:00Z"),
       summary: "GRWTEE December consultation: Ada",
       description: "brief",
-      attendeeEmail: "ada@example.com",
-      attendeeName: "Ada"
+      attendee: { email: "ada@example.com", name: "Ada" }
     });
     expect(result).toEqual({ id: "evt1", meetUrl: "https://meet.google.com/abc-defg-hij" });
     const [url, init] = fetchMock.mock.calls.find(([u]) => String(u).includes("/events"))!;
@@ -107,6 +106,34 @@ describe("google-calendar", () => {
     });
     expect(body.attendees).toEqual([{ email: "ada@example.com", displayName: "Ada" }]);
     expect(body.guestsCanSeeOtherGuests).toBe(false);
+  });
+
+  it("holds a slot with no guests, then invites the client by patching the event", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.startsWith("https://oauth2")
+        ? json({ access_token: "token-1", expires_in: 3600 })
+        : json({ id: "evt2", hangoutLink: "https://meet.google.com/xyz" })
+    );
+    await insertEvent({
+      requestId: "booking-2",
+      start: new Date("2026-12-01T10:00:00Z"),
+      end: new Date("2026-12-01T10:30:00Z"),
+      summary: "Awaiting payment: Ada",
+      description: "brief",
+      attendee: null
+    });
+    const [, insertInit] = fetchMock.mock.calls.find(([u]) => String(u).includes("/events"))!;
+    expect(JSON.parse(String(insertInit.body)).attendees).toEqual([]);
+
+    fetchMock.mockClear();
+    await inviteAttendee("evt2", { summary: "GRWTEE December consultation: Ada", email: "ada@example.com", name: "Ada" });
+    const [url, init] = fetchMock.mock.calls.find(([u]) => String(u).includes("/events/evt2"))!;
+    expect(url).toContain("sendUpdates=all");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({
+      summary: "GRWTEE December consultation: Ada",
+      attendees: [{ email: "ada@example.com", displayName: "Ada" }]
+    });
   });
 
   it("treats an already-deleted event as cancelled, but surfaces other failures", async () => {

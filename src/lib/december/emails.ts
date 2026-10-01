@@ -4,7 +4,7 @@ import { escapeHtml } from "@/lib/email-templates";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
-import { briefRows, describeSlot, formatSlot, whatsappLink } from "./format";
+import { briefRows, describeDeadline, describeSlot, formatSlot, whatsappLink } from "./format";
 import { feeLabel, getSettings } from "./settings";
 
 /**
@@ -92,15 +92,17 @@ function accountLines(a: PaymentAccount): string[] {
   return lines;
 }
 
-export async function paymentSection(): Promise<{ html: string; text: string }> {
+/** Fee and payment accounts. A held booking's email states the deadline itself, so `held` skips the reminder. */
+export async function paymentSection(held = false): Promise<{ html: string; text: string }> {
   const fee = feeLabel(await getSettings());
   if (!fee) return { html: "", text: "" };
   const accounts = decryptPaymentAccounts(
     await prisma.paymentAccount.findMany({ where: { active: true }, orderBy: [{ order: "asc" }, { createdAt: "asc" }] })
   );
   const blocks = accounts.map(accountLines);
+  const terms = "The fee secures your consultation and is non-refundable.";
   const html = `<h2 style="margin:8px 0 12px;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:22px;color:${C.ink};">Consultation fee: ${e(fee)}</h2>
-${para("The fee secures your consultation and is non-refundable. Please pay before your call and reply to this email with your receipt.")}
+${para(held ? terms : `${terms} Please pay before your call and reply to this email with your receipt.`)}
 ${blocks
   .map(
     (lines) =>
@@ -109,7 +111,7 @@ ${blocks
   .join("")}`;
   const text = [
     `Consultation fee: ${fee}`,
-    "The fee secures your consultation and is non-refundable. Please pay before your call and reply with your receipt.",
+    held ? terms : `${terms} Please pay before your call and reply with your receipt.`,
     "",
     ...blocks.map((lines) => lines.join("\n") + "\n")
   ].join("\n");
@@ -165,12 +167,111 @@ ${rowsTable(briefRows(b))}`,
   return { subject: `You're booked: ${formatSlot(b.slotStart, b.timezone).day}`, html, text };
 }
 
+/** Sent when a booking is held pending payment: the time, the deadline and how to pay. No invite yet. */
+export function holdEmail(b: DecemberBooking, manageUrl: string, payment: { html: string; text: string }): Email {
+  const deadline = describeDeadline(b.holdExpiresAt ?? b.slotStart, b.timezone);
+  const html = layout(
+    `${eyebrow("GRWTEE x Lagos in December")}
+${title(`Your time is held, ${first(b.name)}.`)}
+${slotBlock({ ...b, meetUrl: null })}
+${para(`We're holding this time for you until <strong>${e(deadline)}</strong>. Pay the consultation fee and reply to this email with your receipt.`)}
+${para("Once we confirm your payment, we'll send your calendar invite with the Google Meet link. If payment isn't confirmed by then, the time is released.")}
+${payment.html}
+<p style="margin:24px 0 8px;">${button(manageUrl, "Change time or cancel")}</p>
+<h2 style="margin:28px 0 8px;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:20px;color:${C.ink};">Your brief</h2>
+${rowsTable(briefRows(b))}`,
+    `Pay by ${deadline} to confirm your December consultation`
+  );
+  const text = [
+    `Your time is held, ${first(b.name)}.`,
+    "",
+    describeSlot(b.slotStart, b.timezone),
+    "30 minutes on Google Meet",
+    "",
+    `We're holding this time for you until ${deadline}. Pay the consultation fee and reply to this email with your receipt.`,
+    "Once we confirm your payment, we'll send your calendar invite with the Google Meet link. If payment isn't confirmed by then, the time is released.",
+    "",
+    payment.text,
+    `Change time or cancel: ${manageUrl}`,
+    "",
+    "Your brief",
+    ...briefRows(b).map(([l, v]) => `${l}: ${v}`)
+  ].join("\n");
+  return { subject: `Your time is held: ${formatSlot(b.slotStart, b.timezone).day}`, html, text };
+}
+
 export async function sendConfirmation(b: DecemberBooking, manageUrl: string): Promise<boolean> {
-  const email = confirmationEmail(b, manageUrl, await paymentSection());
+  const email =
+    b.status === "pending"
+      ? holdEmail(b, manageUrl, await paymentSection(true))
+      : confirmationEmail(b, manageUrl, await paymentSection());
   return send(b.email, email.subject, email.html, email.text, await stylistInbox());
 }
 
-type StylistEvent = { kind: "booked" } | { kind: "rescheduled"; previousStart: Date } | { kind: "cancelled" };
+/** Sent when the stylist marks a held booking paid; Google sends the invite alongside it. */
+export function paidEmail(b: DecemberBooking): Email {
+  const heading = `You're booked, ${first(b.name)}.`;
+  const html = layout(
+    `${eyebrow("GRWTEE x Lagos in December")}
+${title(heading)}
+${slotBlock(b)}
+${para("Payment received, thank you. Your calendar invite with the Google Meet link is on its way from book@grwtee.com. We'll use your brief to prepare, so come ready to talk through your December.")}
+${b.meetUrl ? `<p style="margin:8px 0 16px;">${button(b.meetUrl, "Join Google Meet")}</p>` : ""}
+${para("Need to change the time? Use the link in your first email, or reply to this one.")}`,
+    `Payment received. Your December consultation: ${describeSlot(b.slotStart, b.timezone)}`
+  );
+  const text = [
+    heading,
+    "",
+    describeSlot(b.slotStart, b.timezone),
+    "30 minutes on Google Meet" + (b.meetUrl ? `: ${b.meetUrl}` : ""),
+    "",
+    "Payment received, thank you. Your calendar invite with the Meet link is on its way from book@grwtee.com.",
+    "",
+    "Need to change the time? Use the link in your first email, or reply to this one."
+  ].join("\n");
+  return { subject: `You're booked: ${formatSlot(b.slotStart, b.timezone).day}`, html, text };
+}
+
+export async function sendPaid(b: DecemberBooking): Promise<boolean> {
+  const email = paidEmail(b);
+  return send(b.email, email.subject, email.html, email.text, await stylistInbox());
+}
+
+/** Sent when a hold lapses without payment and the time is released. */
+export function expiredEmail(b: DecemberBooking, siteUrl: string): Email {
+  const heading = "Your hold has lapsed.";
+  const bookUrl = `${siteUrl.replace(/\/$/, "")}/december`;
+  const slot = describeSlot(b.slotStart, b.timezone);
+  const html = layout(
+    `${eyebrow("GRWTEE x Lagos in December")}
+${title(heading)}
+${para(`We didn't receive payment in time for your consultation on ${e(slot)}, so the time has been released.`)}
+${para("Already paid? Reply to this email with your receipt and we'll sort it out.")}
+<p style="margin:8px 0 16px;">${button(bookUrl, "Book a new time")}</p>`,
+    `${heading} ${slot}`
+  );
+  const text = [
+    heading,
+    "",
+    `We didn't receive payment in time for your consultation on ${slot}, so the time has been released.`,
+    "Already paid? Reply to this email with your receipt and we'll sort it out.",
+    "",
+    `Book a new time: ${bookUrl}`
+  ].join("\n");
+  return { subject: "Your December consultation hold has lapsed", html, text };
+}
+
+export async function sendExpired(b: DecemberBooking, siteUrl: string): Promise<boolean> {
+  const email = expiredEmail(b, siteUrl);
+  return send(b.email, email.subject, email.html, email.text, await stylistInbox());
+}
+
+type StylistEvent =
+  | { kind: "booked" }
+  | { kind: "rescheduled"; previousStart: Date }
+  | { kind: "cancelled" }
+  | { kind: "expired" };
 
 export function stylistEmail(b: DecemberBooking, event: StylistEvent, siteUrl: string): Email {
   const lagos = describeSlot(b.slotStart, "Africa/Lagos");
@@ -180,15 +281,22 @@ export function stylistEmail(b: DecemberBooking, event: StylistEvent, siteUrl: s
       ? `New booking: ${b.name}`
       : event.kind === "rescheduled"
         ? `${b.name} moved their consultation`
-        : `${b.name} cancelled`;
+        : event.kind === "expired"
+          ? `${b.name}'s hold lapsed`
+          : `${b.name} cancelled`;
   const detail =
     event.kind === "rescheduled"
       ? `From ${describeSlot(event.previousStart, "Africa/Lagos")} to ${lagos}.`
       : event.kind === "cancelled"
         ? `Was ${lagos}. The slot is open again.`
-        : b.timezone === "Africa/Lagos"
-          ? `${lagos}.`
-          : `${lagos}. That's ${formatSlot(b.slotStart, b.timezone).time} for the client (${b.timezone.replace(/_/g, " ")}).`;
+        : event.kind === "expired"
+          ? `Not marked paid within 24 hours. ${lagos} is open again.`
+          : (b.timezone === "Africa/Lagos"
+              ? `${lagos}.`
+              : `${lagos}. That's ${formatSlot(b.slotStart, b.timezone).time} for the client (${b.timezone.replace(/_/g, " ")}).`) +
+            (b.status === "pending" && b.holdExpiresAt
+              ? ` Awaiting payment: held until ${describeSlot(b.holdExpiresAt, "Africa/Lagos")}. Mark paid in admin to send the calendar invite.`
+              : "");
   const contact: [string, string][] = [
     ["Email", b.email],
     ["WhatsApp", b.whatsapp]

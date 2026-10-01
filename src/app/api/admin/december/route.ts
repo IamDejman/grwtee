@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { activeBookingCount, bookingMode } from "@/lib/december/booking";
+import { activeBookingCount, bookingMode, expireHolds } from "@/lib/december/booking";
 import { getSettings } from "@/lib/december/settings";
 import { jsonUnauthorized } from "@/lib/security/api-response";
 import { requireAdminSession } from "@/lib/security/session-auth";
@@ -26,6 +26,7 @@ const BOOKING_FIELDS = {
   timezone: true,
   slotStart: true,
   meetUrl: true,
+  holdExpiresAt: true,
   paidAt: true,
   cancelledAt: true,
   createdAt: true
@@ -36,6 +37,8 @@ export async function GET() {
   const session = await requireAdminSession();
   if (!session) return jsonUnauthorized();
   try {
+    // Release lapsed holds first so the page never shows one as still waiting.
+    await expireHolds();
     const [bookings, drafts, settings, active] = await Promise.all([
       prisma.decemberBooking.findMany({ select: BOOKING_FIELDS, orderBy: { slotStart: "asc" }, take: 500 }),
       prisma.decemberDraft.findMany({

@@ -28,7 +28,9 @@ export default async function ManagePage({ params }: { params: Promise<{ token: 
         name: booking.name,
         status: booking.status,
         slotStart: booking.slotStart.toISOString(),
-        meetUrl: booking.meetUrl,
+        // The Meet link is part of the invite, which only goes out once payment is confirmed.
+        meetUrl: booking.status === "pending" ? null : booking.meetUrl,
+        holdExpiresAt: booking.status === "pending" ? (booking.holdExpiresAt?.toISOString() ?? null) : null,
         canChange: booking.canChange
       }}
     />

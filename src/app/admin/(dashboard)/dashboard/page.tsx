@@ -77,12 +77,12 @@ async function december(now: Date) {
   const since = new Date(now.getTime() - CALL_GRACE_MS);
   const [calls, awaitingPayment, booked, settings] = await Promise.all([
     prisma.decemberBooking.findMany({
-      where: { status: { not: "cancelled" }, slotStart: { gte: since } },
+      where: { status: { in: ["pending", "scheduled", "paid"] }, slotStart: { gte: since } },
       orderBy: { slotStart: "asc" },
       select: { id: true, name: true, status: true, slotStart: true, meetUrl: true, whatsapp: true },
       take: 5
     }),
-    prisma.decemberBooking.count({ where: { status: "scheduled", slotStart: { gte: since } } }),
+    prisma.decemberBooking.count({ where: { status: { in: ["pending", "scheduled"] }, slotStart: { gte: since } } }),
     activeBookingCount(),
     getSettings()
   ]);
