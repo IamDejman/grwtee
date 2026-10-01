@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { emptyBrief, firstName, type DecemberBrief } from "@/lib/december/types";
 import { AmbientLight, WordPanel } from "./Ambient";
 import { BriefStep, type EditTarget } from "./BriefStep";
-import { Invitation } from "./Invitation";
+import { Invitation, type Booked } from "./Invitation";
 import { EASE, PrimaryButton, RevealText } from "./primitives";
 import { ContactStep, LooksStep, NameStep, OccasionsStep, StyleStep } from "./steps";
 import { TimelineStep } from "./TimelineStep";
@@ -230,18 +230,19 @@ export function DecemberFlow({
   const userNavigated = useRef(false);
   // One id per brief: links the draft to the booking, and stops a retried request booking twice.
   const clientRef = useRef<string | null>(null);
-  const [booked, setBooked] = useState<{ meetUrl: string | null; manageUrl: string | null }>({
-    meetUrl: null,
-    manageUrl: null
-  });
+  const [booked, setBooked] = useState<Booked>({ meetUrl: null, manageUrl: null, holdExpiresAt: null });
 
   // Draft from a previous visit; read once on the client, null during SSR.
   const savedRaw = useSyncExternalStore(noopSubscribe, readRaw, () => null);
   const saved = useMemo(() => parseSaved(savedRaw), [savedRaw]);
 
+  // A booking awaiting payment is held, not booked.
+  const held = step === "done" && booked.holdExpiresAt !== null;
+
   useEffect(() => {
-    document.title = step === "intro" ? "Lagos in December | GRWTEE" : `${TITLES[step]} | Lagos in December | GRWTEE`;
-  }, [step]);
+    const title = held ? "Your time is held" : TITLES[step];
+    document.title = step === "intro" ? "Lagos in December | GRWTEE" : `${title} | Lagos in December | GRWTEE`;
+  }, [step, held]);
 
   // Save a server draft on each step change (not on every keystroke).
   const draftedStep = useRef<Step | null>(null);
@@ -291,11 +292,12 @@ export function DecemberFlow({
         code?: string;
         meetUrl?: string | null;
         manageUrl?: string | null;
+        holdExpiresAt?: string | null;
       };
       if (!res.ok || !json.success) {
         return { ok: false, code: json.code, message: json.error ?? "We couldn't book that time. Try again." };
       }
-      setBooked({ meetUrl: json.meetUrl ?? null, manageUrl: json.manageUrl ?? null });
+      setBooked({ meetUrl: json.meetUrl ?? null, manageUrl: json.manageUrl ?? null, holdExpiresAt: json.holdExpiresAt ?? null });
       writeSaved(null);
       go("done");
       return { ok: true };
@@ -341,7 +343,7 @@ export function DecemberFlow({
     brief: <BriefStep {...stepProps} onEdit={edit} fee={fee} />,
     time: <TimeStep brief={brief} update={update} headingRef={headingRef} onBook={book} />,
     done: (
-      <Invitation brief={brief} headingRef={headingRef} meetUrl={booked.meetUrl} manageUrl={booked.manageUrl} fee={fee} />
+      <Invitation brief={brief} headingRef={headingRef} booked={booked} fee={fee} />
     )
   };
 
@@ -413,7 +415,7 @@ export function DecemberFlow({
                 >
                   <GoldThread index={index - 1} />
                   <p className="sr-only" aria-live="polite">
-                    {step === "done" ? "Booking complete" : `Step ${index} of ${THREAD_STEPS}`}
+                    {step === "done" ? (held ? "Time held" : "Booking complete") : `Step ${index} of ${THREAD_STEPS}`}
                   </p>
                 </motion.div>
               ) : null}
@@ -447,7 +449,7 @@ export function DecemberFlow({
 
         {/* Desktop word panel */}
         <aside className="sticky top-0 hidden h-svh overflow-hidden lg:block" aria-hidden="true">
-          <WordPanel word={WORDS[step]} index={index} total={THREAD_STEPS} />
+          <WordPanel word={held ? "Held" : WORDS[step]} index={index} total={THREAD_STEPS} />
         </aside>
       </div>
     </MotionConfig>

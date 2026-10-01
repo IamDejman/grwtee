@@ -5,10 +5,18 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { parseEmail } from "@/lib/security/email-validation";
 import { generateSlots, type BusyRange, type SlotRules } from "./availability";
-import { notifyBooked, notifyCancelled, notifyRescheduled } from "./notify";
+import { notifyBooked, notifyCancelled, notifyExpired, notifyPaid, notifyRescheduled } from "./notify";
 import { eventDescription } from "./format";
-import { getRules, getSettings } from "./settings";
-import { CalendarError, calendarConfig, deleteEvent, insertEvent, moveEvent, queryBusy } from "./google-calendar";
+import { feeLabel, getRules, getSettings } from "./settings";
+import {
+  CalendarError,
+  calendarConfig,
+  deleteEvent,
+  insertEvent,
+  inviteAttendee,
+  moveEvent,
+  queryBusy
+} from "./google-calendar";
 
 /**
  * "live": Google Calendar is configured.
@@ -62,6 +70,8 @@ export async function openSlots(now = new Date()): Promise<[string, string[]][]>
       .map(([d, s]) => [d, s.filter((iso) => Date.parse(iso) >= earliest)] as [string, string[]])
       .filter(([, s]) => s.length);
   }
+  // Before Google is asked: a lapsed hold's event would still show the time as busy.
+  await expireHolds(now);
   const rules = await getRules();
   const to = new Date(now.getTime() + (rules.windowDays + 1) * 86_400_000);
   const [google, held] = await Promise.all([
@@ -147,12 +157,39 @@ function isUniqueViolation(err: unknown, field: string): boolean {
 // Create, reschedule, cancel
 
 export interface BookingResult {
+  /** "pending": held until payment is confirmed, no invite yet. "scheduled": invited straight away (no fee set). */
+  status: "pending" | "scheduled";
   slotStart: string;
-  meetUrl: string | null;
+  holdExpiresAt: string | null;
+  meetUrl: string | null; // only once the client is invited
   manageUrl: string | null; // null when a retried request finds its booking already made
 }
 
-const ACTIVE = ["scheduled", "paid"];
+/** How long an unpaid booking holds its time before it is released. */
+export const HOLD_HOURS = 24;
+
+const ACTIVE = ["pending", "scheduled", "paid"];
+
+const consultationSummary = (name: string) => `GRWTEE December consultation: ${name}`;
+
+function holdLapsed(b: Pick<DecemberBooking, "status" | "holdExpiresAt">, now: Date): boolean {
+  return b.status === "pending" && b.holdExpiresAt !== null && b.holdExpiresAt.getTime() <= now.getTime();
+}
+
+function siteUrlFromEnv(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com";
+}
+
+function result(b: DecemberBooking, manageUrl: string | null): BookingResult {
+  const pending = b.status === "pending";
+  return {
+    status: pending ? "pending" : "scheduled",
+    slotStart: b.slotStart.toISOString(),
+    holdExpiresAt: b.holdExpiresAt?.toISOString() ?? null,
+    meetUrl: pending ? null : b.meetUrl,
+    manageUrl
+  };
+}
 
 export function activeBookingCount(): Promise<number> {
   return prisma.decemberBooking.count({ where: { status: { in: ACTIVE } } });
@@ -181,11 +218,10 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   if (styleLinks.some((l) => l === null)) throw new BookingError("One of the links isn't valid.", 400, "invalid");
 
   const existing = await prisma.decemberBooking.findUnique({ where: { clientRef: input.clientRef } });
-  if (existing && existing.status !== "cancelled") {
-    return { slotStart: existing.slotStart.toISOString(), meetUrl: existing.meetUrl, manageUrl: null };
-  }
+  if (existing && ACTIVE.includes(existing.status)) return result(existing, null);
 
-  const { rules, capacity } = await getSettings();
+  await expireHolds(now);
+  const { rules, capacity, feeNgn, feeUsd } = await getSettings();
   if (capacity !== null && (await activeBookingCount()) >= capacity) {
     throw new BookingError("December is fully booked.", 409, "closed");
   }
@@ -193,10 +229,14 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   const slotEnd = new Date(slotStart.getTime() + rules.slotMinutes * 60_000);
   await assertBookable(slotStart, now, rules);
 
+  // With a fee set, the time is only held until payment is confirmed in admin; the invite follows.
+  const hold = feeLabel({ feeNgn, feeUsd }) !== "";
+  const holdExpiresAt = hold ? new Date(Math.min(now.getTime() + HOLD_HOURS * 3_600_000, slotStart.getTime())) : null;
+
   const token = randomBytes(24).toString("base64url");
   const manageUrl = `${siteUrl.replace(/\/$/, "")}/december/manage/${token}`;
   const data = {
-    status: "scheduled",
+    status: hold ? "pending" : "scheduled",
     clientRef: input.clientRef,
     name: input.name,
     email: email.email,
@@ -219,6 +259,7 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
     googleEventId: null,
     meetUrl: null,
     manageTokenHash: hashToken(token),
+    holdExpiresAt,
     paidAt: null,
     cancelledAt: null
   };
@@ -242,7 +283,7 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   if (mode === "dry-run") {
     console.warn("[December] Dry run: booking %s saved without a Google Calendar event", booking.id);
     await afterBooked(booking, manageUrl, siteUrl);
-    return { slotStart: slotStart.toISOString(), meetUrl: null, manageUrl };
+    return result(booking, manageUrl);
   }
 
   try {
@@ -250,17 +291,16 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
       requestId: booking.id,
       start: slotStart,
       end: slotEnd,
-      summary: `GRWTEE December consultation: ${data.name}`,
+      summary: hold ? `Awaiting payment: ${data.name}` : consultationSummary(data.name),
       description: eventDescription(data, manageUrl),
-      attendeeEmail: data.email,
-      attendeeName: data.name
+      attendee: hold ? null : { email: data.email, name: data.name }
     });
     booking = await prisma.decemberBooking.update({
       where: { id: booking.id },
       data: { googleEventId: event.id, meetUrl: event.meetUrl }
     });
     await afterBooked(booking, manageUrl, siteUrl);
-    return { slotStart: slotStart.toISOString(), meetUrl: event.meetUrl, manageUrl };
+    return result(booking, manageUrl);
   } catch (err) {
     // Release the slot so the client can try again straight away.
     await prisma.decemberBooking.delete({ where: { id: booking.id } }).catch((e) => {
@@ -276,8 +316,9 @@ export async function findBooking(token: string, now = new Date()): Promise<(Dec
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const booking = await prisma.decemberBooking.findUnique({ where: { manageTokenHash: hashToken(token) } });
   if (!booking) return null;
-  const active = ACTIVE.includes(booking.status);
-  return { ...booking, canChange: active && booking.slotStart.getTime() > now.getTime() };
+  // A lapsed hold reads as expired even before the sweep has released it.
+  const status = holdLapsed(booking, now) ? "expired" : booking.status;
+  return { ...booking, status, canChange: ACTIVE.includes(status) && booking.slotStart.getTime() > now.getTime() };
 }
 
 async function requireChangeable(token: string, now: Date) {
@@ -299,6 +340,7 @@ export async function rescheduleBooking(
   if (Number.isNaN(start.getTime())) throw new BookingError("Choose a time.", 400, "invalid");
   if (start.getTime() === booking.slotStart.getTime()) return { slotStart: start.toISOString() };
 
+  await expireHolds(now);
   const rules = await getRules();
   const end = new Date(start.getTime() + rules.slotMinutes * 60_000);
   await assertBookable(start, now, rules);
@@ -325,8 +367,13 @@ export async function rescheduleBooking(
   }
   const updated = await prisma.decemberBooking.update({
     where: { id: booking.id },
-    // A moved call needs a fresh reminder.
-    data: { slotStart: start, slotEnd: end, reminder24hAt: null }
+    // A moved call needs a fresh reminder. A hold never outlasts the call it is holding.
+    data: {
+      slotStart: start,
+      slotEnd: end,
+      reminder24hAt: null,
+      ...(booking.holdExpiresAt && { holdExpiresAt: new Date(Math.min(booking.holdExpiresAt.getTime(), start.getTime())) })
+    }
   });
   notifyRescheduled(updated, booking.slotStart, siteUrl);
   return { slotStart: start.toISOString() };
@@ -349,6 +396,39 @@ async function releaseBooking(booking: DecemberBooking, now: Date): Promise<Dece
   return cancelled;
 }
 
+/**
+ * Releases holds whose payment window has lapsed: deletes the held event, frees the time and
+ * emails the client and stylist. Runs before slots are read or claimed, when the admin page
+ * loads and from the daily cron, so a lapsed hold never blocks a time. Never throws.
+ */
+export async function expireHolds(now = new Date()): Promise<number> {
+  let released = 0;
+  try {
+    const due = await prisma.decemberBooking.findMany({ where: { status: "pending", holdExpiresAt: { lte: now } } });
+    for (const booking of due) {
+      try {
+        // The held event has no guests, so deleting it emails nobody.
+        if (booking.googleEventId) await deleteEvent(booking.googleEventId);
+        // Conditional, so two overlapping sweeps can't both email the client.
+        const { count } = await prisma.decemberBooking.updateMany({
+          where: { id: booking.id, status: "pending" },
+          data: { status: "expired", heldSlot: null, cancelledAt: now }
+        });
+        if (count) {
+          released++;
+          notifyExpired({ ...booking, status: "expired", heldSlot: null, cancelledAt: now }, siteUrlFromEnv());
+        }
+      } catch (err) {
+        console.error("[December] Could not release lapsed hold %s", booking.id, err);
+      }
+    }
+  } catch (err) {
+    console.error("[December] Hold sweep failed", err);
+  }
+  if (released) invalidateSlots();
+  return released;
+}
+
 export async function cancelBooking(token: string, siteUrl: string, now = new Date()): Promise<void> {
   const booking = await requireChangeable(token, now);
   notifyCancelled(await releaseBooking(booking, now), siteUrl);
@@ -365,14 +445,41 @@ export async function adminCancelBooking(id: string, now = new Date()): Promise<
   return releaseBooking(booking, now);
 }
 
+/**
+ * Marks a booking paid or unpaid. Paying a held booking sends the client their calendar invite
+ * (Google emails it with the Meet link) and a payment confirmation. Marking unpaid keeps the
+ * invite: the booking goes back to "scheduled", not to a hold.
+ */
 export async function setPaid(id: string, paid: boolean, now = new Date()): Promise<DecemberBooking> {
   const booking = await prisma.decemberBooking.findUnique({ where: { id } });
   if (!booking) throw new BookingError("Booking not found.", 404, "not_found");
-  if (!ACTIVE.includes(booking.status)) throw new BookingError("This booking is cancelled.", 409, "closed");
-  return prisma.decemberBooking.update({
+  if (holdLapsed(booking, now)) {
+    throw new BookingError("The 24-hour hold has lapsed and the time was released.", 409, "closed");
+  }
+  if (!ACTIVE.includes(booking.status)) throw new BookingError("This booking is no longer active.", 409, "closed");
+
+  if (!paid) {
+    if (booking.status !== "paid") return booking;
+    return prisma.decemberBooking.update({ where: { id }, data: { status: "scheduled", paidAt: null } });
+  }
+  if (booking.status === "paid") return booking;
+  if (booking.status === "scheduled") {
+    return prisma.decemberBooking.update({ where: { id }, data: { status: "paid", paidAt: now } });
+  }
+
+  if (booking.googleEventId) {
+    await inviteAttendee(booking.googleEventId, {
+      summary: consultationSummary(booking.name),
+      email: booking.email,
+      name: booking.name
+    });
+  }
+  const updated = await prisma.decemberBooking.update({
     where: { id },
-    data: paid ? { status: "paid", paidAt: now } : { status: "scheduled", paidAt: null }
+    data: { status: "paid", paidAt: now, holdExpiresAt: null }
   });
+  notifyPaid(updated);
+  return updated;
 }
 
 /** Maps service errors to a JSON response body and status; anything unexpected is a 500. */

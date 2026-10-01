@@ -234,7 +234,8 @@ model Broadcast {
 // Lagos in December consultation bookings (/december). Times are UTC.
 model DecemberBooking {
   id              String    @id @default(cuid())
-  // "scheduled" | "paid" | "cancelled"
+  // "pending" (held, awaiting payment, no invite yet) | "scheduled" (invited, unpaid)
+  // | "paid" | "cancelled" | "expired" (hold lapsed without payment)
   status          String    @default("scheduled")
   // Client-generated id so a retried request can't book twice.
   clientRef       String    @unique
@@ -263,6 +264,8 @@ model DecemberBooking {
   meetUrl         String?
   // SHA-256 of the token in the client's manage link
   manageTokenHash String    @unique
+  // While pending: when the hold lapses and the slot is released.
+  holdExpiresAt   DateTime?
   paidAt          DateTime?
   cancelledAt     DateTime?
   reminder24hAt   DateTime? // when the "tomorrow" reminder was sent
@@ -271,6 +274,7 @@ model DecemberBooking {
 
   @@index([status])
   @@index([slotStart])
+  @@index([holdExpiresAt])
 }
 
 // Progress saved once a client passes the contact step, so the stylist can follow up on
