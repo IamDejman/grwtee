@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display, Poppins } from "next/font/google";
+// Self-hosted so the build never fetches Google Fonts, whose occasional extensionless
+// font URLs fail the Turbopack build (vercel/next.js#99114). Families are named in globals.css.
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/playfair-display/wght.css";
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/500.css";
+import "@fontsource/poppins/600.css";
 import "@/styles/globals.css";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { Footer } from "@/components/layout/Footer";
@@ -7,27 +13,6 @@ import { FooterLoader } from "@/components/layout/FooterLoader";
 import { Header } from "@/components/layout/Header";
 import { StructuredData } from "@/components/StructuredData";
 import { getConfig } from "@/lib/config";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-playfair",
-  display: "swap"
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
-  display: "swap"
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-poppins",
-  display: "swap"
-});
 
 export const metadata: Metadata = {
   title: {
@@ -99,10 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   );
 
   return (
-    <html
-      lang="en"
-      className={`${playfair.variable} ${inter.variable} ${poppins.variable}`}
-    >
+    <html lang="en">
       <body>
         <StructuredData />
         <AnalyticsProvider gaId={gaId} />
