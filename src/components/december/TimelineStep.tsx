@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useRef, useState } from "react";
+import { LIMITS } from "@/lib/december/types";
 import { EASE, Label, textareaClass } from "./primitives";
 import { StepFrame, type StepProps } from "./steps";
 
@@ -64,6 +65,7 @@ function DayEditor({
           autoFocus
           autoComplete="off"
           enterKeyHint="done"
+          maxLength={LIMITS.short}
           className="mt-3 w-full border-0 border-b border-night-line bg-transparent px-0 pb-2 font-body text-lg text-cream placeholder:text-lilac/50 focus:border-gold focus:outline-none focus:ring-0"
           placeholder="A concert, a brunch, a party…"
           value={draft}
@@ -240,6 +242,7 @@ export function TimelineStep({ brief, update, next, headingRef }: StepProps) {
         <textarea
           id="plans"
           rows={3}
+          maxLength={LIMITS.long}
           className={`${textareaClass} mt-2`}
           placeholder="Travelling in from London on the 18th, dress codes, who you're going with…"
           value={brief.plans}

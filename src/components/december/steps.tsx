@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
+import { isValidPhoneNumber, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
 import { useState, type ReactNode } from "react";
+import { parseEmail } from "@/lib/security/email-validation";
 import {
+  LIMITS,
   OCCASIONS,
   STYLE_WORDS,
   firstName,
@@ -123,6 +125,7 @@ export function NameStep({ brief, update, next, headingRef }: StepProps) {
         data-autofocus
         className={inputClass}
         autoComplete="name"
+        maxLength={LIMITS.name}
         placeholder="Full name"
         value={brief.name}
         aria-invalid={Boolean(error)}
@@ -133,8 +136,6 @@ export function NameStep({ brief, update, next, headingRef }: StepProps) {
   );
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
 export function ContactStep({ brief, update, next, headingRef }: StepProps) {
   const [errors, setErrors] = useState<Errors>({});
   const name = firstName(brief.name);
@@ -144,13 +145,17 @@ export function ContactStep({ brief, update, next, headingRef }: StepProps) {
       headingRef={headingRef}
       validate={() => {
         const phone = brief.whatsapp.trim();
+        // Same checks as the server. A number typed with + carries its country, which the server needs.
+        const country = brief.country || (phone.startsWith("+") ? (parsePhoneNumberFromString(phone)?.country ?? "") : "");
+        if (country !== brief.country) update({ country });
+        const email = parseEmail(brief.email);
         const next: Errors = {
-          email: EMAIL_RE.test(brief.email.trim()) ? undefined : "Enter a valid email address.",
+          email: email.ok ? undefined : `${email.message}.`,
           whatsapp: !phone
             ? "Enter your WhatsApp number."
-            : !brief.country && !phone.startsWith("+")
+            : !country
               ? "Choose your country code."
-              : isValidPhoneNumber(phone, (brief.country || undefined) as CountryCode | undefined)
+              : isValidPhoneNumber(phone, country as CountryCode)
                 ? undefined
                 : "Check the number and country code."
         };
@@ -229,6 +234,7 @@ export function OccasionsStep({ brief, update, next, headingRef }: StepProps) {
               <Label htmlFor="other">Tell us the occasion</Label>
               <input
                 id="other"
+                maxLength={LIMITS.short}
                 className={inputClass}
                 placeholder="A wedding, a work party, a trip…"
                 value={brief.otherOccasion}
@@ -356,6 +362,7 @@ export function StyleStep({ brief, update, next, headingRef }: StepProps) {
         <textarea
           id="style-notes"
           rows={3}
+          maxLength={LIMITS.long}
           className={`${textareaClass} mt-2`}
           placeholder="Tailored pieces, gold jewellery, never too loud…"
           value={brief.styleNotes}
@@ -381,6 +388,7 @@ export function StyleStep({ brief, update, next, headingRef }: StepProps) {
                 id={`link-${i}`}
                 type="url"
                 inputMode="url"
+                maxLength={LIMITS.link}
                 className={`${inputClass} !text-base md:!text-lg`}
                 placeholder="pinterest.com/your-board…"
                 value={link}

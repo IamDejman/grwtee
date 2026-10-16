@@ -137,6 +137,19 @@ describe("createBooking (live calendar)", () => {
     await expect(createBooking({ ...input, consent: false }, "x", NOW)).rejects.toMatchObject({ status: 400 });
     await expect(createBooking({ ...input, whatsapp: "123" }, "x", NOW)).rejects.toMatchObject({ status: 400 });
   });
+
+  it("says which field to fix when the brief is rejected", async () => {
+    const events = [{ day: 20, title: "x".repeat(121) }];
+    await expect(createBooking({ ...input, events }, "x", NOW)).rejects.toMatchObject({
+      status: 400,
+      code: "invalid",
+      message: "Go back and shorten the description on one of your December dates, then try again."
+    });
+    await expect(createBooking({ ...input, country: "" }, "x", NOW)).rejects.toMatchObject({
+      message: "Go back and check your country code, then try again."
+    });
+    expect(db.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("rescheduleBooking (live calendar)", () => {

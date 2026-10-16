@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
 import { useState, type ReactNode } from "react";
+import { LIMITS } from "@/lib/december/types";
 import { EASE, FieldError, Label, textareaClass } from "./primitives";
 import { StepFrame, type StepProps } from "./steps";
 
@@ -161,6 +162,7 @@ export function BriefStep({
         <textarea
           id="comments"
           rows={2}
+          maxLength={LIMITS.long}
           className={`${textareaClass} mt-2`}
           placeholder="Anything else you'd like us to know…"
           value={brief.comments}
