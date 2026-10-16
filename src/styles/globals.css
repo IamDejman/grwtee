@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 :root {
+  /* Self-hosted families, loaded in the root, December and admin layouts */
+  --font-inter: "Inter Variable";
+  --font-playfair: "Playfair Display Variable";
+  --font-poppins: "Poppins";
+  --font-cormorant: "Cormorant Garamond Variable";
   --green-dark: #0D674E;
   --green-medium: #0F7A5C;
   --green-light: #129468;
