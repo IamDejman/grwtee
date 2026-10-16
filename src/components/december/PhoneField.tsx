@@ -9,6 +9,7 @@ import {
 } from "@headlessui/react";
 import { getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
 import { useMemo, useState } from "react";
+import { LIMITS } from "@/lib/december/types";
 import { inputClass } from "./primitives";
 
 interface CountryOption {
@@ -109,6 +110,7 @@ export function PhoneField({
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
+        maxLength={LIMITS.whatsapp}
         aria-label="WhatsApp number"
         aria-invalid={invalid}
         className={inputClass}

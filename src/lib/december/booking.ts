@@ -8,6 +8,7 @@ import { generateSlots, type BusyRange, type SlotRules } from "./availability";
 import { notifyBooked, notifyCancelled, notifyExpired, notifyPaid, notifyRescheduled } from "./notify";
 import { eventDescription } from "./format";
 import { feeLabel, getRules, getSettings } from "./settings";
+import { LIMITS } from "./types";
 import {
   CalendarError,
   calendarConfig,
@@ -106,20 +107,20 @@ const text = (max: number) => z.string().trim().max(max);
 
 export const bookingInputSchema = z.object({
   clientRef: z.string().uuid(),
-  name: text(120).min(2),
+  name: text(LIMITS.name).min(2),
   email: z.string(),
   country: z.string().refine((c) => isSupportedCountry(c), "Choose a country"),
-  whatsapp: text(40),
+  whatsapp: text(LIMITS.whatsapp),
   occasions: z.array(text(60)).max(12),
-  otherOccasion: text(120),
+  otherOccasion: text(LIMITS.short),
   looks: z.union([z.literal(5), z.literal(10)]),
-  events: z.array(z.object({ day: z.number().int().min(1).max(31), title: text(120).min(1) })).max(62),
-  plans: text(4000),
+  events: z.array(z.object({ day: z.number().int().min(1).max(31), title: text(LIMITS.short).min(1) })).max(62),
+  plans: text(LIMITS.long),
   styleWords: z.array(text(40)).max(20),
-  styleNotes: text(4000),
-  styleLinks: z.array(text(500)).max(10),
+  styleNotes: text(LIMITS.long),
+  styleLinks: z.array(text(LIMITS.link)).max(10),
   consent: z.literal(true),
-  comments: text(4000),
+  comments: text(LIMITS.long),
   slotStart: z.string().datetime(),
   timezone: text(64).refine((tz) => {
     try {
@@ -132,6 +133,28 @@ export const bookingInputSchema = z.object({
 });
 
 export type BookingInput = z.infer<typeof bookingInputSchema>;
+
+// How each field reads in the brief, so a rejected booking says what to fix.
+const FIELD_NAMES: Partial<Record<keyof BookingInput, string>> = {
+  name: "your name",
+  email: "your email address",
+  whatsapp: "your WhatsApp number",
+  country: "your country code",
+  otherOccasion: "your other occasion",
+  events: "the description on one of your December dates",
+  plans: "your plans",
+  styleNotes: "your style notes",
+  styleLinks: "one of your reference links",
+  comments: "your comments"
+};
+
+function invalidInput(error: z.ZodError): BookingError {
+  const issue = error.issues[0];
+  const field = issue ? FIELD_NAMES[issue.path[0] as keyof BookingInput] : undefined;
+  if (!field) return new BookingError("Some details are missing or invalid.", 400, "invalid");
+  const fix = issue.code === "too_big" ? "shorten" : "check";
+  return new BookingError(`Go back and ${fix} ${field}, then try again.`, 400, "invalid");
+}
 
 function normaliseLink(raw: string): string | null {
   const value = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
@@ -208,7 +231,7 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   if (mode === "off") throw new BookingError("Booking isn't open yet.", 503, "closed");
 
   const parsed = bookingInputSchema.safeParse(raw);
-  if (!parsed.success) throw new BookingError("Some details are missing or invalid.", 400, "invalid");
+  if (!parsed.success) throw invalidInput(parsed.error);
   const input = parsed.data;
   const email = parseEmail(input.email);
   if (!email.ok) throw new BookingError(email.message, 400, "invalid");

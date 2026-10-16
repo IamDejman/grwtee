@@ -17,6 +17,15 @@ export const STYLE_WORDS = [
   "Bold colour"
 ] as const;
 
+/** Longest text the server accepts per field; the form's inputs stop at the same lengths. */
+export const LIMITS = {
+  name: 120,
+  short: 120, // other occasion, a December date's description
+  long: 4000, // plans, style notes, comments
+  link: 500,
+  whatsapp: 40
+} as const;
+
 export type LookCount = 5 | 10;
 
 export interface DecemberEvent {
