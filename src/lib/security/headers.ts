@@ -16,8 +16,10 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "frame-src https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com",
-    "connect-src 'self' https://www.google-analytics.com https://res.cloudinary.com",
+    // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
+    // hosts such as region1.google-analytics.com.
+    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com",
+    "connect-src 'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'"
