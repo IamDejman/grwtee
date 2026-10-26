@@ -106,14 +106,28 @@ export async function validateAdminLogin(
     return { ok: false, error: "rate_limited" };
   }
 
-  const admin = await prisma.admin.findUnique({ where: { email } });
+  let admin = await prisma.admin.findUnique({ where: { email } });
   if (!admin) {
     bumpAttempt(key);
     await sleep(progressiveDelayMs(1));
     return { ok: false, error: "invalid_credentials" };
   }
 
-  if (admin.lockedUntil && admin.lockedUntil > new Date()) {
+  // Clear a lock that has run out, counter included. Otherwise the counter
+  // stays at the limit and a single wrong password locks the account again.
+  if (admin.lockedUntil && admin.lockedUntil <= new Date()) {
+    admin = await prisma.admin.update({
+      where: { id: admin.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null }
+    });
+  }
+
+  // While locked, only a full sign-in (password and authenticator code) gets
+  // through, so someone who only knows the email can't keep the admin out.
+  // Every failure gets the same answer and doesn't extend the lock. Without
+  // MFA the lock holds regardless: a password on its own could be guessed.
+  const locked = Boolean(admin.lockedUntil && admin.lockedUntil > new Date());
+  if (locked && !admin.mfaEnabled) {
     bumpAttempt(key);
     return { ok: false, error: "account_locked" };
   }
@@ -121,6 +135,9 @@ export async function validateAdminLogin(
   const valid = await verifyPassword(credentials.password, admin.password);
   if (!valid) {
     bumpAttempt(key);
+    if (locked) {
+      return { ok: false, error: "account_locked" };
+    }
     await recordFailedLogin(admin.id, ip);
     await sleep(progressiveDelayMs(admin.failedLoginAttempts));
     return { ok: false, error: "invalid_credentials" };
@@ -130,7 +147,7 @@ export async function validateAdminLogin(
     const secret = decryptTotpSecret(admin.mfaSecret);
     const code = credentials.totp?.trim();
     if (!code) {
-      return { ok: false, error: "mfa_required" };
+      return { ok: false, error: locked ? "account_locked" : "mfa_required" };
     }
     if (!secret || !verifyTotpCode(secret, code)) {
       bumpAttempt(key);
@@ -140,7 +157,7 @@ export async function validateAdminLogin(
         metadata: { adminId: admin.id },
         ip
       });
-      return { ok: false, error: "mfa_invalid" };
+      return { ok: false, error: locked ? "account_locked" : "mfa_invalid" };
     }
   }
 
@@ -226,14 +243,13 @@ function buildAuthOptions(secret: string): NextAuthOptions {
         }
 
         if (token.id) {
+          // A login lock only stops new sign-ins. Ending live sessions here
+          // would let anyone who knows the email sign the admin out.
           const admin = await prisma.admin.findUnique({
             where: { id: token.id as string },
-            select: { tokenVersion: true, mustChangePassword: true, lockedUntil: true }
+            select: { tokenVersion: true, mustChangePassword: true }
           });
           if (!admin || admin.tokenVersion !== token.tokenVersion) {
-            return {};
-          }
-          if (admin.lockedUntil && admin.lockedUntil > new Date()) {
             return {};
           }
 
