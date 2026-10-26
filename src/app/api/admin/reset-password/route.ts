@@ -10,6 +10,7 @@ import {
 import { writeSecurityEvent } from "@/lib/security/security-events";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
 import { invalidateAdminSessions } from "@/lib/auth";
+import { resetCodeMatches } from "@/lib/security/reset-code";
 
 const OTP_MAX_ATTEMPTS = 5;
 
@@ -51,34 +52,30 @@ export async function POST(req: Request) {
     orderBy: { createdAt: "desc" }
   });
 
-  if (!row || new Date() > row.expiresAt) {
-    if (row) {
-      await prisma.passwordResetOtp.deleteMany({ where: { email: emailLower } });
-    }
+  // Expired and used-up codes stay in the table until the next code is
+  // issued, so they still count toward the issuing limit in forgot-password.
+  if (!row || new Date() > row.expiresAt || row.attemptCount >= OTP_MAX_ATTEMPTS) {
     return NextResponse.json({ success: false, error: GENERIC_RESET_FAILURE }, { status: 400 });
   }
 
-  if (row.attemptCount >= OTP_MAX_ATTEMPTS) {
-    await prisma.passwordResetOtp.deleteMany({ where: { email: emailLower } });
+  // Count this attempt before checking the code. The update only matches
+  // while the count still holds the value we read, so parallel guesses
+  // can't share one attempt.
+  const claimed = await prisma.passwordResetOtp.updateMany({
+    where: { id: row.id, attemptCount: row.attemptCount },
+    data: { attemptCount: { increment: 1 } }
+  });
+  if (claimed.count === 0) {
     return NextResponse.json({ success: false, error: GENERIC_RESET_FAILURE }, { status: 400 });
   }
 
-  if (row.otp !== otp) {
-    const nextAttempts = row.attemptCount + 1;
+  if (!resetCodeMatches(otp, row.otp)) {
     await writeSecurityEvent({
       category: "auth",
       action: "admin.otp.failed",
-      metadata: { email: emailLower, attempts: nextAttempts },
+      metadata: { email: emailLower, attempts: row.attemptCount + 1 },
       ip: requestMeta(req).ip
     });
-    if (nextAttempts >= OTP_MAX_ATTEMPTS) {
-      await prisma.passwordResetOtp.deleteMany({ where: { email: emailLower } });
-    } else {
-      await prisma.passwordResetOtp.update({
-        where: { id: row.id },
-        data: { attemptCount: nextAttempts }
-      });
-    }
     return NextResponse.json({ success: false, error: GENERIC_RESET_FAILURE }, { status: 400 });
   }
 
