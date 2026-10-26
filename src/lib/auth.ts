@@ -1,7 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
-import { getConfig } from "@/lib/config";
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/security/password-hash";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { decryptTotpSecret, verifyTotpCode } from "@/lib/security/mfa";
@@ -281,11 +280,11 @@ function buildAuthOptions(secret: string): NextAuthOptions {
 }
 
 async function initAuthOptions(): Promise<NextAuthOptions> {
-  const secret = await getConfig("NEXTAUTH_SECRET", process.env.NEXTAUTH_SECRET);
+  // Environment only, like the middleware and the API session checks: a
+  // different value saved anywhere else would make every session invalid.
+  const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    throw new Error(
-      "NEXTAUTH_SECRET must be set in database (key: env_NEXTAUTH_SECRET) or environment variables"
-    );
+    throw new Error("NEXTAUTH_SECRET must be set in the environment variables");
   }
   return buildAuthOptions(secret);
 }
