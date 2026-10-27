@@ -104,11 +104,10 @@ export function subscribeConfirmHtml(params: { confirmUrl: string }): string {
 
 /** Inner Circle waitlist - confirmation that signup was received. */
 export function waitlistConfirmHtml(params: { name?: string | null }): string {
-  const greeting = params.name ? `Hi ${escapeHtml(params.name)},` : "Hi,";
   return wrapBody(`
   ${header()}
   <tr><td style="padding:36px 32px;">
-    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${greeting}</p>
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(params.name))}</p>
     <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">You're on the list.</h1>
     <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thanks for joining the Inner Circle waiting list. When the doors open, you'll be among the first to know - and the first to get in.</p>
     <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Inside, every month is sorted: your wardrobe digitised, your weekly looks pre-planned, and a stylist on call when you need one.</p>
@@ -175,7 +174,7 @@ export function bookingConfirmationHtml(params: {
   return wrapBody(`
   ${header()}
   <tr><td style="padding:36px 32px;">
-    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">Hi ${escapeHtml(name)},</p>
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(name))}</p>
     <p style="margin:0 0 20px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thank you for reaching out to <strong style="color:${BRAND.purple};">GRWTEE</strong>. We've received your booking request and will get back to you within <strong>24–48 hours</strong>.</p>
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${BRAND.creamLight};border-radius:8px;border:1px solid #e8e6df;">
       <tr><td style="padding:16px 20px;">

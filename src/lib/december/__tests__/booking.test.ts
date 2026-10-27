@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { createBooking, expireHolds, findBooking, rescheduleBooking, setPaid } from "../booking";
+import { createBooking, expireHolds, findBooking, releaseUnpaidHolds, rescheduleBooking, setPaid } from "../booking";
 import * as google from "../google-calendar";
 import * as notify from "../notify";
 import { prisma } from "@/lib/prisma";
@@ -11,6 +11,7 @@ jest.mock("@/lib/prisma", () => ({
     siteSettings: { findMany: jest.fn() },
     decemberBooking: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       create: jest.fn(),
@@ -80,6 +81,7 @@ beforeEach(() => {
   db.findMany.mockResolvedValue([]);
   db.updateMany.mockResolvedValue({ count: 1 });
   db.findUnique.mockResolvedValue(null);
+  db.findFirst.mockResolvedValue(null);
   db.create.mockImplementation(async ({ data }) => ({ id: "b1", ...data }));
   // Like Prisma, an update returns the whole row: the one just created, if any.
   db.update.mockImplementation(async ({ where, data }) => ({
@@ -131,6 +133,20 @@ describe("createBooking (live calendar)", () => {
       createBooking({ ...input, slotStart: "2026-10-05T05:30:00.000Z" }, "https://grwtee.com", NOW)
     ).rejects.toMatchObject({ status: 409 });
     expect(g.queryBusy).not.toHaveBeenCalled();
+  });
+
+  it("allows one active booking per email address and per WhatsApp number", async () => {
+    db.findFirst.mockResolvedValue({ id: "earlier" });
+    await expect(createBooking(input, "https://grwtee.com", NOW)).rejects.toMatchObject({ status: 409, code: "duplicate" });
+    expect(db.findFirst).toHaveBeenCalledWith({
+      where: {
+        status: { in: ["pending", "scheduled", "paid"] },
+        OR: [{ email: "ada@example.com" }, { whatsapp: "+2348031234567" }]
+      },
+      select: { id: true }
+    });
+    expect(db.create).not.toHaveBeenCalled();
+    expect(g.insertEvent).not.toHaveBeenCalled();
   });
 
   it("requires consent and a valid WhatsApp number", async () => {
@@ -306,5 +322,28 @@ describe("pay to confirm: holds, payment and expiry", () => {
     db.findUnique.mockResolvedValue(held);
     const booking = await findBooking("a".repeat(32), new Date("2026-10-06T06:00:00Z"));
     expect(booking).toMatchObject({ status: "expired", canChange: false });
+  });
+});
+
+describe("releaseUnpaidHolds", () => {
+  it("releases only the holds it was given that are still unpaid, and carries on past a calendar failure", async () => {
+    db.findMany.mockResolvedValue([
+      { id: "h1", status: "pending", googleEventId: "e1" },
+      { id: "h2", status: "pending", googleEventId: "e2" }
+    ]);
+    g.deleteEvent.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new google.CalendarError("Google Calendar 500", 500));
+
+    const result = await releaseUnpaidHolds(["h1", "h2", "paid-one"], NOW);
+
+    expect(db.findMany).toHaveBeenCalledWith({ where: { id: { in: ["h1", "h2", "paid-one"] }, status: "pending" } });
+    expect(result).toEqual({ released: 1, failed: 1 });
+    expect(db.update).toHaveBeenCalledTimes(1);
+    expect(db.update).toHaveBeenCalledWith({
+      where: { id: "h1" },
+      data: { status: "cancelled", heldSlot: null, cancelledAt: NOW }
+    });
+    // Nobody is emailed: held events have no guests.
+    expect(notify.notifyCancelled).not.toHaveBeenCalled();
+    expect(notify.notifyExpired).not.toHaveBeenCalled();
   });
 });

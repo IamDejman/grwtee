@@ -40,7 +40,7 @@ export class BookingError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code: "invalid" | "slot_taken" | "unavailable" | "not_found" | "closed" | "calendar"
+    readonly code: "invalid" | "slot_taken" | "unavailable" | "not_found" | "closed" | "calendar" | "duplicate"
   ) {
     super(message);
     this.name = "BookingError";
@@ -244,6 +244,19 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   if (existing && ACTIVE.includes(existing.status)) return result(existing, null);
 
   await expireHolds(now);
+  // One consultation per person, so one email or number can't tie up several times.
+  const sameClient = await prisma.decemberBooking.findFirst({
+    where: { status: { in: ACTIVE }, OR: [{ email: email.email }, { whatsapp: phone.number }] },
+    select: { id: true }
+  });
+  if (sameClient) {
+    throw new BookingError(
+      "You already have a December consultation booked with this email or WhatsApp number. To change the time, use the link in your confirmation email.",
+      409,
+      "duplicate"
+    );
+  }
+
   const { rules, capacity, feeNgn, feeUsd } = await getSettings();
   if (capacity !== null && (await activeBookingCount()) >= capacity) {
     throw new BookingError("December is fully booked.", 409, "closed");
@@ -466,6 +479,27 @@ export async function adminCancelBooking(id: string, now = new Date()): Promise<
   if (!booking) throw new BookingError("Booking not found.", 404, "not_found");
   if (!ACTIVE.includes(booking.status)) throw new BookingError("This booking is already cancelled.", 409, "closed");
   return releaseBooking(booking, now);
+}
+
+/**
+ * Releases unpaid holds in one go, for clearing a burst of fake bookings.
+ * Only the holds the admin was shown (`ids`) and that are still unpaid; the
+ * held events have no guests, so nobody is emailed.
+ */
+export async function releaseUnpaidHolds(ids: string[], now = new Date()): Promise<{ released: number; failed: number }> {
+  const holds = await prisma.decemberBooking.findMany({ where: { id: { in: ids }, status: "pending" } });
+  let released = 0;
+  let failed = 0;
+  for (const booking of holds) {
+    try {
+      await releaseBooking(booking, now);
+      released++;
+    } catch (err) {
+      console.error("[December] Could not release hold %s", booking.id, err);
+      failed++;
+    }
+  }
+  return { released, failed };
 }
 
 /**

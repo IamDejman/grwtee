@@ -1,30 +1,24 @@
 import { NextResponse } from "next/server";
 import { decemberEnabled } from "@/lib/december/booking";
 import { saveDraft } from "@/lib/december/drafts";
-import { requestMeta } from "@/lib/security/audit-log";
+import { tooManyRequests } from "@/lib/security/public-form";
+import { clientIp, consumeRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const WINDOW_MS = 10 * 60 * 1000;
+// The flow saves on every step, so allow plenty of saves but only a few new
+// drafts: each one stores someone's contact details.
 const MAX_SAVES = 40;
-const recent = new Map<string, { count: number; firstAt: number }>();
-
-function limited(ip: string): boolean {
-  const now = Date.now();
-  const prev = recent.get(ip);
-  if (!prev || now - prev.firstAt > WINDOW_MS) {
-    recent.set(ip, { count: 1, firstAt: now });
-    return false;
-  }
-  prev.count++;
-  return prev.count > MAX_SAVES;
-}
+const SAVE_WINDOW_MS = 10 * 60_000;
+const MAX_NEW_DRAFTS = 5;
+const NEW_DRAFT_WINDOW_MS = 24 * 60 * 60_000;
 
 export async function POST(req: Request) {
   if (!decemberEnabled()) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
-  if (limited(requestMeta(req).ip ?? "unknown")) {
-    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
-  }
+  const ip = clientIp(req);
+  const saves = await consumeRateLimit(`december-draft:${ip}`, MAX_SAVES, SAVE_WINDOW_MS);
+  if (!saves.ok) return tooManyRequests(saves.retryAfterSeconds);
+
   let json: unknown;
   try {
     json = await req.json();
@@ -32,8 +26,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
   try {
-    const ok = await saveDraft(json);
-    return NextResponse.json({ success: ok }, { status: ok ? 200 : 400 });
+    const outcome = await saveDraft(json, async () =>
+      (await consumeRateLimit(`december-draft-new:${ip}`, MAX_NEW_DRAFTS, NEW_DRAFT_WINDOW_MS)).ok
+    );
+    if (outcome === "limited") return tooManyRequests(60);
+    return NextResponse.json({ success: outcome === "saved" }, { status: outcome === "saved" ? 200 : 400 });
   } catch (err) {
     console.error("[December] Draft save failed", err);
     return NextResponse.json({ success: false, error: "Could not save" }, { status: 500 });
