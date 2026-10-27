@@ -102,6 +102,23 @@ export function subscribeConfirmHtml(params: { confirmUrl: string }): string {
   `);
 }
 
+/** /delete-account: the link that confirms deleting a GRWTEE app account. */
+export function accountDeletionConfirmHtml(params: { confirmUrl: string; hours: number }): string {
+  const { confirmUrl, hours } = params;
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">Delete your GRWTEE account?</h1>
+    <p style="margin:0 0 20px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Someone asked to delete the GRWTEE app account for this email address. If it was you, open the link to confirm. Your profile, photos, wardrobe, lookbooks, plans, messages and try-ons are deleted, and this can't be undone.</p>
+    <p style="margin:28px 0;text-align:center;">
+      <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;padding:14px 32px;background-color:${BRAND.purple};color:${BRAND.white};text-decoration:none;font-size:14px;font-weight:600;border-radius:999px;letter-spacing:0.02em;">Review and delete</a>
+    </p>
+    <p style="margin:0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">The link works for ${hours} hours. If the button doesn't work, paste this link into your browser:<br/><a href="${escapeHtml(confirmUrl)}" style="color:${BRAND.green};word-break:break-all;">${escapeHtml(confirmUrl)}</a></p>
+    <p style="margin:24px 0 0 0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">If you didn't ask for this, ignore this email: nothing changes unless the link is used.</p>
+  </td></tr>
+  `);
+}
+
 /** Inner Circle waitlist - confirmation that signup was received. */
 export function waitlistConfirmHtml(params: { name?: string | null }): string {
   return wrapBody(`

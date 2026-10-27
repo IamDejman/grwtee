@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { isGALoaded } from "@/lib/analytics";
 
 // Pages Analytics must never see: a December manage link is the only key to
-// someone's booking, and admin pages are private. Page views send the full
-// address, token included.
-const PRIVATE_PATHS = ["/admin", "/december/manage"];
+// someone's booking, an account deletion link deletes an app account, and
+// admin pages are private. Page views send the full address, token included.
+const PRIVATE_PATHS = ["/admin", "/december/manage", "/delete-account/confirm"];
 
 export function isPrivatePath(pathname: string | null): boolean {
   return !!pathname && PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
