@@ -10,9 +10,11 @@ import {
   generateTotpSecret,
   getTotpUri,
   verifyTotpCode,
+  verifyTotpCodeOnce,
   decryptTotpSecret
 } from "@/lib/security/mfa";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
+import { adminMfaRequired } from "@/lib/auth";
 
 export async function GET() {
   const session = await requireAdminSession();
@@ -101,6 +103,13 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 
+  if (adminMfaRequired()) {
+    return NextResponse.json(
+      { success: false, error: "Two-step sign-in is required for admin accounts." },
+      { status: 400 }
+    );
+  }
+
   const stepUp = await requireStepUp(session.user.email, parsed.data.currentPassword);
   if (!stepUp.ok) {
     return NextResponse.json({ success: false, error: stepUp.message }, { status: 403 });
@@ -112,7 +121,7 @@ export async function DELETE(req: Request) {
   }
 
   const secret = decryptTotpSecret(admin.mfaSecret);
-  if (!secret || !verifyTotpCode(secret, parsed.data.code)) {
+  if (!secret || !(await verifyTotpCodeOnce(admin.id, secret, parsed.data.code, admin.mfaLastTimeStep))) {
     return NextResponse.json({ success: false, error: "Invalid authenticator code" }, { status: 400 });
   }
 
