@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
+import { calendarCreateSchema, parseBody } from '@/lib/stylist-schemas'
 
 export async function GET(request: NextRequest) {
   const ownerId = await requireStylistId(request)
@@ -23,12 +24,12 @@ export async function POST(request: NextRequest) {
   const ownerId = await requireStylistId(request)
   if (!ownerId) return stylistUnauthorized()
 
-  const body = await request.json()
-  const { stylist_id: _ignored, ...calendarData } = body
+  const parsed = await parseBody(request, calendarCreateSchema)
+  if ('response' in parsed) return parsed.response
   const admin = createAdminClient()
   const { data: calendar, error } = await admin
     .from('stylist_calendars')
-    .insert({ ...calendarData, stylist_id: ownerId })
+    .insert({ ...parsed.data, stylist_id: ownerId })
     .select().single()
 
   if (error) return stylistError(error.message, 500)

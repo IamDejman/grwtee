@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
 import { sanitizeSearchTerm } from '@/lib/security/search-sanitize'
+import { lookSchema, parseBody } from '@/lib/stylist-schemas'
 
 export async function GET(request: NextRequest) {
   const ownerId = await requireStylistId(request)
@@ -30,8 +31,9 @@ export async function POST(request: NextRequest) {
   const ownerId = await requireStylistId(request)
   if (!ownerId) return stylistUnauthorized()
 
-  const body = await request.json()
-  const { items, stylist_id: _ignored, ...lookData } = body
+  const parsed = await parseBody(request, lookSchema)
+  if ('response' in parsed) return parsed.response
+  const { items, ...lookData } = parsed.data
   const admin = createAdminClient()
 
   const { data: look, error } = await admin
@@ -42,13 +44,15 @@ export async function POST(request: NextRequest) {
 
   if (error || !look) return stylistError(error?.message, 500)
 
-  if (items && items.length > 0) {
-    await admin.from('look_items').insert(
-      items.map((item: Record<string, unknown>, i: number) => ({
-        ...item, look_id: look.id, sort_order: i,
-        price: item.price ? parseFloat(item.price as string) : null
-      }))
-    )
+  if (items?.length) {
+    const { error: itemsError } = await admin
+      .from('look_items')
+      .insert(items.map((item, i) => ({ ...item, look_id: look.id, sort_order: i })))
+    if (itemsError) {
+      // Don't leave half a look behind: saving again would make a second one.
+      await admin.from('looks').delete().eq('id', look.id)
+      return stylistError(itemsError.message, 500)
+    }
   }
 
   return NextResponse.json({ look }, { status: 201 })
