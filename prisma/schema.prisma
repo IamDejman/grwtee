@@ -20,6 +20,8 @@ model Admin {
   lockedUntil         DateTime?
   mfaEnabled          Boolean   @default(false)
   mfaSecret           String?
+  // Time step of the last authenticator code accepted, so a code can't be used twice.
+  mfaLastTimeStep     Int?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -215,21 +217,61 @@ model WaitlistEntry {
 }
 
 model Broadcast {
-  id          String    @id @default(cuid())
-  subject     String
-  html        String
-  text        String?
-  sentAt      DateTime?
-  sentCount   Int       @default(0)
-  failedCount Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  subject        String
+  html           String
+  text           String?
+  // "sending" until every recipient has been tried, then "sent".
+  status         String    @default("sent")
+  sentAt         DateTime?
+  recipientCount Int       @default(0)
+  sentCount      Int       @default(0)
+  failedCount    Int       @default(0)
+  // Why sending last stopped early, such as Resend's daily limit.
+  lastError      String?
+  // Kept so every batch, retries included, carries the same unsubscribe links.
+  siteUrl        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  recipients BroadcastRecipient[]
 
   @@index([sentAt])
   @@index([createdAt])
+  @@index([status])
 }
 
+// One row per subscriber a broadcast goes to, so sending can be spread over
+// several requests and every address's result is recorded.
+model BroadcastRecipient {
+  id               String    @id @default(cuid())
+  broadcastId      String
+  email            String
+  unsubscribeToken String
+  // "pending" | "sending" | "sent" | "failed" | "skipped" (unsubscribed before their turn)
+  status           String    @default("pending")
+  // The batch a "sending" row was claimed in. A retry reuses it as Resend's
+  // idempotency key, so a batch that already went out isn't sent twice.
+  batchKey         String?
+  claimedAt        DateTime?
+  providerId       String?
+  error            String?
+  sentAt           DateTime?
+  createdAt        DateTime  @default(now())
+  broadcast        Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
 
+  @@unique([broadcastId, email])
+  @@index([broadcastId, status])
+}
+
+// Request counts for rate limits that hold across server instances.
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+
+  @@index([windowStart])
+}
 
 // Lagos in December consultation bookings (/december). Times are UTC.
 model DecemberBooking {
