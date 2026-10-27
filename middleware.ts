@@ -16,7 +16,9 @@ const adminProtected = [
   "/admin/lookbooks",
   "/admin/calendar",
   "/admin/clients",
-  "/admin/messages"
+  "/admin/messages",
+  "/admin/approvals",
+  "/admin/reports"
 ];
 
 const adminPublicPaths = ["/admin/login", "/admin/forgot-password"];

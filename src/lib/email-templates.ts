@@ -117,6 +117,19 @@ export function waitlistConfirmHtml(params: { name?: string | null }): string {
   `);
 }
 
+/** App account approved by the stylist: they can sign in now. */
+export function accountApprovedHtml(params: { name?: string | null }): string {
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(params.name))}</p>
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">Your account is ready.</h1>
+    <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Your stylist has approved your GRWTEE account. Open the app and sign in to get started.</p>
+    <p style="margin:24px 0 0 0;font-size:15px;color:${BRAND.gray};line-height:1.6;">Outfits sorted.<br/><strong style="color:${BRAND.purple};">GRWTEE</strong></p>
+  </td></tr>
+  `);
+}
+
 /** Newsletter — wrap admin-authored broadcast HTML with brand header + unsubscribe footer. */
 export function broadcastWrapperHtml(params: {
   contentHtml: string;
@@ -135,6 +148,22 @@ export function broadcastWrapperHtml(params: {
     </p>
   </td></tr>
   `);
+}
+
+/**
+ * The first word of a name typed into a public form, for a greeting, or null.
+ * Only letters, apostrophes and hyphens get through, so nobody can use a form
+ * to put a link or a message into an email sent from GRWTEE to someone else.
+ */
+export function safeFirstName(name: string | null | undefined): string | null {
+  const first = name?.trim().split(/\s+/)[0] ?? "";
+  return /^\p{L}[\p{L}\p{M}'’-]{0,29}$/u.test(first) ? first : null;
+}
+
+/** "Hi Ada," or "Hi," when the name can't be used. */
+export function greeting(name: string | null | undefined): string {
+  const first = safeFirstName(name);
+  return first ? `Hi ${first},` : "Hi,";
 }
 
 /** Customer confirmation: we received your request. */
