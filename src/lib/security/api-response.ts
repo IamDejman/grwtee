@@ -36,6 +36,15 @@ export function jsonInvalidCredentials() {
   return jsonError(GENERIC_INVALID_CREDENTIALS, 401);
 }
 
+/** For a save that has to be encrypted when DATA_ENCRYPTION_KEY isn't set. */
+export function encryptionKeyMissing() {
+  console.error("[Encryption] DATA_ENCRYPTION_KEY is not set; refused to store a sensitive value");
+  return jsonError(
+    "Saving this needs the encryption key. Set DATA_ENCRYPTION_KEY in Vercel (Production), redeploy, then try again.",
+    503
+  );
+}
+
 export function jsonGenericServerError(context?: string) {
   if (context) {
     console.error(`[API] ${context}`);

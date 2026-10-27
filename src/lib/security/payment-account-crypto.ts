@@ -1,5 +1,5 @@
 import type { PaymentAccount } from "@prisma/client";
-import { decryptField, encryptField } from "@/lib/security/field-encryption";
+import { decryptField, encryptField, needsReencryption, tryDecryptField } from "@/lib/security/field-encryption";
 
 const SENSITIVE_KEYS = [
   "accountNumber",
@@ -36,40 +36,26 @@ export function decryptPaymentAccounts(accounts: PaymentAccount[]): PaymentAccou
   return accounts.map(decryptPaymentAccount);
 }
 
-function isEncrypted(value: string | null | undefined): boolean {
-  return typeof value === "string" && value.startsWith("v1:");
-}
-
-/** True when any sensitive field is stored in plaintext. */
+/** True when any sensitive field is in plain text or under an older key. */
 export function paymentAccountNeedsReencryption(account: PaymentAccount): boolean {
-  for (const key of SENSITIVE_KEYS) {
-    const val = account[key as SensitiveKey];
-    if (typeof val === "string" && val.length > 0 && !isEncrypted(val)) {
-      return true;
-    }
-  }
-  return false;
+  return SENSITIVE_KEYS.some((key) => needsReencryption(account[key]));
 }
 
-/** Re-encrypt sensitive fields from decrypted values. */
+/**
+ * The sensitive fields encrypted again with the current key, or null when one
+ * of them can't be decrypted (its key is missing). Those are left alone
+ * rather than overwritten.
+ */
 export function reencryptPaymentAccountFields(
   account: PaymentAccount
-): Pick<PaymentAccount, SensitiveKey> {
-  const decrypted = decryptPaymentAccount(account);
-  const encrypted = encryptPaymentAccountInput({
-    accountNumber: decrypted.accountNumber,
-    iban: decrypted.iban,
-    email: decrypted.email,
-    swiftCode: decrypted.swiftCode,
-    sortCode: decrypted.sortCode
-  });
-  return {
-    accountNumber: (encrypted.accountNumber as string | null) ?? null,
-    iban: (encrypted.iban as string | null) ?? null,
-    email: (encrypted.email as string | null) ?? null,
-    swiftCode: (encrypted.swiftCode as string | null) ?? null,
-    sortCode: (encrypted.sortCode as string | null) ?? null
-  };
+): Pick<PaymentAccount, SensitiveKey> | null {
+  const fields = {} as Pick<PaymentAccount, SensitiveKey>;
+  for (const key of SENSITIVE_KEYS) {
+    const decrypted = tryDecryptField(account[key]);
+    if (!decrypted.ok) return null;
+    fields[key] = encryptField(decrypted.value);
+  }
+  return fields;
 }
 
 /** Mask sensitive fields for list/summary views. */

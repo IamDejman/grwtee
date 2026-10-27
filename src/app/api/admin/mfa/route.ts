@@ -4,7 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/security/session-auth";
 import { requireStepUp } from "@/lib/security/step-up";
-import { jsonUnauthorized } from "@/lib/security/api-response";
+import { encryptionKeyMissing, jsonUnauthorized } from "@/lib/security/api-response";
+import { EncryptionKeyMissingError } from "@/lib/security/field-encryption";
 import {
   encryptTotpSecret,
   generateTotpSecret,
@@ -66,12 +67,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid authenticator code" }, { status: 400 });
   }
 
+  let mfaSecret: string;
+  try {
+    mfaSecret = encryptTotpSecret(parsed.data.secret);
+  } catch (err) {
+    if (err instanceof EncryptionKeyMissingError) return encryptionKeyMissing();
+    throw err;
+  }
+
   await prisma.admin.update({
     where: { id: session.user.id },
-    data: {
-      mfaEnabled: true,
-      mfaSecret: encryptTotpSecret(parsed.data.secret)
-    }
+    data: { mfaEnabled: true, mfaSecret }
   });
 
   const meta = requestMeta(req);
