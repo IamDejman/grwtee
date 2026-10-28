@@ -11,7 +11,7 @@ Internet
 [ CDN / WAF ]  ← TLS, DDoS, optional IP rules, bot filtering
    │
    ▼
-[ Vercel ]     ← HTTPS redirect, security headers (vercel.json), env secrets
+[ Vercel ]     ← HTTPS redirect, security headers (next.config.ts), env secrets
    │
    ▼
 [ Middleware ] ← Global headers, optional ADMIN_ALLOWED_IPS, session gate
@@ -28,14 +28,14 @@ Internet
 | Control | Owner | Config |
 |--------|--------|--------|
 | HTTPS + TLS 1.2+ | Vercel | Automatic; enforce custom domain |
-| HSTS preload | Vercel + `vercel.json` + `src/lib/security/headers.ts` | Already set |
-| Security headers (CSP, X-Frame-Options, nosniff) | Middleware + `vercel.json` | Edit `src/lib/security/headers.ts` once |
-| Hide `X-Powered-By` | `next.config.js` | `poweredByHeader: false` |
+| HSTS preload | `next.config.ts` + `src/lib/security/headers.ts` | Already set |
+| Security headers (CSP, X-Frame-Options, nosniff) | Middleware + `next.config.ts` | Edit `src/lib/security/headers.ts` once |
+| Hide `X-Powered-By` | `next.config.ts` | `poweredByHeader: false` |
 | Admin IP allowlist | Env + middleware | `ADMIN_ALLOWED_IPS=1.2.3.4,5.6.7.8` |
 | Secrets | Vercel env / DB `SiteSettings` | Never commit; rotate via dashboard |
 | Session invalidation on password change | App (`tokenVersion` in JWT) | Automatic after deploy |
 | OTP / login abuse | App (existing login rate limits) | No extra public rate limits per your request |
-| Upload MIME + magic bytes | App `/api/upload` | `src/lib/security/file-validation.ts` |
+| Upload type, size and folder | Cloudinary signature (gallery), Supabase bucket limits (looks, lookbooks) | `src/lib/cloudinary.ts`, `src/app/api/stylist/uploads/route.ts` |
 | Malware scan on uploads | **Infrastructure (recommended)** | Cloudinary add-on or pre-scan worker |
 | Audit trail | Postgres `AdminAuditLog` | Query via Prisma Studio / future admin UI |
 
@@ -68,8 +68,8 @@ Run in order after merging security changes:
 ## Vercel checklist
 
 1. **Production domain** on `grwtee.com` with HTTPS only.
-2. **Environment variables** — `NEXTAUTH_SECRET`, `DATABASE_URL`, `DIRECT_URL`, Supabase service role, Cloudinary, Resend. Use Production vs Preview scopes.
-3. **Deploy** — run migration after deploy:
+2. **Environment variables** — `NEXTAUTH_SECRET`, `DATABASE_URL`, `DIRECT_URL`, `DATA_ENCRYPTION_KEY`, `CRON_SECRET`, Supabase service role, Cloudinary, Resend, Sentry. `.env.example` lists them all. Use Production vs Preview scopes.
+3. **Deploy** — production builds apply the migrations (`scripts/vercel-build.sh`); preview builds don't touch the database. To apply them by hand:
    ```bash
    npx prisma migrate deploy
    ```
@@ -97,7 +97,7 @@ If you add Cloudflare in front of Vercel:
 
 ## Cloudinary uploads
 
-App validates type/size/signature before upload. For defense in depth:
+Gallery uploads go from the browser straight to Cloudinary. The site signs each one for the gallery folder, a random file name, image formats only and resizing, and the gallery only saves images from that folder. For defense in depth:
 
 - Restrict upload preset to **image** types in Cloudinary dashboard.
 - Enable **Moderation** or antivirus add-on if you accept user-provided images at scale.
@@ -134,21 +134,21 @@ UPDATE "Admin" SET "mustChangePassword" = true WHERE email = 'book@grwtee.com';
 
 | Concern | File |
 |---------|------|
-| Response headers | `src/lib/security/headers.ts`, `middleware.ts`, `vercel.json` |
+| Response headers | `src/lib/security/headers.ts`, `middleware.ts`, `next.config.ts` |
 | Safe API errors | `src/lib/security/api-response.ts` |
 | Password policy | `src/lib/security/password-policy.ts` |
 | Argon2 + bcrypt migration | `src/lib/security/password-hash.ts` |
 | Step-up re-auth | `src/lib/security/step-up.ts` |
 | Session binding | `src/lib/security/session-auth.ts` |
 | Audit logs | `src/lib/security/audit-log.ts` |
-| Upload validation | `src/lib/security/file-validation.ts` |
+| Upload signing | `src/lib/cloudinary.ts` (gallery), `src/app/api/stylist/uploads/route.ts` (looks, lookbooks) |
 | Field encryption at rest | `src/lib/security/field-encryption.ts`, `DATA_ENCRYPTION_KEY` |
 | Signed PDF links | `src/lib/security/signed-access.ts`, `PDF_SIGNING_SECRET` |
 | TOTP MFA | `/api/admin/mfa`, login TOTP field |
 | Session registry | `AdminSession` table, `/api/admin/sessions` |
 | CAPTCHA (Turnstile) | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cloudinary moderation | `CLOUDINARY_MODERATION=true` (requires add-on) |
-| Supabase RLS (future) | `supabase/migrations/20260703_rls_policies.sql` |
+| Supabase RLS | `prisma/migrations/20261026_enable_rls/migration.sql` |
 
 ## New environment variables (phase 2)
 

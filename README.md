@@ -1,75 +1,81 @@
-# GRWTEE (Get Ready With Tee) — Luxury Styling Website
+# GRWTEE (Get Ready With Tee): website and dashboard
 
-Next.js 14 (App Router) + TypeScript + Tailwind + Prisma (Postgres/Neon) + NextAuth (Admin) + Cloudinary + React Hook Form + Zod.
+The public website, the admin dashboard and the stylist dashboard for the
+GRWTEE app.
+
+Next.js 16 (App Router) + TypeScript + Tailwind + Prisma 6 on Supabase Postgres + NextAuth (admin sign-in) + Supabase (the app's data) + Cloudinary (gallery) + Resend (email) + Sentry (errors).
+
+The mobile app and its API are in the `grwtee-mobile` repository. Both read the same Supabase project: Prisma owns the website's own tables (bookings, invoices, gallery, newsletter, admins); the app's tables (profiles, looks, lookbooks, messages) are created by `api/supabase/*.sql` in `grwtee-mobile`, and the dashboard reaches them with the Supabase service role.
 
 ## Setup
 
-### 1) Install
-
 ```bash
 npm install
-```
-
-### 2) Create `.env.local`
-
-Create the file manually (this repo ignores it):
-
-```env
-DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
-
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="..."
-CLOUDINARY_API_KEY="..."
-CLOUDINARY_API_SECRET="..."
-
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="..."
-SMTP_PASSWORD="..."
-CONTACT_EMAIL="book@grwtee.com"
-
-NEXT_PUBLIC_SITE_URL="http://localhost:3000"
-NEXT_PUBLIC_INSTAGRAM_URL="https://instagram.com/grwtee"
-NEXT_PUBLIC_CONTACT_EMAIL="book@grwtee.com"
-
-# Required for seeding the first admin user (book@grwtee.com)
-ADMIN_SEED_PASSWORD="set-a-strong-password"
-```
-
-### 3) Prisma
-
-```bash
-npx prisma generate
-npx prisma migrate dev --name init
-npx prisma db seed
-```
-
-Seed creates:
-- Admin: `book@grwtee.com` (password = `ADMIN_SEED_PASSWORD`)
-
-### 4) Run
-
-```bash
+cp .env.example .env    # then fill it in; every variable is explained there
+npx prisma migrate deploy
+npx prisma db seed      # first admin: book@grwtee.com, password ADMIN_SEED_PASSWORD
 npm run dev
 ```
 
-Open:
-- Public site: `http://localhost:3000`
-- Admin login: `http://localhost:3000/admin/login`
+- Public site: http://localhost:3000
+- Admin sign-in: http://localhost:3000/admin/login (you'll be asked to change the password and set up an authenticator app)
 
-## Required brand assets (manual upload)
+To change the database, edit `prisma/schema.prisma` and run `npx prisma migrate dev --name <change>`. CI fails when the schema and the migrations don't match.
 
-Place these files:
-- `public/patterns/basket-weave-dark.png`
-- `public/patterns/basket-weave-light.png`
-- Replace placeholder `public/logo.svg`, `public/favicon.svg`, and OG images as needed.
+## Checks
 
-## Admin features
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-- Gallery: upload to Cloudinary, create DB records, edit/delete, featured + order.
-- Services: CRUD + toggles.
-- Bookings: status updates + CSV export.
-- Settings: site settings + password change.
+CI runs all of these, applies the migrations to an empty Postgres, and compares them with `schema.prisma` (`.github/workflows/ci.yml`).
 
+## Deploying (Vercel, Hobby plan)
 
+Vercel runs `npm run build:deploy` (`scripts/vercel-build.sh`). Production builds apply the migrations first; preview builds never touch the database.
+
+Security headers are set in `next.config.ts` from `src/lib/security/headers.ts`. Deploy checklists are in `docs/infrastructure-security.md`.
+
+### Scheduled jobs
+
+Hobby only runs daily jobs, so the frequent ones run from Supabase (pg_cron), defined in `grwtee-mobile/api/supabase/28-scheduled-jobs.sql`. Every job calls a route on this site with `CRON_SECRET`, which must also be in Supabase Vault as `website_cron_secret`.
+
+| Job | Runs | Route |
+|-----|------|-------|
+| December reminders | Daily, 07:00 UTC (`vercel.json`) | `/api/cron/december-reminders` |
+| December payment holds | Hourly (pg_cron) | `/api/cron/december-holds` |
+| Newsletter broadcasts | Every 15 minutes (pg_cron) | `/api/cron/broadcasts` |
+| Cleanup (data retention) | Daily, 03:23 UTC (pg_cron) | `/api/cron/cleanup` |
+
+The cleanup job deletes old data on the schedule in `src/lib/retention.ts`; the privacy page (section 6) states the same periods, so change both together.
+
+### Error tracking
+
+Sentry is off until `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are set. Request bodies, cookies, query strings and most headers are removed before events are sent, and admins are identified by id only (`src/lib/sentry-scrub.ts`). Browser reports go through `/monitoring` on this site.
+
+## Photos
+
+- **Gallery**: Cloudinary. The browser uploads straight to Cloudinary with a signature from `/api/upload/sign`, which fixes the folder, file name, formats and resizing.
+- **Looks and lookbooks** made in the dashboard: the app's Supabase storage (`looks` and `lookbooks` buckets), the same place the app keeps them. The browser shrinks the photo and uploads it with a one-use address from `/api/stylist/uploads`.
+
+Photos uploaded to Cloudinary before this change can be moved with:
+
+```bash
+npx tsx scripts/move-dashboard-images-to-supabase.ts           # shows what would move
+npx tsx scripts/move-dashboard-images-to-supabase.ts --apply   # moves them
+```
+
+## Scripts
+
+| Command | What it does |
+|---------|--------------|
+| `npm run security:reencrypt` | Re-encrypts payment details and authenticator secrets with the current `DATA_ENCRYPTION_KEY` |
+| `npx tsx scripts/move-dashboard-images-to-supabase.ts` | Moves dashboard photos from Cloudinary to Supabase storage (see above) |
+
+## Dashboard
+
+- **Website**: bookings, December bookings, invoices, services, gallery, mailing list and broadcasts, waitlist, settings (including payment accounts and two-step sign-in).
+- **App**: looks, lookbooks, calendar, clients, messages, sign-ups waiting for approval, and reports of content.
