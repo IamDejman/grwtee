@@ -53,6 +53,14 @@ describe("lookSchema", () => {
     });
   });
 
+  it("reads prices with thousands separators and currency symbols (ARCH-01)", () => {
+    const [item] = lookFromForm.items;
+    const priceOf = (value: string) => lookSchema.parse({ ...lookFromForm, items: [{ ...item, price: value }] }).items?.[0].price;
+    expect(priceOf("25,000")).toBe(25000);
+    expect(priceOf("₦25,000.50")).toBe(25000.5);
+    expect(lookSchema.safeParse({ ...lookFromForm, items: [{ ...item, price: "1.2.3" }] }).success).toBe(false);
+  });
+
   it("turns an empty price into null and refuses one that isn't a number", () => {
     const item = lookFromForm.items[0];
     expect(lookSchema.parse({ ...lookFromForm, items: [{ ...item, price: "" }] }).items?.[0].price).toBeNull();
@@ -140,5 +148,15 @@ describe("calendarDaySchema", () => {
       alternate_look_id: null,
       lookbook_id: null
     });
+  });
+});
+
+describe("lookbook item prices (ARCH-01)", () => {
+  it("are kept as typed, as the app stores them", () => {
+    const parsed = lookbookSchema.parse({
+      title: "Wedding",
+      items: [{ name: "Gele", price: "₦25,000" }, { name: "Clutch", price: 15000 }]
+    });
+    expect(parsed.items?.map((i) => i.price)).toEqual(["₦25,000", "15000"]);
   });
 });
