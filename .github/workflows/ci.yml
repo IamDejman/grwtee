@@ -8,6 +8,23 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    # A throwaway database for the migration checks and the build (OPS-04).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grwtee
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/grwtee
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/grwtee
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,3 +36,20 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # Fails when schema.prisma changes without a migration, or a migration
+      # without schema.prisma. Prisma empties the shadow database first.
+      - name: Migrations match the schema
+        run: >-
+          npx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --shadow-database-url postgresql://postgres:postgres@localhost:5432/postgres
+          --exit-code
+      - name: Migrations apply to an empty database
+        run: npx prisma migrate deploy
+      - name: Build
+        run: npx next build
+        env:
+          NEXTAUTH_SECRET: ci-only-not-a-secret
+          NEXTAUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { jsonUnauthorized } from "@/lib/security/api-response";
+import { serviceJson } from "@/lib/services";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 
@@ -21,9 +22,9 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
   }
   const { id } = await params;
   const json = await req.json();
@@ -36,16 +37,16 @@ export async function PUT(
     data: parsed.data
   });
   revalidateTag("services", "max");
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ success: true, data: serviceJson(data) });
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
   }
   const { id } = await params;
   await prisma.service.delete({ where: { id } });

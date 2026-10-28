@@ -1,15 +1,14 @@
-import { getAuthOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 const updateSchema = z.object({
   status: z.enum(["unpaid", "paid"])
 });
 
 async function requireAdmin() {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) return null;
   return session;
 }

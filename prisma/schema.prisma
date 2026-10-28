@@ -22,6 +22,10 @@ model Admin {
   mfaSecret           String?
   // Time step of the last authenticator code accepted, so a code can't be used twice.
   mfaLastTimeStep     Int?
+  // The stylist's profile in the app's Supabase project, linked once by
+  // email and then looked up by id, so changing either email doesn't cut
+  // the dashboard off (ARCH-02).
+  supabaseProfileId   String?   @unique @db.Uuid
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -78,7 +82,8 @@ model AdminAuditLog {
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
-  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  // Restrict: deleting an admin no longer deletes the record of what they did.
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
   @@index([adminId])
   @@index([action])
@@ -106,8 +111,9 @@ model Service {
   name        String
   slug        String   @unique
   description String
-  priceUSD    Float?
-  priceNGN    Float?
+  // Exact amounts, not floating point (WEB-23).
+  priceUSD    Decimal? @db.Decimal(12, 2)
+  priceNGN    Decimal? @db.Decimal(12, 2)
   priceNote   String?
   featured    Boolean  @default(false)
   order       Int      @default(0)
@@ -142,18 +148,20 @@ model SiteSettings {
 
 model Invoice {
   id                 String   @id @default(cuid())
+  // INV-0001 onwards, from the invoice_number_seq sequence (WEB-20).
   invoiceNumber      String   @unique
   clientName         String
   clientAddress      String?
   currency           String   @default("NGN")
-  items              String
+  // [{ description, quantity, unitPrice, vat }]
+  items              Json
   notes              String?
   reference          String?
   dueDate            DateTime
   status             String   @default("unpaid")
-  // JSON array of PaymentAccount IDs selected for this invoice.
-  // Empty/null = show all active accounts matching currency.
-  paymentAccountIds  String?
+  // PaymentAccount ids selected for this invoice.
+  // Null = show all active accounts matching currency.
+  paymentAccountIds  Json?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

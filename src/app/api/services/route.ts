@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { jsonUnauthorized } from "@/lib/security/api-response";
+import { serviceJson } from "@/lib/services";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 
@@ -23,20 +24,22 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const active = searchParams.get("active");
   const featured = searchParams.get("featured");
-  const where: any = {};
-  if (active !== null) where.active = active === "true";
+  const where: { active?: boolean; featured?: boolean } = {};
+  // Hidden services are only for the dashboard (WEB-22).
+  if (!(await requireAdminSession())) where.active = true;
+  else if (active !== null) where.active = active === "true";
   if (featured !== null) where.featured = featured === "true";
   const data = await prisma.service.findMany({
     where,
     orderBy: [{ order: "asc" }, { createdAt: "desc" }]
   });
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ success: true, data: data.map(serviceJson) });
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
-  if (!session?.user?.email) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminSession();
+  if (!session) {
+    return jsonUnauthorized();
   }
   const json = await req.json();
   const parsed = createSchema.safeParse(json);
@@ -45,7 +48,7 @@ export async function POST(req: Request) {
   }
   const data = await prisma.service.create({ data: parsed.data });
   revalidateTag("services", "max");
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ success: true, data: serviceJson(data) });
 }
 
 
