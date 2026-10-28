@@ -6,11 +6,12 @@ import * as google from "../google-calendar";
 import * as notify from "../notify";
 import { prisma } from "@/lib/prisma";
 
-jest.mock("@/lib/prisma", () => ({
-  prisma: {
+jest.mock("@/lib/prisma", () => {
+  const prisma: Record<string, unknown> = {
     siteSettings: { findMany: jest.fn() },
     decemberBooking: {
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -19,9 +20,13 @@ jest.mock("@/lib/prisma", () => ({
       updateMany: jest.fn(),
       delete: jest.fn()
     },
-    decemberDraft: { updateMany: jest.fn() }
-  }
-}));
+    decemberDraft: { updateMany: jest.fn() },
+    $executeRaw: jest.fn(async () => 0)
+  };
+  // The transaction's client is the same mock.
+  prisma.$transaction = jest.fn(async (run: (tx: unknown) => unknown) => run(prisma));
+  return { prisma };
+});
 
 jest.mock("../notify", () => ({
   notifyBooked: jest.fn(),
@@ -91,6 +96,11 @@ beforeEach(() => {
     ...data
   }));
   db.delete.mockResolvedValue({});
+  // The row after a conditional update: as findUnique returns it, with that update's changes.
+  db.findUniqueOrThrow.mockImplementation(async (args) => ({
+    ...(await db.findUnique(args)),
+    ...(db.updateMany.mock.calls.at(-1)?.[0].data ?? {})
+  }));
   g.queryBusy.mockResolvedValue([]);
 });
 
@@ -147,6 +157,16 @@ describe("createBooking (live calendar)", () => {
     });
     expect(db.create).not.toHaveBeenCalled();
     expect(g.insertEvent).not.toHaveBeenCalled();
+  });
+
+  it("checks capacity and the per-person rule behind a lock, in the same transaction as the insert (WEB-19)", async () => {
+    g.insertEvent.mockResolvedValue({ id: "evt1", meetUrl: null });
+    await createBooking(input, "https://grwtee.com", NOW);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    const lockOrder = (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0];
+    expect(lockOrder).toBeLessThan(db.findFirst.mock.invocationCallOrder[0]);
+    expect(db.findFirst.mock.invocationCallOrder[0]).toBeLessThan(db.create.mock.invocationCallOrder[0]);
   });
 
   it("requires consent and a valid WhatsApp number", async () => {
@@ -264,16 +284,32 @@ describe("pay to confirm: holds, payment and expiry", () => {
       email: "ada@example.com",
       name: "Ada Obi"
     });
-    expect(db.update).toHaveBeenCalledWith({ where: { id: "b1" }, data: { status: "paid", paidAt: NOW, holdExpiresAt: null } });
+    // Only while it's still a hold with its slot, so the hold sweep can't release it underneath (WEB-19).
+    expect(db.updateMany).toHaveBeenCalledWith({
+      where: { id: "b1", status: "pending", heldSlot: { not: null } },
+      data: { status: "paid", paidAt: NOW, holdExpiresAt: null }
+    });
+    expect(db.updateMany.mock.invocationCallOrder[0]).toBeLessThan(g.inviteAttendee.mock.invocationCallOrder[0]);
     expect(updated.status).toBe("paid");
     expect(notify.notifyPaid).toHaveBeenCalledTimes(1);
   });
 
-  it("does not mark paid when the invite can't be sent", async () => {
+  it("refuses when the hold was released while marking paid, and sends no invite", async () => {
+    db.findUnique.mockResolvedValue(held);
+    db.updateMany.mockResolvedValue({ count: 0 });
+    await expect(setPaid("b1", true, NOW)).rejects.toMatchObject({ status: 409 });
+    expect(g.inviteAttendee).not.toHaveBeenCalled();
+    expect(notify.notifyPaid).not.toHaveBeenCalled();
+  });
+
+  it("puts the hold back when the invite can't be sent", async () => {
     db.findUnique.mockResolvedValue(held);
     g.inviteAttendee.mockRejectedValue(new google.CalendarError("Google Calendar 503", 503));
     await expect(setPaid("b1", true, NOW)).rejects.toBeInstanceOf(google.CalendarError);
-    expect(db.update).not.toHaveBeenCalled();
+    expect(db.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "b1", status: "paid" },
+      data: { status: "pending", paidAt: null, holdExpiresAt: held.holdExpiresAt }
+    });
     expect(notify.notifyPaid).not.toHaveBeenCalled();
   });
 
@@ -288,7 +324,10 @@ describe("pay to confirm: holds, payment and expiry", () => {
     await setPaid("b1", true, NOW);
     expect(g.inviteAttendee).not.toHaveBeenCalled();
     expect(notify.notifyPaid).not.toHaveBeenCalled();
-    expect(db.update).toHaveBeenCalledWith({ where: { id: "b1" }, data: { status: "paid", paidAt: NOW } });
+    expect(db.updateMany).toHaveBeenCalledWith({
+      where: { id: "b1", status: "scheduled", heldSlot: { not: null } },
+      data: { status: "paid", paidAt: NOW }
+    });
   });
 
   it("releases lapsed holds: deletes the event, frees the slot and tells the client once", async () => {
