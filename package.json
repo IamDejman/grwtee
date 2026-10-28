@@ -30,7 +30,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.6",
     "argon2": "^0.44.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cloudinary": "^2.5.0",
     "framer-motion": "^11.15.0",
     "jspdf": "^4.2.1",
@@ -52,7 +52,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.2",
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.5",
     "@types/qrcode": "^1.5.6",
