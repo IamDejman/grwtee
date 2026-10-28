@@ -160,6 +160,8 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
   const [turningOff, setTurningOff] = useState(false);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  // Moving to a new phone also needs a code from the current app.
+  const [currentCode, setCurrentCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -168,6 +170,7 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
     setTurningOff(false);
     setPassword("");
     setCode("");
+    setCurrentCode("");
     setError(null);
   };
 
@@ -193,7 +196,11 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
       const res = await adminFetch("/api/admin/mfa", {
         method: turningOff ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(turningOff ? { currentPassword: password, code } : { secret: setup?.secret, code, currentPassword: password })
+        body: JSON.stringify(
+          turningOff
+            ? { currentPassword: password, code }
+            : { secret: setup?.secret, code, currentPassword: password, ...(enabled ? { currentCode } : {}) }
+        )
       });
       if (!res.ok) throw new Error(await errorFrom(res, "That didn't work. Check the code and try again."));
       if (!turningOff) {
@@ -202,7 +209,9 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
         await fetch("/api/auth/session", { cache: "no-store" }).catch(() => {});
       }
       onChange(!turningOff);
-      toast.success(turningOff ? "Two-step sign-in is off." : "Two-step sign-in is on.");
+      toast.success(
+        turningOff ? "Two-step sign-in is off." : enabled ? "Two-step sign-in now uses your new app." : "Two-step sign-in is on."
+      );
       reset();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "That didn't work. Check the code and try again.");
@@ -227,9 +236,14 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
       {!inProgress ? (
         <div className="mt-4">
           {enabled ? (
-            <Button size="sm" variant="outline" onClick={() => setTurningOff(true)}>
-              Turn off
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" loading={busy} onClick={() => void start()}>
+                Move to a new phone
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setTurningOff(true)}>
+                Turn off
+              </Button>
+            </div>
           ) : (
             <Button size="sm" loading={busy} onClick={() => void start()}>
               Set up
@@ -261,8 +275,19 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
               </div>
             </div>
           ) : null}
+          {setup && enabled ? (
+            <Input
+              label="Code from the app you use now"
+              inputMode="numeric"
+              spellCheck={false}
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={currentCode}
+              onChange={(e) => setCurrentCode(e.target.value.replace(/\D/g, ""))}
+            />
+          ) : null}
           <Input
-            label="6-digit code"
+            label={setup && enabled ? "6-digit code from the new app" : "6-digit code"}
             autoFocus
             inputMode="numeric"
             spellCheck={false}
@@ -278,8 +303,14 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" size="sm" variant={turningOff ? "danger" : "primary"} loading={busy} disabled={code.length !== 6 || !password}>
-              {turningOff ? "Turn off two-step sign-in" : "Turn on"}
+            <Button
+              type="submit"
+              size="sm"
+              variant={turningOff ? "danger" : "primary"}
+              loading={busy}
+              disabled={code.length !== 6 || !password || (!!setup && enabled && currentCode.length !== 6)}
+            >
+              {turningOff ? "Turn off two-step sign-in" : enabled ? "Switch to the new app" : "Turn on"}
             </Button>
             <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={reset}>
               Cancel

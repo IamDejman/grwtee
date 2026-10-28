@@ -41,6 +41,28 @@ const SECRET_ENV_VARS = ["NEXTAUTH_SECRET", "CLOUDINARY_API_KEY", "CLOUDINARY_AP
 
 const MANAGED_ENV_VARS = [...EDITABLE_ENV_VARS, ...SECRET_ENV_VARS];
 
+// Addresses end up in pages (the Instagram link is in every page's
+// structured data), so they must be web addresses (WEB-17).
+const URL_ENV_VARS = ["NEXTAUTH_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_INSTAGRAM_URL"];
+const EMAIL_ENV_VARS = ["CONTACT_EMAIL", "NEXT_PUBLIC_CONTACT_EMAIL"];
+
+function invalidValue(key: string, value: string): string | null {
+  if (URL_ENV_VARS.includes(key)) {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" && !(url.protocol === "http:" && url.hostname === "localhost")) {
+        return `${key} must be an https:// address.`;
+      }
+    } catch {
+      return `${key} must be a web address.`;
+    }
+  }
+  if (EMAIL_ENV_VARS.includes(key) && !z.string().email().safeParse(value).success) {
+    return `${key} must be an email address.`;
+  }
+  return null;
+}
+
 type EnvRow = {
   value: string;
   source: "database" | "environment";
@@ -109,6 +131,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     }
   }
+  for (const { key, value } of parsed.data.vars) {
+    const problem = invalidValue(key, value.trim());
+    if (problem) {
+      return NextResponse.json({ success: false, error: problem }, { status: 400 });
+    }
+  }
 
   const stepUp = await requireStepUp(session.user.email, parsed.data.currentPassword);
   if (!stepUp.ok) {
@@ -116,7 +144,7 @@ export async function PUT(req: Request) {
   }
 
   for (const { key, value } of parsed.data.vars) {
-    await setConfig(key, value);
+    await setConfig(key, value.trim());
   }
   revalidateTag("config", "max");
 

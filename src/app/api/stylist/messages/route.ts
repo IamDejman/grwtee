@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
 
   if (error) return stylistError(error.message, 500)
 
-  await admin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversation_id)
-
+  // The database moves the conversation up both inboxes and pushes the
+  // message to the client's phone (migration 27 in the app's repo), the
+  // same as for messages sent from the app (ARCH-01, ARCH-03).
   return NextResponse.json({ message }, { status: 201 })
 }

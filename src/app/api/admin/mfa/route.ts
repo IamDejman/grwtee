@@ -43,7 +43,9 @@ export async function GET() {
 const enableSchema = z.object({
   secret: z.string().min(16),
   code: z.string().length(6),
-  currentPassword: z.string().min(1)
+  currentPassword: z.string().min(1),
+  // Replacing an authenticator that's already set up (a new phone).
+  currentCode: z.string().length(6).optional()
 });
 
 export async function POST(req: Request) {
@@ -61,6 +63,25 @@ export async function POST(req: Request) {
   const stepUp = await requireStepUp(session.user.email, parsed.data.currentPassword);
   if (!stepUp.ok) {
     return NextResponse.json({ success: false, error: stepUp.message }, { status: 403 });
+  }
+
+  // Moving two-step sign-in to a new authenticator takes a code from the
+  // current one: a password alone (a stolen one, say) mustn't be enough to
+  // take it over (WEB-15).
+  const admin = await prisma.admin.findUnique({ where: { id: session.user.id } });
+  if (!admin) return jsonUnauthorized();
+  if (admin.mfaEnabled) {
+    const currentSecret = decryptTotpSecret(admin.mfaSecret);
+    if (
+      !parsed.data.currentCode ||
+      !currentSecret ||
+      !(await verifyTotpCodeOnce(admin.id, currentSecret, parsed.data.currentCode, admin.mfaLastTimeStep))
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Enter a current code from the authenticator app you use now." },
+        { status: 400 }
+      );
+    }
   }
 
   if (!verifyTotpCode(parsed.data.secret, parsed.data.code)) {
@@ -83,7 +104,7 @@ export async function POST(req: Request) {
   const meta = requestMeta(req);
   await writeAuditLog({
     adminId: session.user.id,
-    action: "admin.mfa.enabled",
+    action: admin.mfaEnabled ? "admin.mfa.replaced" : "admin.mfa.enabled",
     resource: "admin",
     ip: meta.ip,
     userAgent: meta.userAgent

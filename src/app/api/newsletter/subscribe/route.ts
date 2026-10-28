@@ -71,7 +71,8 @@ export async function POST(req: Request) {
   const siteUrl =
     (await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL)) ||
     new URL(req.url).origin;
-  const confirmUrl = `${siteUrl.replace(/\/$/, "")}/api/newsletter/confirm?token=${confirmToken}`;
+  // A page with a button: scanners that open links can't confirm (WEB-18).
+  const confirmUrl = `${siteUrl.replace(/\/$/, "")}/newsletter/confirm?token=${confirmToken}`;
 
   const { error } = await sendEmail({
     to: subscriber.email,

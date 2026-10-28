@@ -66,3 +66,11 @@ export function formatBookingMessage(message: string): string {
 }
 
 
+
+/** A `?limit=` value as a whole number from 1 to `max`, or `fallback` when
+ *  it's missing or not a number (WEB-22). */
+export function clampLimit(value: string | null, fallback: number, max: number): number {
+  const n = value === null ? NaN : Number.parseInt(value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(1, n));
+}

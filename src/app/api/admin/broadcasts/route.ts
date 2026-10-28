@@ -1,4 +1,3 @@
-import { getAuthOptions } from "@/lib/auth";
 import {
   createBroadcast,
   findRecentDuplicate,
@@ -8,9 +7,9 @@ import {
 } from "@/lib/broadcasts";
 import { getConfig } from "@/lib/config";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 // Sending stops after SEND_BUDGET_MS and the page asks for the rest, so a
 // request never runs into the platform's time limit.
@@ -23,7 +22,7 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -39,7 +38,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

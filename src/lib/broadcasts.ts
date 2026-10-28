@@ -144,16 +144,19 @@ function byId(rows: RecipientRow[]): RecipientRow[] {
 }
 
 function buildEmail(broadcast: Broadcast, recipient: RecipientRow): BatchEmail {
-  const unsubscribeUrl = `${broadcast.siteUrl}/api/newsletter/unsubscribe?token=${encodeURIComponent(recipient.unsubscribeToken)}`;
+  const token = encodeURIComponent(recipient.unsubscribeToken);
+  // The link in the email opens a page with a button (WEB-18).
+  const unsubscribeUrl = `${broadcast.siteUrl}/newsletter/unsubscribe?token=${token}`;
+  // One-click unsubscribe (RFC 8058): mail apps show an Unsubscribe button
+  // that POSTs to this address. Gmail and Yahoo expect it on newsletters.
+  const oneClickUrl = `${broadcast.siteUrl}/api/newsletter/unsubscribe?token=${token}`;
   return {
     to: recipient.email,
     subject: broadcast.subject,
     html: broadcastWrapperHtml({ contentHtml: broadcast.html, unsubscribeUrl }),
     text: `${broadcast.text ?? ""}\n\n-\nUnsubscribe: ${unsubscribeUrl}`,
-    // One-click unsubscribe (RFC 8058): mail apps show an Unsubscribe button
-    // that POSTs to this address. Gmail and Yahoo expect it on newsletters.
     headers: {
-      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe": `<${oneClickUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
     }
   };

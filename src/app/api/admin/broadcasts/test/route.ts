@@ -1,10 +1,9 @@
-import { getAuthOptions } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { broadcastWrapperHtml } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/resend";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 const schema = z.object({
   subject: z.string().min(1).max(200),
@@ -13,7 +12,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
     (await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL)) ||
     new URL(req.url).origin;
   const base = siteUrl.replace(/\/$/, "");
-  const unsubscribeUrl = `${base}/api/newsletter/unsubscribe?token=preview`;
+  const unsubscribeUrl = `${base}/newsletter/unsubscribe?token=preview`;
 
   const wrappedHtml = broadcastWrapperHtml({ contentHtml: html, unsubscribeUrl });
 
