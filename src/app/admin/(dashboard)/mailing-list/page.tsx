@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/Toast";
 import { Badge, EmptyState, FilterChips, PageHeader, Panel, RowAction, SkeletonRows, Stat, type Tone } from "@/components/admin/ui";
 import { adminFetch } from "@/lib/adminFetch";
+import { keepSending, progressSummary, sendingLine, type BroadcastProgress } from "@/lib/broadcast-progress";
 
 type Subscriber = {
   id: string;
@@ -17,14 +18,6 @@ type Subscriber = {
   createdAt: string;
 };
 
-type Broadcast = {
-  id: string;
-  subject: string;
-  sentAt: string | null;
-  sentCount: number;
-  failedCount: number;
-  createdAt: string;
-};
 
 type Counts = { confirmed: number; pending: number; unsubscribed: number };
 
@@ -48,7 +41,8 @@ export default function MailingListPage() {
   const [tab, setTab] = useState<"subscribers" | "broadcasts">("subscribers");
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [counts, setCounts] = useState<Counts>({ confirmed: 0, pending: 0, unsubscribed: 0 });
-  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastProgress[]>([]);
+  const [continuing, setContinuing] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusFilter>("");
   const [loading, setLoading] = useState(true);
   const toast = useToast();
@@ -85,6 +79,20 @@ export default function MailingListPage() {
       setError("Couldn't load broadcasts. Refresh to try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function continueSending(broadcast: BroadcastProgress) {
+    setContinuing(broadcast.id);
+    const replace = (p: BroadcastProgress) => setBroadcasts((prev) => prev.map((b) => (b.id === p.id ? p : b)));
+    try {
+      const progress = await keepSending({ ...broadcast, lastError: null }, replace);
+      if (progress.status === "sending") toast.error(progressSummary(progress));
+      else toast.success(`Broadcast sent. ${progressSummary(progress)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn’t carry on sending. Try again.");
+    } finally {
+      setContinuing(null);
     }
   }
 
@@ -215,12 +223,26 @@ export default function MailingListPage() {
                 <li key={b.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3.5 sm:px-6">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-atelier-ink">{b.subject}</p>
-                    <p className="text-sm text-atelier-faint">{b.sentAt ? `Sent ${formatDate(b.sentAt)}` : "Not sent"}</p>
+                    {b.status === "sending" ? (
+                      <p className="text-sm text-atelier-faint">
+                        {continuing === b.id ? sendingLine(b) : b.lastError ? progressSummary(b) : `Still sending: ${b.remaining} to go.`}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-atelier-faint">{b.sentAt ? `Sent ${formatDate(b.sentAt)}` : "Not sent"}</p>
+                    )}
                   </div>
                   <p className="text-sm tabular-nums text-atelier-muted">
-                    {b.sentCount} delivered
+                    {b.sentCount} sent
                     {b.failedCount > 0 ? <span className="text-red-600"> · {b.failedCount} failed</span> : null}
                   </p>
+                  {b.status === "sending" ? (
+                    <div className="flex items-center gap-2">
+                      <Badge tone="gold">Sending</Badge>
+                      <RowAction disabled={continuing !== null} onClick={() => void continueSending(b)}>
+                        {continuing === b.id ? "Sending…" : "Continue"}
+                      </RowAction>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

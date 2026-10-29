@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
 import { useToast } from '@/components/admin/Toast'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Message {
   id: string
@@ -11,7 +11,12 @@ interface Message {
   content: string
   created_at: string
   image_url: string | null
+  /** Set when someone reported it; hidden from the client until you review it. */
+  hidden_at?: string | null
 }
+
+// How often the open thread checks for new messages.
+const POLL_MS = 5000
 
 interface MessageThreadProps {
   conversationId: string
@@ -37,22 +42,37 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  // New messages from the client arrive live.
+  // New messages from the client: checked every few seconds while the page is
+  // in view. (A live Supabase subscription would need a Supabase sign-in,
+  // which the dashboard doesn't have, so it never received anything.)
+  const latestRef = useRef<string>(initialMessages.at(-1)?.created_at ?? new Date(0).toISOString())
   useEffect(() => {
-    const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const channel = supabase
-      .channel(`conversation:${conversationId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          const msg = payload.new as Message
-          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+    latestRef.current = messages.at(-1)?.created_at ?? latestRef.current
+  }, [messages])
+
+  useEffect(() => {
+    let stopped = false
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const params = new URLSearchParams({ conversation_id: conversationId, after: latestRef.current })
+        const res = await adminFetch(`/api/stylist/messages?${params}`, { cache: 'no-store' })
+        if (!res.ok || stopped) return
+        const data = (await res.json()) as { messages?: Message[] }
+        const fresh = data.messages ?? []
+        if (fresh.length) {
+          setMessages((prev) => [...prev, ...fresh.filter((m) => !prev.some((p) => p.id === m.id))])
         }
-      )
-      .subscribe()
+      } catch {
+        // Try again on the next tick.
+      }
+    }
+    const timer = setInterval(() => void poll(), POLL_MS)
+    document.addEventListener('visibilitychange', poll)
     return () => {
-      void supabase.removeChannel(channel)
+      stopped = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', poll)
     }
   }, [conversationId])
 
@@ -68,7 +88,7 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
     if (!text || sending) return
     setSending(true)
     try {
-      const res = await fetch('/api/stylist/messages', {
+      const res = await adminFetch('/api/stylist/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversation_id: conversationId, content: text })
@@ -120,6 +140,9 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
                   ) : null}
                   {msg.content ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p> : null}
                   <p className={`mt-0.5 text-right text-[11px] tabular-nums ${mine ? 'text-white/60' : 'text-atelier-faint'}`}>{timeLabel(msg.created_at)}</p>
+                  {msg.hidden_at ? (
+                    <p className={`text-right text-[11px] ${mine ? 'text-white/60' : 'text-[#8A6420]'}`}>Reported: hidden until you review it</p>
+                  ) : null}
                 </div>
               </div>
             </div>

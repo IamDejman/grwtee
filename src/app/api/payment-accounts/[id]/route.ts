@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireStepUp } from "@/lib/security/step-up";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
-import { jsonGenericServerError, jsonUnauthorized } from "@/lib/security/api-response";
+import { encryptionKeyMissing, jsonGenericServerError, jsonUnauthorized } from "@/lib/security/api-response";
 import { encryptPaymentAccountInput, decryptPaymentAccount } from "@/lib/security/payment-account-crypto";
+import { EncryptionKeyMissingError } from "@/lib/security/field-encryption";
 import { requireAdminSession } from "@/lib/security/session-auth";
 
 const updateSchema = z.object({
@@ -70,6 +71,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: decryptPaymentAccount(data) });
   } catch (err) {
+    if (err instanceof EncryptionKeyMissingError) return encryptionKeyMissing();
     console.error("[PaymentAccount PUT]", err);
     return jsonGenericServerError("payment-account-put");
   }

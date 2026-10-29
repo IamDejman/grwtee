@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/ui";
 import { Input } from "@/components/ui/Input";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { adminFetch } from "@/lib/adminFetch";
+import { keepSending, progressSummary, sendingLine, type BroadcastProgress } from "@/lib/broadcast-progress";
 
 const BRAND = {
   purple: "#422D64",
@@ -176,13 +177,23 @@ export default function NewBroadcastPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject, html })
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed");
+      const data = (await res.json().catch(() => null)) as { success?: boolean; data?: BroadcastProgress; error?: string } | null;
+      if (!res.ok || !data?.success || !data.data) {
+        throw new Error(data?.error || "Failed");
       }
-      setMessage(
-        `Broadcast sent. ${data.data.sentCount} delivered, ${data.data.failedCount} failed.`
-      );
+      // Big lists go out over several requests; keep asking until it's done.
+      const showProgress = (p: BroadcastProgress) => {
+        setMessage(sendingLine(p));
+        setMessageKind("success");
+      };
+      showProgress(data.data);
+      const progress = await keepSending(data.data, showProgress);
+      if (progress.status === "sending") {
+        setMessage(`${progressSummary(progress)} The broadcast is on the mailing list page.`);
+        setMessageKind("error");
+        return;
+      }
+      setMessage(`Broadcast sent. ${progressSummary(progress)}`);
       setMessageKind("success");
       setTimeout(() => router.push("/admin/mailing-list"), 1500);
     } catch (e) {

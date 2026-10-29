@@ -4,15 +4,18 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/security/session-auth";
 import { requireStepUp } from "@/lib/security/step-up";
-import { jsonUnauthorized } from "@/lib/security/api-response";
+import { encryptionKeyMissing, jsonUnauthorized } from "@/lib/security/api-response";
+import { EncryptionKeyMissingError } from "@/lib/security/field-encryption";
 import {
   encryptTotpSecret,
   generateTotpSecret,
   getTotpUri,
   verifyTotpCode,
+  verifyTotpCodeOnce,
   decryptTotpSecret
 } from "@/lib/security/mfa";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
+import { adminMfaRequired } from "@/lib/auth";
 
 export async function GET() {
   const session = await requireAdminSession();
@@ -64,12 +67,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid authenticator code" }, { status: 400 });
   }
 
+  let mfaSecret: string;
+  try {
+    mfaSecret = encryptTotpSecret(parsed.data.secret);
+  } catch (err) {
+    if (err instanceof EncryptionKeyMissingError) return encryptionKeyMissing();
+    throw err;
+  }
+
   await prisma.admin.update({
     where: { id: session.user.id },
-    data: {
-      mfaEnabled: true,
-      mfaSecret: encryptTotpSecret(parsed.data.secret)
-    }
+    data: { mfaEnabled: true, mfaSecret }
   });
 
   const meta = requestMeta(req);
@@ -101,6 +109,13 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 
+  if (adminMfaRequired()) {
+    return NextResponse.json(
+      { success: false, error: "Two-step sign-in is required for admin accounts." },
+      { status: 400 }
+    );
+  }
+
   const stepUp = await requireStepUp(session.user.email, parsed.data.currentPassword);
   if (!stepUp.ok) {
     return NextResponse.json({ success: false, error: stepUp.message }, { status: 403 });
@@ -112,7 +127,7 @@ export async function DELETE(req: Request) {
   }
 
   const secret = decryptTotpSecret(admin.mfaSecret);
-  if (!secret || !verifyTotpCode(secret, parsed.data.code)) {
+  if (!secret || !(await verifyTotpCodeOnce(admin.id, secret, parsed.data.code, admin.mfaLastTimeStep))) {
     return NextResponse.json({ success: false, error: "Invalid authenticator code" }, { status: 400 });
   }
 

@@ -102,16 +102,45 @@ export function subscribeConfirmHtml(params: { confirmUrl: string }): string {
   `);
 }
 
-/** Inner Circle waitlist - confirmation that signup was received. */
-export function waitlistConfirmHtml(params: { name?: string | null }): string {
-  const greeting = params.name ? `Hi ${escapeHtml(params.name)},` : "Hi,";
+/** /delete-account: the link that confirms deleting a GRWTEE app account. */
+export function accountDeletionConfirmHtml(params: { confirmUrl: string; hours: number }): string {
+  const { confirmUrl, hours } = params;
   return wrapBody(`
   ${header()}
   <tr><td style="padding:36px 32px;">
-    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${greeting}</p>
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">Delete your GRWTEE account?</h1>
+    <p style="margin:0 0 20px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Someone asked to delete the GRWTEE app account for this email address. If it was you, open the link to confirm. Your profile, photos, wardrobe, lookbooks, plans, messages and try-ons are deleted, and this can't be undone.</p>
+    <p style="margin:28px 0;text-align:center;">
+      <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;padding:14px 32px;background-color:${BRAND.purple};color:${BRAND.white};text-decoration:none;font-size:14px;font-weight:600;border-radius:999px;letter-spacing:0.02em;">Review and delete</a>
+    </p>
+    <p style="margin:0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">The link works for ${hours} hours. If the button doesn't work, paste this link into your browser:<br/><a href="${escapeHtml(confirmUrl)}" style="color:${BRAND.green};word-break:break-all;">${escapeHtml(confirmUrl)}</a></p>
+    <p style="margin:24px 0 0 0;font-size:13px;color:${BRAND.grayMuted};line-height:1.6;">If you didn't ask for this, ignore this email: nothing changes unless the link is used.</p>
+  </td></tr>
+  `);
+}
+
+/** Inner Circle waitlist - confirmation that signup was received. */
+export function waitlistConfirmHtml(params: { name?: string | null }): string {
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(params.name))}</p>
     <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">You're on the list.</h1>
     <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thanks for joining the Inner Circle waiting list. When the doors open, you'll be among the first to know - and the first to get in.</p>
     <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Inside, every month is sorted: your wardrobe digitised, your weekly looks pre-planned, and a stylist on call when you need one.</p>
+    <p style="margin:24px 0 0 0;font-size:15px;color:${BRAND.gray};line-height:1.6;">Outfits sorted.<br/><strong style="color:${BRAND.purple};">GRWTEE</strong></p>
+  </td></tr>
+  `);
+}
+
+/** App account approved by the stylist: they can sign in now. */
+export function accountApprovedHtml(params: { name?: string | null }): string {
+  return wrapBody(`
+  ${header()}
+  <tr><td style="padding:36px 32px;">
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(params.name))}</p>
+    <h1 style="margin:0 0 12px 0;font-size:22px;color:${BRAND.purple};">Your account is ready.</h1>
+    <p style="margin:0 0 18px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Your stylist has approved your GRWTEE account. Open the app and sign in to get started.</p>
     <p style="margin:24px 0 0 0;font-size:15px;color:${BRAND.gray};line-height:1.6;">Outfits sorted.<br/><strong style="color:${BRAND.purple};">GRWTEE</strong></p>
   </td></tr>
   `);
@@ -137,6 +166,22 @@ export function broadcastWrapperHtml(params: {
   `);
 }
 
+/**
+ * The first word of a name typed into a public form, for a greeting, or null.
+ * Only letters, apostrophes and hyphens get through, so nobody can use a form
+ * to put a link or a message into an email sent from GRWTEE to someone else.
+ */
+export function safeFirstName(name: string | null | undefined): string | null {
+  const first = name?.trim().split(/\s+/)[0] ?? "";
+  return /^\p{L}[\p{L}\p{M}'’-]{0,29}$/u.test(first) ? first : null;
+}
+
+/** "Hi Ada," or "Hi," when the name can't be used. */
+export function greeting(name: string | null | undefined): string {
+  const first = safeFirstName(name);
+  return first ? `Hi ${first},` : "Hi,";
+}
+
 /** Customer confirmation: we received your request. */
 export function bookingConfirmationHtml(params: {
   name: string;
@@ -146,7 +191,7 @@ export function bookingConfirmationHtml(params: {
   return wrapBody(`
   ${header()}
   <tr><td style="padding:36px 32px;">
-    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">Hi ${escapeHtml(name)},</p>
+    <p style="margin:0 0 16px 0;font-size:18px;color:${BRAND.gray};line-height:1.5;">${escapeHtml(greeting(name))}</p>
     <p style="margin:0 0 20px 0;font-size:15px;color:${BRAND.gray};line-height:1.65;">Thank you for reaching out to <strong style="color:${BRAND.purple};">GRWTEE</strong>. We've received your booking request and will get back to you within <strong>24–48 hours</strong>.</p>
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${BRAND.creamLight};border-radius:8px;border:1px solid #e8e6df;">
       <tr><td style="padding:16px 20px;">

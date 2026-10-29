@@ -19,7 +19,7 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
   const [convRes, messagesRes] = await Promise.all([
     admin.from('conversations').select('id, client_id').eq('id', id).eq('stylist_id', ownerId).maybeSingle(),
     // Newest 200, shown oldest first.
-    admin.from('messages').select('id, sender_id, content, created_at, image_url').eq('conversation_id', id).order('created_at', { ascending: false }).limit(200)
+    admin.from('messages').select('id, sender_id, content, created_at, image_url, hidden_at').eq('conversation_id', id).order('created_at', { ascending: false }).limit(200)
   ])
   const conv = convRes.data
   if (!conv) notFound()

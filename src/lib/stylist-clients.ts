@@ -41,3 +41,14 @@ export async function getStylistClients(ownerId: string): Promise<{ clients: Sty
 export function clientName(client: Pick<StylistClient, 'full_name' | 'email'>): string {
   return client.full_name?.trim() || client.email || 'Unnamed client'
 }
+
+/** Whether an id belongs to a client's app account, for assigning lookbooks. */
+export async function isClientProfile(id: string): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from('profiles')
+    .select('id')
+    .eq('id', id)
+    .eq('role', 'client')
+    .maybeSingle()
+  return Boolean(data)
+}
