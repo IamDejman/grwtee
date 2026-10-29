@@ -13,7 +13,8 @@ const ERROR_MESSAGES: Record<AdminLoginError, string> = {
   invalid_credentials: "Invalid email or password",
   mfa_required: "Enter the 6-digit code from your authenticator app",
   mfa_invalid: "Invalid authenticator code",
-  account_locked: "Account temporarily locked. Try again later.",
+  account_locked:
+    "Too many failed sign-ins, so this account is locked for 15 minutes. If you use an authenticator app, you can still sign in with your password and code.",
   rate_limited: "Too many attempts. Try again in a few minutes."
 };
 

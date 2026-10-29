@@ -16,12 +16,12 @@ export async function requireAdminFromRequest(request: NextRequest) {
   if (!token?.email || !token?.id) return null;
 
   if (typeof token.tokenVersion === "number") {
+    // A login lock only stops new sign-ins; it doesn't end live sessions.
     const admin = await prisma.admin.findUnique({
       where: { id: token.id as string },
-      select: { tokenVersion: true, lockedUntil: true }
+      select: { tokenVersion: true }
     });
     if (!admin || admin.tokenVersion !== token.tokenVersion) return null;
-    if (admin.lockedUntil && admin.lockedUntil > new Date()) return null;
   }
 
   if (typeof token.sessionJti === "string") {
