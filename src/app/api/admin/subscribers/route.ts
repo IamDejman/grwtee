@@ -1,10 +1,9 @@
-import { getAuthOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

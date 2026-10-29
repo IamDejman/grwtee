@@ -27,6 +27,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@next/third-parties": "^16.4.3",
     "@prisma/client": "^6.1.0",
+    "@sentry/nextjs": "11.9.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.6",
     "argon2": "^0.44.0",

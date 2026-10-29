@@ -1,18 +1,11 @@
-import { getAuthOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { csvRows } from "@/lib/csv";
 
-function toCsvValue(v: unknown): string {
-  const s = v === null || v === undefined ? "" : String(v);
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
 
 export async function GET() {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -21,13 +14,16 @@ export async function GET() {
     orderBy: { createdAt: "desc" }
   });
 
-  const header = ["email", "status", "confirmedAt", "unsubscribedAt", "createdAt"];
-  const rows = subscribers.map((s) =>
-    [s.email, s.status, s.confirmedAt?.toISOString() ?? "", s.unsubscribedAt?.toISOString() ?? "", s.createdAt.toISOString()]
-      .map(toCsvValue)
-      .join(",")
+  const csv = csvRows(
+    ["email", "status", "confirmedAt", "unsubscribedAt", "createdAt"],
+    subscribers.map((s) => [
+      s.email,
+      s.status,
+      s.confirmedAt?.toISOString() ?? "",
+      s.unsubscribedAt?.toISOString() ?? "",
+      s.createdAt.toISOString()
+    ])
   );
-  const csv = [header.join(","), ...rows].join("\n");
 
   return new NextResponse(csv, {
     status: 200,

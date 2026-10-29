@@ -127,12 +127,22 @@ export default function AdminGalleryPage() {
     setBusy(true);
     setFormError(null);
     try {
+      // Straight to Cloudinary with a signed request, so large photos aren't
+      // stopped by the site's request limit (WEB-21).
+      const sign = await adminFetch("/api/upload/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "grwtee" })
+      });
+      const signJson = (await sign.json()) as { data?: { uploadUrl: string; fields: Record<string, string | number> } };
+      if (!sign.ok || !signJson.data) throw new Error("Upload failed");
       const form = new FormData();
+      for (const [key, value] of Object.entries(signJson.data.fields)) form.append(key, String(value));
       form.append("file", file);
-      form.append("folder", "grwtee");
-      const up = await adminFetch("/api/upload", { method: "POST", body: form });
-      const upJson = await up.json();
-      if (!up.ok) throw new Error("Upload failed");
+      const up = await fetch(signJson.data.uploadUrl, { method: "POST", body: form });
+      const uploaded = (await up.json().catch(() => null)) as { secure_url?: string; public_id?: string } | null;
+      if (!up.ok || !uploaded?.secure_url || !uploaded.public_id) throw new Error("Upload failed");
+      const upJson = { data: { imageUrl: uploaded.secure_url, cloudinaryId: uploaded.public_id } };
 
       const create = await adminFetch("/api/gallery", {
         method: "POST",

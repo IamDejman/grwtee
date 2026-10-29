@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { getAuthOptions } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
 import { jsonUnauthorized } from "@/lib/security/api-response";
@@ -10,7 +11,7 @@ import { requireAdminSession } from "@/lib/security/session-auth";
 
 const schema = z.object({
   siteTitle: z.string().min(1).optional(),
-  instagramUrl: z.string().url().optional(),
+  instagramUrl: z.string().url().refine((u) => /^https?:\/\//.test(u), "Use a web address").optional(),
   contactEmail: z.string().email().optional(),
   businessHours: z.string().optional(),
   adminEmailNotifications: z.boolean().optional(),
@@ -90,6 +91,8 @@ export async function PUT(req: Request) {
       create: { key, value }
     });
   }
+  // Pages that show these settings pick up the change (WEB-12).
+  revalidateTag("config", "max");
 
   const meta = requestMeta(req);
   await writeAuditLog({

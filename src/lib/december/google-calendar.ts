@@ -14,6 +14,18 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar.freebusy"
 ];
 const FREEBUSY_CHUNK_DAYS = 30;
+// A slow answer fails the step instead of holding the booking request open (WEB-19).
+const GOOGLE_TIMEOUT_MS = 15_000;
+
+/** fetch with a time limit; a timeout or dropped connection is a CalendarError. */
+async function googleFetch(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS) });
+  } catch (err) {
+    const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    throw new CalendarError(timedOut ? "Google didn't answer in time" : "Couldn't reach Google");
+  }
+}
 
 export class CalendarError extends Error {
   constructor(
@@ -74,7 +86,7 @@ let cachedToken: { value: string; expiresAt: number } | null = null;
 async function accessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
   const assertion = signServiceAccountJwt(requireConfig(), Math.floor(Date.now() / 1000));
-  const res = await fetch(TOKEN_URL, {
+  const res = await googleFetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion })
@@ -90,7 +102,7 @@ async function accessToken(): Promise<string> {
 
 async function call<T>(path: string, init: RequestInit & { allowStatus?: number[] } = {}): Promise<T | null> {
   const { allowStatus = [], ...rest } = init;
-  const res = await fetch(`${API}${path}`, {
+  const res = await googleFetch(`${API}${path}`, {
     ...rest,
     headers: { Authorization: `Bearer ${await accessToken()}`, "Content-Type": "application/json", ...rest.headers }
   });

@@ -3,6 +3,13 @@ import { Resend } from "resend";
 
 const DEFAULT_FROM = "GRWTEE <onboarding@resend.dev>";
 
+// Logs name the recipient's domain only, and no subject: subjects can
+// include a client's name (WEB-24).
+function recipientForLog(to: string): string {
+  const at = to.lastIndexOf("@");
+  return at >= 0 ? `*${to.slice(at)}` : "*";
+}
+
 export type SendEmailOptions = {
   to: string;
   subject: string;
@@ -25,7 +32,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
   }
 
   const fromAddress = from ?? DEFAULT_FROM;
-  console.log("[Resend] Sending email to=%s subject=%s", options.to, options.subject);
+  console.log("[Resend] Sending email to=%s", recipientForLog(options.to));
 
   const resend = new Resend(apiKey);
   const { data, error } = await resend.emails.send({
@@ -39,7 +46,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
 
   if (error) {
     const message = String((error as { message?: string })?.message ?? error);
-    console.error("[Resend] Send failed to=%s subject=%s error=%s", options.to, options.subject, message);
+    console.error("[Resend] Send failed to=%s error=%s", recipientForLog(options.to), message);
     if (message.includes("domain is not verified")) {
       console.error(
         "[Resend] Fix: verify your domain at https://resend.com/domains or set RESEND_FROM to GRWTEE <onboarding@resend.dev> (admin Settings → Env Vars)"
@@ -48,7 +55,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ error?: un
     return { error };
   }
 
-  console.log("[Resend] Sent successfully to=%s id=%s", options.to, (data as { id?: string })?.id ?? "-");
+  console.log("[Resend] Sent to=%s id=%s", recipientForLog(options.to), (data as { id?: string })?.id ?? "-");
   return {};
 }
 

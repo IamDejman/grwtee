@@ -244,23 +244,7 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   if (existing && ACTIVE.includes(existing.status)) return result(existing, null);
 
   await expireHolds(now);
-  // One consultation per person, so one email or number can't tie up several times.
-  const sameClient = await prisma.decemberBooking.findFirst({
-    where: { status: { in: ACTIVE }, OR: [{ email: email.email }, { whatsapp: phone.number }] },
-    select: { id: true }
-  });
-  if (sameClient) {
-    throw new BookingError(
-      "You already have a December consultation booked with this email or WhatsApp number. To change the time, use the link in your confirmation email.",
-      409,
-      "duplicate"
-    );
-  }
-
   const { rules, capacity, feeNgn, feeUsd } = await getSettings();
-  if (capacity !== null && (await activeBookingCount()) >= capacity) {
-    throw new BookingError("December is fully booked.", 409, "closed");
-  }
   const slotStart = new Date(input.slotStart);
   const slotEnd = new Date(slotStart.getTime() + rules.slotMinutes * 60_000);
   await assertBookable(slotStart, now, rules);
@@ -301,11 +285,32 @@ export async function createBooking(raw: unknown, siteUrl: string, now = new Dat
   };
 
   // Claim the slot first: the unique heldSlot index makes this the single point that decides
-  // who gets a time when two people book it at once.
+  // who gets a time when two people book it at once. The per-person and capacity checks run
+  // in the same transaction behind a lock, so two bookings at once can't both pass them and
+  // overbook December (WEB-19).
   let booking: DecemberBooking;
   try {
-    booking = await prisma.decemberBooking.create({ data });
+    booking = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('december-bookings'))`;
+      // One consultation per person, so one email or number can't tie up several times.
+      const sameClient = await tx.decemberBooking.findFirst({
+        where: { status: { in: ACTIVE }, OR: [{ email: data.email }, { whatsapp: data.whatsapp }] },
+        select: { id: true }
+      });
+      if (sameClient) {
+        throw new BookingError(
+          "You already have a December consultation booked with this email or WhatsApp number. To change the time, use the link in your confirmation email.",
+          409,
+          "duplicate"
+        );
+      }
+      if (capacity !== null && (await tx.decemberBooking.count({ where: { status: { in: ACTIVE } } })) >= capacity) {
+        throw new BookingError("December is fully booked.", 409, "closed");
+      }
+      return tx.decemberBooking.create({ data });
+    });
   } catch (err) {
+    if (err instanceof BookingError) throw err;
     if (isUniqueViolation(err, "heldSlot")) {
       throw new BookingError("That time was just taken. Choose another time.", 409, "slot_taken");
     }
@@ -515,26 +520,43 @@ export async function setPaid(id: string, paid: boolean, now = new Date()): Prom
   }
   if (!ACTIVE.includes(booking.status)) throw new BookingError("This booking is no longer active.", 409, "closed");
 
+  // Every change below only applies if the booking is still in the state it was read in, so
+  // it can't undo a cancellation or the hold sweep running at the same moment (WEB-19).
+  const changeIf = async (from: string, data: Prisma.DecemberBookingUpdateManyMutationInput) => {
+    const { count } = await prisma.decemberBooking.updateMany({ where: { id, status: from, heldSlot: { not: null } }, data });
+    if (!count) throw new BookingError("This booking changed while you were updating it. Reload and try again.", 409, "closed");
+    return prisma.decemberBooking.findUniqueOrThrow({ where: { id } });
+  };
+
   if (!paid) {
     if (booking.status !== "paid") return booking;
-    return prisma.decemberBooking.update({ where: { id }, data: { status: "scheduled", paidAt: null } });
+    return changeIf("paid", { status: "scheduled", paidAt: null });
   }
   if (booking.status === "paid") return booking;
   if (booking.status === "scheduled") {
-    return prisma.decemberBooking.update({ where: { id }, data: { status: "paid", paidAt: now } });
+    return changeIf("scheduled", { status: "paid", paidAt: now });
   }
 
+  // A hold: take it out of the sweep's reach first (the sweep only releases rows still
+  // "pending"), then send the invite. If the invite fails, the hold goes back as it was.
+  const updated = await changeIf("pending", { status: "paid", paidAt: now, holdExpiresAt: null });
   if (booking.googleEventId) {
-    await inviteAttendee(booking.googleEventId, {
-      summary: consultationSummary(booking.name),
-      email: booking.email,
-      name: booking.name
-    });
+    try {
+      await inviteAttendee(booking.googleEventId, {
+        summary: consultationSummary(booking.name),
+        email: booking.email,
+        name: booking.name
+      });
+    } catch (err) {
+      await prisma.decemberBooking
+        .updateMany({
+          where: { id, status: "paid" },
+          data: { status: "pending", paidAt: null, holdExpiresAt: booking.holdExpiresAt }
+        })
+        .catch((e) => console.error("[December] Could not restore hold %s after invite failure", id, e));
+      throw err;
+    }
   }
-  const updated = await prisma.decemberBooking.update({
-    where: { id },
-    data: { status: "paid", paidAt: now, holdExpiresAt: null }
-  });
   notifyPaid(updated);
   return updated;
 }

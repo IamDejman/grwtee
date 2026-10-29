@@ -6,18 +6,11 @@ import path from "path";
 import { requireAdminSession } from "@/lib/security/session-auth";
 import { verifySignedAccessToken } from "@/lib/security/signed-access";
 import { decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
+import { computeTotals, parseItems, type LineItem } from "@/lib/invoice-totals";
 
 // Run this route on Node.js (jsPDF + fs need it, not Edge runtime).
 export const runtime = "nodejs";
 
-type LineItem = {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  vat: boolean;
-};
-
-const VAT_RATE = 0.075; // 7.5% (Nigeria default)
 
 // Currency rendering in the PDF.
 // jsPDF's built-in Helvetica uses WinAnsi encoding which does NOT include the
@@ -115,16 +108,9 @@ export async function GET(
   const resolvedName = businessName || "GRWTEE";
   const resolvedEmail = businessEmail || "book@grwtee.com";
 
-  let selectedAccountIds: string[] = [];
-  if (invoice.paymentAccountIds) {
-    try {
-      const parsed = JSON.parse(invoice.paymentAccountIds);
-      if (Array.isArray(parsed))
-        selectedAccountIds = parsed.filter((x): x is string => typeof x === "string");
-    } catch {
-      selectedAccountIds = [];
-    }
-  }
+  const selectedAccountIds = Array.isArray(invoice.paymentAccountIds)
+    ? invoice.paymentAccountIds.filter((x): x is string => typeof x === "string")
+    : [];
   const paymentAccounts = decryptPaymentAccounts(
     await prisma.paymentAccount.findMany({
       where: selectedAccountIds.length
@@ -134,12 +120,7 @@ export async function GET(
     })
   );
 
-  let items: LineItem[] = [];
-  try {
-    items = JSON.parse(invoice.items) as LineItem[];
-  } catch {
-    items = [];
-  }
+  const items: LineItem[] = parseItems(invoice.items);
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -284,16 +265,13 @@ export async function GET(
 
   y += 24; // breathing room after header
 
-  let subtotal = 0;
-  let vatTotal = 0;
+  // The same totals the dashboard shows, worked out in whole cents.
+  const { subtotal, vat: vatTotal, total } = computeTotals(items);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
 
   for (const item of items) {
-    const lineAmount = item.quantity * item.unitPrice;
-    const vatAmount = item.vat ? lineAmount * VAT_RATE : 0;
-    subtotal += lineAmount;
-    vatTotal += vatAmount;
+    const lineAmount = Math.round(item.quantity * item.unitPrice * 100) / 100;
 
     const descLines = doc.splitTextToSize(item.description, descMaxWidth);
     doc.text(descLines, colDescLeft, y);
@@ -330,7 +308,7 @@ export async function GET(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.text(`TOTAL ${invoice.currency}`, totalsLabelX, y, { align: "right" });
-  doc.text(formatAmount(subtotal + vatTotal), colAmtRight, y, { align: "right" });
+  doc.text(formatAmount(total), colAmtRight, y, { align: "right" });
 
   y += 40;
 

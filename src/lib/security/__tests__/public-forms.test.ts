@@ -5,7 +5,8 @@ import { POST as contact } from "@/app/api/contact/route";
 import { POST as booking } from "@/app/api/bookings/route";
 import { POST as waitlist } from "@/app/api/waitlist/route";
 import { POST as subscribe } from "@/app/api/newsletter/subscribe/route";
-import { POST as unsubscribe } from "@/app/api/newsletter/unsubscribe/route";
+import { GET as openUnsubscribeLink, POST as unsubscribe } from "@/app/api/newsletter/unsubscribe/route";
+import { GET as openConfirmLink, POST as confirm } from "@/app/api/newsletter/confirm/route";
 import { safeFirstName } from "@/lib/email-templates";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
@@ -16,7 +17,8 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     bookingRequest: { create: jest.fn() },
     waitlistEntry: { findUnique: jest.fn(), create: jest.fn() },
-    subscriber: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() }
+    subscriber: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+    securityEvent: { create: jest.fn() }
   }
 }));
 jest.mock("@/lib/resend", () => ({ sendEmail: jest.fn(async () => ({})) }));
@@ -190,5 +192,52 @@ describe("one-click unsubscribe", () => {
     (prisma.subscriber.findUnique as jest.Mock).mockResolvedValue(null);
     expect((await request("nope")).status).toBe(404);
     expect(prisma.subscriber.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("newsletter links need a button press (WEB-18)", () => {
+  const form = (url: string, fields: Record<string, string>) =>
+    new Request(url, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields).toString()
+    });
+
+  it("opening an unsubscribe link shows the page and changes nothing", async () => {
+    const res = await openUnsubscribeLink(new Request("https://grwtee.com/api/newsletter/unsubscribe?token=tok-1"));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://grwtee.com/newsletter/unsubscribe?token=tok-1");
+    expect(prisma.subscriber.findUnique).not.toHaveBeenCalled();
+    expect(prisma.subscriber.update).not.toHaveBeenCalled();
+  });
+
+  it("the page's button unsubscribes and goes on to the confirmation", async () => {
+    (prisma.subscriber.findUnique as jest.Mock).mockResolvedValue({ id: "s1", status: "confirmed" });
+    const res = await unsubscribe(form("https://grwtee.com/api/newsletter/unsubscribe", { token: "tok-1" }));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://grwtee.com/newsletter/unsubscribed");
+    expect(prisma.subscriber.update).toHaveBeenCalled();
+  });
+
+  it("opening a confirmation link shows the page and confirms nothing", async () => {
+    const res = await openConfirmLink(new Request("https://grwtee.com/api/newsletter/confirm?token=c-1"));
+    expect(res.headers.get("location")).toBe("https://grwtee.com/newsletter/confirm?token=c-1");
+    expect(prisma.subscriber.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("the confirm button confirms", async () => {
+    (prisma.subscriber.findUnique as jest.Mock).mockResolvedValue({ id: "s1", status: "pending", confirmTokenExpiresAt: new Date(Date.now() + 60_000) });
+    const res = await confirm(form("https://grwtee.com/api/newsletter/confirm", { token: "c-1" }));
+    expect(res.headers.get("location")).toBe("https://grwtee.com/newsletter/confirmed");
+    expect(prisma.subscriber.update).toHaveBeenCalledWith({
+      where: { id: "s1" },
+      data: expect.objectContaining({ status: "confirmed", confirmToken: null })
+    });
+  });
+
+  it("an expired confirmation says so", async () => {
+    (prisma.subscriber.findUnique as jest.Mock).mockResolvedValue({ id: "s1", status: "pending", confirmTokenExpiresAt: new Date(Date.now() - 1) });
+    const res = await confirm(form("https://grwtee.com/api/newsletter/confirm", { token: "c-1" }));
+    expect(res.headers.get("location")).toBe("https://grwtee.com/newsletter/confirmed?error=expired");
   });
 });

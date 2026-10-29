@@ -26,13 +26,27 @@ export async function sendDueReminders(now = new Date()): Promise<{ sent: number
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const booking of due) {
-    if (await sendReminder(booking)) {
-      await prisma.decemberBooking.update({ where: { id: booking.id }, data: { reminder24hAt: now } });
+    // Claim it first, so two runs at once can't both send (WEB-19).
+    const { count } = await prisma.decemberBooking.updateMany({
+      where: { id: booking.id, reminder24hAt: null },
+      data: { reminder24hAt: now }
+    });
+    if (!count) {
+      skipped++;
+      continue;
+    }
+    if (await sendReminder(booking, now)) {
       sent++;
     } else {
+      // Not sent: give it back, so the next run tries again.
+      await prisma.decemberBooking.updateMany({
+        where: { id: booking.id, reminder24hAt: now },
+        data: { reminder24hAt: null }
+      });
       failed++;
     }
   }
-  return { sent, failed, skipped: 0 };
+  return { sent, failed, skipped };
 }
