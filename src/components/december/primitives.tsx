@@ -33,7 +33,9 @@ export function RevealText({
           <motion.span
             className="inline-block"
             initial={reduce ? { opacity: 0 } : { y: "105%" }}
-            animate={reduce ? { opacity: 1 } : { y: "0%" }}
+            // Always end in place and visible: the server can't know about Reduce Motion, so the
+            // page it sends starts every word lowered, and a fade alone would leave it hidden.
+            animate={{ opacity: 1, y: "0%" }}
             transition={{ duration: 0.8, ease: EASE, delay: delay + i * 0.045 }}
           >
             {word}
