@@ -44,8 +44,10 @@ export function Hero({ december = false }: { december?: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
+            {/* Loaded in full while the callout is on screen, so a tap opens it straight away. */}
             <Link
               href="/december"
+              prefetch
               className="group inline-flex flex-col items-center gap-2 rounded-3xl border border-gold/60 bg-night/70 px-5 py-3 font-accent text-sm text-cream shadow-lg backdrop-blur-sm transition hover:border-gold hover:bg-night/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold sm:flex-row sm:gap-3 sm:rounded-full sm:py-1.5 sm:pl-1.5 sm:pr-5"
             >
               <span className="whitespace-nowrap rounded-full bg-gold px-3 py-1 text-xs font-semibold uppercase tracking-wider text-night">
