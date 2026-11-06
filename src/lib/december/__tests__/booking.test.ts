@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { createBooking, expireHolds, findBooking, rescheduleBooking, setPaid } from "../booking";
+import { createBooking, expireHolds, findBooking, invalidateSlots, openSlots, rescheduleBooking, setPaid } from "../booking";
 import * as google from "../google-calendar";
 import * as notify from "../notify";
 import { prisma } from "@/lib/prisma";
@@ -90,6 +90,40 @@ beforeEach(() => {
   }));
   db.delete.mockResolvedValue({});
   g.queryBusy.mockResolvedValue([]);
+});
+
+describe("openSlots", () => {
+  beforeEach(() => invalidateSlots());
+
+  it("asks Google only up to the last booking day, in one query", async () => {
+    // Friday 6 Nov 2026, 20:00 Lagos; bookings close at the end of Friday 27 Nov.
+    const now = new Date("2026-11-06T19:00:00Z");
+    const days = await openSlots(now);
+    expect(g.queryBusy).toHaveBeenCalledTimes(1);
+    expect(g.queryBusy).toHaveBeenCalledWith(now, new Date("2026-11-27T23:00:00.000Z"));
+    expect(days.at(-1)?.[0]).toBe("2026-11-27");
+  });
+
+  it("answers from the cache without the database or Google", async () => {
+    const first = await openSlots(NOW);
+    jest.clearAllMocks();
+    const again = await openSlots(new Date(NOW.getTime() + 30_000));
+    expect(again).toEqual(first);
+    expect(g.queryBusy).not.toHaveBeenCalled();
+    expect(prisma.siteSettings.findMany).not.toHaveBeenCalled();
+    expect(db.findMany).not.toHaveBeenCalled();
+  });
+
+  it("drops cached times that come inside the notice period", async () => {
+    // 06:59:30 Lagos: 11:00 is just outside the 4 hours' notice.
+    const first = await openSlots(new Date("2026-10-05T05:59:30Z"));
+    expect(first[0][1][0]).toBe(SLOT);
+    jest.clearAllMocks();
+    // 40 seconds later the answer is still cached, and 11:00 is inside the notice.
+    const later = await openSlots(new Date("2026-10-05T06:00:10Z"));
+    expect(g.queryBusy).not.toHaveBeenCalled();
+    expect(later[0][1][0]).toBe("2026-10-05T10:30:00.000Z");
+  });
 });
 
 describe("createBooking (live calendar)", () => {

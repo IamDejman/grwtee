@@ -41,6 +41,15 @@ export function bookingClosed(now: Date, rules: SlotRules = DEFAULT_RULES): bool
   return rules.lastDate !== null && lagosDay(now.getTime()) > rules.lastDate;
 }
 
+/** No slot under the rules ends after this, so busy time beyond it can't close any slot. */
+export function slotsEnd(now: Date, rules: SlotRules = DEFAULT_RULES): Date {
+  const windowEnd = now.getTime() + (rules.windowDays + 1) * DAY_MS;
+  if (rules.lastDate === null) return new Date(windowEnd);
+  // Midnight at the end of the last booking day, in Lagos.
+  const lastDayEnd = Date.parse(`${rules.lastDate}T00:00:00Z`) + DAY_MS - LAGOS_UTC_OFFSET_HOURS * 3_600_000;
+  return new Date(Number.isNaN(lastDayEnd) ? windowEnd : Math.min(windowEnd, lastDayEnd));
+}
+
 /** Open slot start times (ISO UTC), grouped by Lagos calendar date (YYYY-MM-DD). */
 export function generateSlots(
   now: Date,

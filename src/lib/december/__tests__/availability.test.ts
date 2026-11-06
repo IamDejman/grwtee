@@ -1,4 +1,4 @@
-import { bookingClosed, DEFAULT_RULES, generateSlots } from "../availability";
+import { bookingClosed, DEFAULT_RULES, generateSlots, slotsEnd } from "../availability";
 
 describe("generateSlots", () => {
   it("matches the Calendly rules: weekdays, 11:00 to 15:00 Lagos, 8 slots", () => {
@@ -52,5 +52,36 @@ describe("generateSlots", () => {
     expect(days.get("2026-10-05")).not.toContain("2026-10-05T10:00:00.000Z");
     expect(days.get("2026-10-05")).not.toContain("2026-10-05T10:30:00.000Z");
     expect(days.get("2026-10-05")).toContain("2026-10-05T11:00:00.000Z");
+  });
+});
+
+describe("slotsEnd", () => {
+  it("stops at the end of the last booking day in Lagos", () => {
+    // Friday 6 Nov 2026, 20:00 Lagos: the rolling window runs into January, the last day is 27 Nov.
+    expect(slotsEnd(new Date("2026-11-06T19:00:00Z")).toISOString()).toBe("2026-11-27T23:00:00.000Z");
+  });
+
+  it("uses the rolling window when it ends first, or when there is no last day", () => {
+    const now = new Date("2026-09-01T08:00:00Z");
+    expect(slotsEnd(now, { ...DEFAULT_RULES, windowDays: 14 }).toISOString()).toBe("2026-09-16T08:00:00.000Z");
+    expect(slotsEnd(now, { ...DEFAULT_RULES, lastDate: null }).toISOString()).toBe("2026-11-01T08:00:00.000Z");
+  });
+
+  it("falls back to the rolling window when the last day isn't a date", () => {
+    const now = new Date("2026-09-01T08:00:00Z");
+    expect(slotsEnd(now, { ...DEFAULT_RULES, lastDate: "2026-13-01" }).toISOString()).toBe("2026-11-01T08:00:00.000Z");
+  });
+
+  it("never cuts off a slot the rules can offer", () => {
+    const everyDayToMidnight = { ...DEFAULT_RULES, weekdays: [0, 1, 2, 3, 4, 5, 6], endHour: 24 };
+    const shortWindow = { ...DEFAULT_RULES, lastDate: null, windowDays: 5 };
+    for (const iso of ["2026-09-30T08:44:00Z", "2026-11-06T19:00:00Z", "2026-11-27T05:00:00Z"]) {
+      for (const rules of [DEFAULT_RULES, everyDayToMidnight, shortWindow]) {
+        const now = new Date(iso);
+        const ends = [...generateSlots(now, rules).values()].flat().map((s) => Date.parse(s) + rules.slotMinutes * 60_000);
+        expect(ends.length).toBeGreaterThan(0);
+        expect(Math.max(...ends)).toBeLessThanOrEqual(slotsEnd(now, rules).getTime());
+      }
+    }
   });
 });
