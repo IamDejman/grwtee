@@ -13,45 +13,28 @@ export function Hero({ december = false }: { december?: boolean }) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    function seekAndPlay() {
-      video!.currentTime = 24;
-      video!.play().catch(() => {});
-    }
-
-    function handleEnded() {
-      video!.currentTime = 24;
-      video!.play().catch(() => {});
-    }
-
+    // Phones only autoplay video they can see is muted.
     video.muted = true;
     video.volume = 0;
     video.setAttribute("muted", "");
-    video.addEventListener("ended", handleEnded);
-
-    if (video.readyState >= 1) {
-      seekAndPlay();
-    } else {
-      video.addEventListener("loadedmetadata", seekAndPlay, { once: true });
-    }
-
-    return () => {
-      video.removeEventListener("ended", handleEnded);
-      video.removeEventListener("loadedmetadata", seekAndPlay);
-    };
+    video.play().catch(() => {});
   }, []);
 
   return (
     <section className="relative overflow-hidden">
+      {/* The loop is the six seconds the hero shows, in 8-bit H.264 so phones can decode it. The
+          poster is its first frame, shown until it plays or when a phone won't autoplay. */}
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
         muted
+        loop
         playsInline
         preload="auto"
+        poster="/hero-poster.jpg"
         aria-hidden="true"
       >
-        <source src="/hero-bg.mp4" type="video/mp4" />
+        <source src="/hero-loop.mp4" type="video/mp4" />
       </video>
 
       <div className="container-shell relative z-10 flex min-h-[78vh] flex-col items-center justify-center py-20 text-center">
