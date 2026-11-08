@@ -11,7 +11,7 @@ import { Invitation, type Booked } from "./Invitation";
 import { EASE, PrimaryButton, RevealText } from "./primitives";
 import { ContactStep, LooksStep, NameStep, OccasionsStep, StyleStep } from "./steps";
 import { TimelineStep } from "./TimelineStep";
-import { viewerTimeZone } from "./SlotPicker";
+import { prefetchSlots, viewerTimeZone } from "./SlotPicker";
 import { TimeStep, type BookOutcome } from "./TimeStep";
 
 const STEPS = ["intro", "name", "contact", "occasions", "looks", "timeline", "style", "brief", "time", "done"] as const;
@@ -249,6 +249,11 @@ export function DecemberFlow({
   useEffect(() => {
     if (step !== "intro" && step !== "done") writeSaved({ brief, step, clientRef: clientRef.current ?? undefined });
   }, [brief, step]);
+
+  // Load open times while the client reviews the brief, so the time step can show them at once.
+  useEffect(() => {
+    if (step === "brief") prefetchSlots();
+  }, [step]);
 
   const update = useCallback((patch: Partial<DecemberBrief>) => setBrief((b) => ({ ...b, ...patch })), []);
 

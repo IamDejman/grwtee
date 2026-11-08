@@ -39,9 +39,36 @@ async function fetchSlots(): Promise<SlotDays> {
   return json.days;
 }
 
+// Open times requested a step early; the time step uses them while they're fresh (the server
+// caches open times for a minute too).
+const AHEAD_MS = 60_000;
+let ahead: { at: number; promise: Promise<SlotDays>; days?: SlotDays } | null = null;
+
+/** Starts loading open times before the time step, so it can show them straight away. */
+export function prefetchSlots() {
+  if (ahead && Date.now() - ahead.at < AHEAD_MS) return;
+  const entry: NonNullable<typeof ahead> = { at: Date.now(), promise: fetchSlots() };
+  ahead = entry;
+  entry.promise.then(
+    (days) => {
+      entry.days = days;
+    },
+    () => {
+      if (ahead === entry) ahead = null;
+    }
+  );
+}
+
+function freshAhead() {
+  return ahead && Date.now() - ahead.at < AHEAD_MS ? ahead : null;
+}
+
 /** Open times from the server (booking rules + Google Calendar). `reload` returns the fresh days. */
 export function useSlots() {
-  const [state, setState] = useState<SlotState>({ status: "loading" });
+  const [state, setState] = useState<SlotState>(() => {
+    const days = freshAhead()?.days;
+    return days ? { status: "ready", days } : { status: "loading" };
+  });
 
   const reload = useCallback(async (): Promise<SlotDays | null> => {
     setState((s) => (s.status === "ready" ? s : { status: "loading" }));
@@ -57,7 +84,7 @@ export function useSlots() {
 
   useEffect(() => {
     let active = true;
-    fetchSlots()
+    (freshAhead()?.promise ?? fetchSlots())
       .then((days) => active && setState({ status: "ready", days }))
       .catch(() => active && setState({ status: "error" }));
     return () => {
