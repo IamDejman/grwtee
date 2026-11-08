@@ -1,25 +1,37 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, type RegisterOptions } from "react-hook-form";
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { parseEmail } from "@/lib/security/email-validation";
 
-const schema = z.object({
-  name: z.string().min(2, "Please enter at least 2 characters"),
-  email: z.string().email("Enter a valid email address"),
-  phone: z.string().min(7, "Enter a valid phone number"),
-  service: z.string().min(1, "Select a service"),
-  message: z.string().optional(),
-  agree: z.literal(true, { error: "You must agree to the Terms & Policies" })
-});
+type FormData = {
+  name: string;
+  email: string;
+  phone: string;
+  service: string;
+  message: string;
+  agree: boolean;
+};
 
-type FormData = z.infer<typeof schema>;
+// react-hook-form's own rules rather than a zod schema, so the page doesn't ship zod (92 KB) to
+// phones. The email check is the one the server runs, so it also catches disposable addresses.
+const rules: { [K in keyof FormData]?: RegisterOptions<FormData, K> } = {
+  name: { validate: (v) => v.length >= 2 || "Please enter at least 2 characters" },
+  email: {
+    validate: (v) => {
+      const email = parseEmail(v);
+      return email.ok || email.message;
+    }
+  },
+  phone: { validate: (v) => v.length >= 7 || "Enter a valid phone number" },
+  service: { validate: (v) => v.length >= 1 || "Select a service" },
+  agree: { validate: (v) => v === true || "You must agree to the Terms & Policies" }
+};
 
 const options = [
   { value: "virtual-personal-styling", label: "Virtual Personal Styling" },
@@ -41,9 +53,7 @@ export default function ContactPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting }
-  } = useForm<FormData>({
-    resolver: zodResolver(schema)
-  });
+  } = useForm<FormData>();
 
   const onSubmit = async (data: FormData) => {
     setError(null);
@@ -95,7 +105,7 @@ export default function ContactPage() {
                 placeholder="Your name"
                 required
                 error={errors.name?.message}
-                {...register("name")}
+                {...register("name", rules.name)}
               />
               <Input
                 type="email"
@@ -103,7 +113,7 @@ export default function ContactPage() {
                 placeholder="you@example.com"
                 required
                 error={errors.email?.message}
-                {...register("email")}
+                {...register("email", rules.email)}
               />
               <Input
                 type="tel"
@@ -111,7 +121,7 @@ export default function ContactPage() {
                 placeholder="+234 XXX XXX XXXX"
                 required
                 error={errors.phone?.message}
-                {...register("phone")}
+                {...register("phone", rules.phone)}
               />
               <Select
                 label="Service Interest"
@@ -119,7 +129,7 @@ export default function ContactPage() {
                 error={errors.service?.message}
                 placeholder="Select a service"
                 options={options}
-                {...register("service")}
+                {...register("service", rules.service)}
               />
               <Textarea
                 label="Message"
@@ -132,7 +142,7 @@ export default function ContactPage() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-medium"
-                  {...register("agree")}
+                  {...register("agree", rules.agree)}
                 />
                 <span className="text-sm text-gray-dark/80">
                   I have read and agree to the{" "}
