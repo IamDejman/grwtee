@@ -6,21 +6,33 @@ import { EASE } from "./primitives";
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
+/**
+ * A soft light: a radial gradient matched to a shape blurred by 120px (within 2/255 on average).
+ * It was such a blur, but iPhones paint large blurs in software, and redoing that on every frame
+ * of the drift froze the page for seconds before its first frame.
+ */
+function glow(rgb: string, alpha: number): string {
+  const stops = [0.95, 0.85, 0.5, 0.2].map((share, i) => `rgb(${rgb} / ${(alpha * share).toFixed(3)}) ${i * 25}%`);
+  return `radial-gradient(closest-side, ${stops.join(", ")}, rgb(${rgb} / 0) 100%)`;
+}
+
+// The blurred shape's box grown by the blur's visible reach, so the light fades out where it did.
+const REACH = "180px";
+const box = { width: `calc(90% + 2 * ${REACH})`, height: `calc(70% + 2 * ${REACH})` };
+const GOLD_LIGHT = { ...box, right: `calc(-20% - ${REACH})`, top: `calc(-15% - ${REACH})`, backgroundImage: glow("207 157 78", 0.3) };
+const PURPLE_LIGHT = { ...box, left: `calc(-20% - ${REACH})`, bottom: `calc(-20% - ${REACH})`, backgroundImage: glow("91 61 138", 0.4) };
+
 /** Two soft lights drifting slowly; transform-only so it stays cheap on phones. Frozen under reduced motion. */
 export function AmbientLight({ className = "" }: { className?: string }) {
   const reduce = useReducedMotion();
   const drift = (x: number[], y: number[], duration: number) =>
     reduce ? {} : { animate: { x, y }, transition: { duration, repeat: Infinity, repeatType: "mirror" as const, ease: "easeInOut" as const } };
+  // While drifting, each light gets its own layer, so moving it never repaints it.
+  const light = reduce ? "absolute" : "absolute will-change-transform";
   return (
     <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden="true">
-      <motion.div
-        className="absolute -right-[20%] -top-[15%] h-[70%] w-[90%] rounded-full bg-gold/30 blur-[120px]"
-        {...drift([0, -60, 20], [0, 40, -20], 22)}
-      />
-      <motion.div
-        className="absolute -bottom-[20%] -left-[20%] h-[70%] w-[90%] rounded-full bg-purple-medium/40 blur-[120px]"
-        {...drift([0, 50, -30], [0, -40, 10], 26)}
-      />
+      <motion.div className={light} style={GOLD_LIGHT} {...drift([0, -60, 20], [0, 40, -20], 22)} />
+      <motion.div className={light} style={PURPLE_LIGHT} {...drift([0, 50, -30], [0, -40, 10], 26)} />
       <div className="absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
     </div>
   );

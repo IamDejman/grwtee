@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { formatBookingMessage, formatServiceLabel } from "@/lib/utils";
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 
 export const revalidate = 300;
@@ -99,68 +99,71 @@ export async function POST(req: Request) {
     );
   }
 
-  // Send notification to CONTACT_EMAIL (e.g. book@grwtee.com) and confirmation to client via Resend
-  try {
-    const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "book@grwtee.com");
-    const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com");
+  // Notification to CONTACT_EMAIL (e.g. book@grwtee.com) and confirmation to the client via Resend.
+  // Sent after the response, so the client isn't kept waiting on the email service.
+  after(async () => {
+    try {
+      const contactEmail = await getConfig("CONTACT_EMAIL", process.env.CONTACT_EMAIL || "book@grwtee.com");
+      const siteUrl = await getConfig("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL || "https://grwtee.com");
 
-    console.log("[Bookings] Sending notification to %s and confirmation to %s", contactEmail, data.email);
+      console.log("[Bookings] Sending notification to %s and confirmation to %s", contactEmail, data.email);
 
-    const notificationText = [
-      `Name: ${data.name}`,
-      `Email: ${data.email}`,
-      `Phone: ${data.phone}`,
-      `Service: ${formatServiceLabel(data.service)}`,
-      "",
-      "Message:",
-      formatBookingMessage(data.message)
-    ].join("\n");
-    const messageFormatted = formatBookingMessage(data.message);
-    const messageHtml = escapeHtml(messageFormatted).replace(/\n/g, "<br/>");
-    const notificationHtml = bookingNotificationHtml({
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      serviceLabel: formatServiceLabel(data.service),
-      messageHtml,
-      siteUrl: siteUrl ?? "https://grwtee.com"
-    });
-    const notifResult = await sendEmail({
-      to: contactEmail ?? "book@grwtee.com",
-      subject: "New Booking Request",
-      html: notificationHtml,
-      text: notificationText
-    });
-    if (notifResult.error) {
-      console.error("[Bookings] Notification email failed:", notifResult.error);
+      const notificationText = [
+        `Name: ${data.name}`,
+        `Email: ${data.email}`,
+        `Phone: ${data.phone}`,
+        `Service: ${formatServiceLabel(data.service)}`,
+        "",
+        "Message:",
+        formatBookingMessage(data.message)
+      ].join("\n");
+      const messageFormatted = formatBookingMessage(data.message);
+      const messageHtml = escapeHtml(messageFormatted).replace(/\n/g, "<br/>");
+      const notificationHtml = bookingNotificationHtml({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        serviceLabel: formatServiceLabel(data.service),
+        messageHtml,
+        siteUrl: siteUrl ?? "https://grwtee.com"
+      });
+      const notifResult = await sendEmail({
+        to: contactEmail ?? "book@grwtee.com",
+        subject: "New Booking Request",
+        html: notificationHtml,
+        text: notificationText
+      });
+      if (notifResult.error) {
+        console.error("[Bookings] Notification email failed:", notifResult.error);
+      }
+
+      const confirmationText = [
+        `Hi ${data.name},`,
+        "",
+        "Thank you for reaching out to GRWTEE. We've received your booking request and will get back to you within 24–48 hours.",
+        "",
+        `Service interest: ${formatServiceLabel(data.service)}`,
+        "",
+        "Warm regards,",
+        "GRWTEE"
+      ].join("\n");
+      const confirmationHtml = bookingConfirmationHtml({
+        name: data.name,
+        serviceLabel: formatServiceLabel(data.service)
+      });
+      const confirmResult = await sendEmail({
+        to: data.email,
+        subject: "We received your request | GRWTEE",
+        html: confirmationHtml,
+        text: confirmationText
+      });
+      if (confirmResult.error) {
+        console.error("[Bookings] Confirmation email failed:", confirmResult.error);
+      }
+    } catch (e) {
+      console.error("[Bookings] Email error:", e);
     }
-
-    const confirmationText = [
-      `Hi ${data.name},`,
-      "",
-      "Thank you for reaching out to GRWTEE. We've received your booking request and will get back to you within 24–48 hours.",
-      "",
-      `Service interest: ${formatServiceLabel(data.service)}`,
-      "",
-      "Warm regards,",
-      "GRWTEE"
-    ].join("\n");
-    const confirmationHtml = bookingConfirmationHtml({
-      name: data.name,
-      serviceLabel: formatServiceLabel(data.service)
-    });
-    const confirmResult = await sendEmail({
-      to: data.email,
-      subject: "We received your request | GRWTEE",
-      html: confirmationHtml,
-      text: confirmationText
-    });
-    if (confirmResult.error) {
-      console.error("[Bookings] Confirmation email failed:", confirmResult.error);
-    }
-  } catch (e) {
-    console.error("[Bookings] Email error:", e);
-  }
+  });
 
   return NextResponse.json({
     success: true,
