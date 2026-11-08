@@ -57,13 +57,13 @@ function requiresAdminIpGuard(pathname: string): boolean {
   return adminApiPrefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
-function withSecurityHeaders(response: NextResponse): NextResponse {
-  applySecurityHeaders(response);
-  return response;
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Admin pages also reach this project's Supabase from the browser (Realtime for stylist messages).
+  const withSecurityHeaders = (response: NextResponse): NextResponse => {
+    applySecurityHeaders(response, { supabase: pathname.startsWith("/admin") });
+    return response;
+  };
 
   if (requiresAdminIpGuard(pathname) && !isAdminIpAllowed(request)) {
     return withSecurityHeaders(new NextResponse("Forbidden", { status: 403 }));
