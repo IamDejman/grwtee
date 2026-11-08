@@ -15,13 +15,21 @@ function SlideVideo({ src, isActive, onEnded }: { src: string; isActive: boolean
     if (!video) return;
     video.muted = true;
     video.volume = 0;
-    if (isActive) {
-      video.currentTime = 0;
-      video.play().catch(() => {});
-    } else {
+    if (!isActive) {
       video.pause();
+      return;
     }
-  }, [isActive]);
+    let left = false;
+    video.currentTime = 0;
+    // The slideshow waits for a video to end, so one that won't play (Low Power Mode blocks
+    // autoplay on iPhones) would hold it on this slide for good: move on instead.
+    video.play().catch((err: unknown) => {
+      if (!left && (err as { name?: string } | null)?.name !== "AbortError") onEnded();
+    });
+    return () => {
+      left = true;
+    };
+  }, [isActive, onEnded]);
 
   return (
     <video
@@ -30,6 +38,7 @@ function SlideVideo({ src, isActive, onEnded }: { src: string; isActive: boolean
       muted
       playsInline
       onEnded={onEnded}
+      onError={onEnded}
       className="h-full w-full object-cover"
     />
   );
