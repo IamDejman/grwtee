@@ -97,7 +97,6 @@ export function GalleryPreview() {
                   fill
                   className="object-cover"
                   sizes="100vw"
-                  priority={current === 0}
                 />
               )}
             </motion.div>
