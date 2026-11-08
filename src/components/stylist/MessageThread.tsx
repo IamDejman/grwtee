@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
 import { useToast } from '@/components/admin/Toast'
 
 interface Message {
@@ -20,6 +19,18 @@ interface MessageThreadProps {
 }
 
 const LAGOS = 'Africa/Lagos'
+// New messages are fetched through the site's own API on this interval while the thread is on
+// screen, each time looking back a little before the newest one already seen.
+const POLL_MS = 4000
+const OVERLAP_MS = 30_000
+
+/** Adds the messages the thread doesn't have yet, keeping it in time order. */
+function withNew(prev: Message[], fresh: Message[]): Message[] {
+  const known = new Set(prev.map((m) => m.id))
+  const added = fresh.filter((m) => !known.has(m.id))
+  if (!added.length) return prev
+  return [...prev, ...added].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+}
 const dayLabel = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: LAGOS })
 const timeLabel = (iso: string) =>
@@ -37,22 +48,60 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  // New messages from the client arrive live.
+  // The newest message time the server has returned. Polls start from here, not from the newest
+  // message on screen: a reply sent from this page shows at once, and starting after it would
+  // skip a client message that arrived just before it.
+  const seenUntil = useRef<string | null>(initialMessages.at(-1)?.created_at ?? null)
+
+  // New messages from the client, through the site's own API: the browser never reads Supabase,
+  // so its tables can stay locked down. Polls run while the thread is on screen.
   useEffect(() => {
-    const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const channel = supabase
-      .channel(`conversation:${conversationId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          const msg = payload.new as Message
-          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+    let stopped = false
+    let inFlight = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const schedule = () => {
+      clearTimeout(timer)
+      if (!stopped && !document.hidden) timer = setTimeout(poll, POLL_MS)
+    }
+
+    async function poll() {
+      if (stopped || inFlight) return
+      inFlight = true
+      const since = seenUntil.current ? new Date(Date.parse(seenUntil.current) - OVERLAP_MS).toISOString() : new Date(0).toISOString()
+      try {
+        const res = await fetch(
+          `/api/stylist/messages?conversation_id=${encodeURIComponent(conversationId)}&after=${encodeURIComponent(since)}`,
+          { cache: 'no-store' }
+        )
+        // Signed out, blocked or the conversation is gone: stop asking.
+        if (res.status === 401 || res.status === 403 || res.status === 404) stopped = true
+        else if (res.ok) {
+          const fresh = ((await res.json()) as { messages?: Message[] }).messages ?? []
+          if (fresh.length) {
+            seenUntil.current = fresh[fresh.length - 1].created_at
+            setMessages((prev) => withNew(prev, fresh))
+          }
         }
-      )
-      .subscribe()
+      } catch {
+        // Offline for a moment: the next poll catches up.
+      } finally {
+        inFlight = false
+      }
+      schedule()
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) clearTimeout(timer)
+      else void poll() // catch up as soon as the thread is back on screen
+    }
+
+    schedule()
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
-      void supabase.removeChannel(channel)
+      stopped = true
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [conversationId])
 
@@ -76,7 +125,7 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
       const data = (await res.json().catch(() => null)) as { message?: Message } | null
       if (!res.ok || !data?.message) throw new Error()
       const sent = data.message
-      // Show it straight away; the live feed skips it later because the id matches.
+      // Show it straight away; polls skip it later because the id matches.
       setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
       setInput('')
       requestAnimationFrame(resize)
