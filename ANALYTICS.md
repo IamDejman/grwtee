@@ -1,6 +1,6 @@
 # Analytics (Google Analytics 4)
 
-The site uses **Google Analytics 4 (GA4)** via `@next/third-parties`. Page views are tracked on initial load and on client-side route changes. You can also send custom events for conversions and key actions.
+The site uses **Google Analytics 4 (GA4)**, loaded by `src/components/analytics/AnalyticsProvider.tsx` with `next/script`'s `lazyOnload` strategy: Google's script loads once the page has finished loading and the browser is idle, so it never competes with the page itself on a slow phone. A visitor who leaves within the first couple of seconds may not be counted. Page views are tracked on initial load and on client-side route changes. You can also send custom events for conversions and key actions.
 
 ## Setup
 

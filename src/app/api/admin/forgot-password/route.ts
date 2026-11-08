@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { parseEmail } from "@/lib/security/email-validation";
 import { safeError } from "@/lib/security/logger";
+import { hashResetCode } from "@/lib/security/reset-code";
 
 const OTP_EXPIRY_MINUTES = 5;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -53,6 +54,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, message: GENERIC_SUCCESS });
   }
 
+  // The in-memory limit only covers one server instance. The database check
+  // covers them all: one code per address per window. Codes stay in the
+  // table until the next one is issued, so spent and expired ones still count.
+  const recentCode = await prisma.passwordResetOtp.findFirst({
+    where: { email, createdAt: { gt: new Date(Date.now() - RATE_LIMIT_WINDOW_MS) } },
+    select: { id: true }
+  });
+  if (recentCode) {
+    return NextResponse.json({ success: true, message: GENERIC_SUCCESS, resetToken: randomUUID() });
+  }
+
   recordRequest(email);
 
   const admin = await prisma.admin.findUnique({ where: { email } });
@@ -66,7 +78,7 @@ export async function POST(req: Request) {
 
   await prisma.passwordResetOtp.deleteMany({ where: { email } });
   await prisma.passwordResetOtp.create({
-    data: { email, otp, resetToken, expiresAt, attemptCount: 0 }
+    data: { email, otp: hashResetCode(otp), resetToken, expiresAt, attemptCount: 0 }
   });
 
   const { error } = await sendEmail({

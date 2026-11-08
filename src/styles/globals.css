@@ -134,4 +134,45 @@ body.loaded footer {
   opacity: 1;
 }
 
+/* December reveals. Plain CSS so they run from the first paint: driven by scripts, the intro
+   text stayed invisible until every script had loaded, which takes seconds on a slow phone. */
+@keyframes reveal-rise {
+  from {
+    transform: translateY(105%);
+  }
+}
+
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes reveal-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.reveal-rise {
+  animation: reveal-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reveal-fade {
+  animation: reveal-fade 0.8s ease-out both;
+}
+
+.reveal-fade-up {
+  animation: reveal-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Fade in place, as framer-motion does under reducedMotion="user". */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-rise,
+  .reveal-fade-up {
+    animation-name: reveal-fade;
+  }
+}
+
 

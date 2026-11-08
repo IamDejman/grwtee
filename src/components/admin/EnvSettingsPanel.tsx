@@ -11,6 +11,9 @@ import { useUnsavedChanges } from "@/components/admin/useUnsavedChanges";
 type EnvRow = {
   value: string;
   source: "database" | "environment";
+  editable?: boolean;
+  inDatabase?: boolean;
+  inEnvironment?: boolean;
 };
 
 const GROUPS: { title: string; keys: [string, string][] }[] = [
@@ -43,10 +46,17 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
     title: "Sign-in",
     keys: [
       ["NEXTAUTH_URL", "Sign-in address"],
-      ["NEXTAUTH_SECRET", "Sign-in secret (changing it signs everyone out)"]
+      ["NEXTAUTH_SECRET", "Sign-in secret"]
     ]
   }
 ];
+
+/** What to tell the admin about a secret that still has a copy stored in the database. */
+function storedSecretNote(key: string, row: EnvRow) {
+  if (key === "NEXTAUTH_SECRET") return "This stored copy is no longer used. Remove it.";
+  if (row.inEnvironment) return "This stored copy is used instead of Vercel's. Remove it to use Vercel's value.";
+  return "Add this value in Vercel's environment variables, then remove the stored copy.";
+}
 
 async function apiError(res: Response, fallback: string) {
   const json = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -61,6 +71,7 @@ export function EnvSettingsPanel() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [reencrypting, setReencrypting] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const load = async () => {
     setLoadError(false);
@@ -109,6 +120,32 @@ export function EnvSettingsPanel() {
     }
   };
 
+  const removeStored = async (key: string, label: string, row: EnvRow) => {
+    const currentPassword = await askPassword({
+      title: `Remove the stored ${label.toLowerCase()}?`,
+      body: row.inEnvironment || key === "NEXTAUTH_SECRET"
+        ? "The site will use the value set in Vercel."
+        : "Only do this after adding the value in Vercel's environment variables, or this connection will stop working.",
+      confirmLabel: "Remove"
+    });
+    if (!currentPassword) return;
+    setRemoving(key);
+    try {
+      const res = await adminFetch("/api/settings/env", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, currentPassword })
+      });
+      if (!res.ok) throw new Error(await apiError(res, "Couldn't remove it. Try again."));
+      toast.success("Stored copy removed.");
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Couldn't remove it. Try again.");
+    } finally {
+      setRemoving(null);
+    }
+  };
+
   const reencrypt = async () => {
     const currentPassword = await askPassword({
       title: "Re-encrypt payment details?",
@@ -139,7 +176,8 @@ export function EnvSettingsPanel() {
       {dialog}
       <p className="rounded-xl bg-gold/10 px-4 py-3 text-sm text-[#8A6420]">
         These connect the site to email, image storage and analytics. A wrong value can stop emails or uploads working, so only
-        change them if you know the new value is right.
+        change them if you know the new value is right. API keys and the sign-in secret are set in Vercel&apos;s environment
+        variables, not here.
       </p>
 
       <Panel
@@ -173,7 +211,44 @@ export function EnvSettingsPanel() {
                 <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-atelier-faint">{group.title}</h3>
                 <ul className="divide-y divide-atelier-border rounded-xl border border-atelier-border">
                   {group.keys.map(([key, label]) => {
-                    const configured = rows[key]?.value === "[configured]";
+                    const row = rows[key];
+                    if (row && row.editable === false) {
+                      return (
+                        <li key={key} className="grid gap-2 p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:items-center">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-atelier-ink">
+                              {label}
+                              {row.inEnvironment ? (
+                                <Badge tone="green">Set in Vercel</Badge>
+                              ) : row.inDatabase ? (
+                                <Badge tone="gold">Stored here</Badge>
+                              ) : (
+                                <Badge tone="gold">Not set</Badge>
+                              )}
+                            </p>
+                            <p className="truncate font-mono text-xs text-atelier-faint" translate="no">
+                              {key}
+                            </p>
+                          </div>
+                          {row.inDatabase ? (
+                            <div className="space-y-2">
+                              <p className="text-xs text-atelier-muted">{storedSecretNote(key, row)}</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                loading={removing === key}
+                                onClick={() => void removeStored(key, label, row)}
+                              >
+                                Remove stored copy
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-atelier-muted">Set in Vercel&apos;s environment variables.</p>
+                          )}
+                        </li>
+                      );
+                    }
+                    const configured = row?.value === "[configured]";
                     return (
                       <li key={key} className="grid gap-2 p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:items-center">
                         <div className="min-w-0">
