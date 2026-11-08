@@ -149,30 +149,23 @@ function Intro({
 }) {
   return (
     <div className="flex max-w-xl flex-col">
-      <motion.p
-        className="font-body text-sm text-gold"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-      >
-        GRWTEE x Lagos in December 2026
-      </motion.p>
+      {/* The text reveals with CSS, from the first paint. */}
+      <p className="reveal-fade font-body text-sm text-gold">GRWTEE x Lagos in December 2026</p>
       <RevealText
         text="Lagos in December, styled with intention."
         headingRef={headingRef}
         delay={0.2}
         className="mt-5 font-cormorant text-[3.25rem] font-light leading-[0.98] text-cream md:text-[5rem]"
       />
-      <motion.p
-        className="mt-8 max-w-md font-body text-base leading-relaxed text-cream/80 md:text-lg"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9, duration: 0.7, ease: EASE }}
+      <p
+        className="reveal-fade-up mt-8 max-w-md font-body text-base leading-relaxed text-cream/80 md:text-lg"
+        style={{ animationDelay: "0.9s" }}
       >
         Concerts, brunches, dinners and nights that run late. Tell us what&apos;s on your calendar and
         we&apos;ll curate a look for each occasion.
         {full || closed ? null : " It takes about three minutes, then you choose a time for your consultation."}
-      </motion.p>
+      </p>
+      {/* The buttons still wait for the scripts, so they never appear before a tap works. */}
       <motion.div
         className="mt-10 flex flex-wrap items-center gap-6"
         initial={{ opacity: 0, y: 10 }}
