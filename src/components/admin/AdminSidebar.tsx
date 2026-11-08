@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   CalendarDays,
   Ellipsis,
+  Flag,
   Images,
   LayoutDashboard,
   ListChecks,
@@ -16,6 +17,7 @@ import {
   Settings,
   Shirt,
   Sparkles,
+  UserCheck,
   Users,
   X,
   type LucideIcon
@@ -45,7 +47,9 @@ const stylistLinks: NavLink[] = [
   { href: "/admin/lookbooks", label: "Lookbooks", icon: BookOpen },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/clients", label: "Clients", icon: Users },
-  { href: "/admin/messages", label: "Messages", icon: MessageSquare }
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare },
+  { href: "/admin/approvals", label: "Sign-ups", icon: UserCheck },
+  { href: "/admin/reports", label: "Reports", icon: Flag }
 ];
 
 // The phone bottom bar: the most-used sections, with everything else under "More".

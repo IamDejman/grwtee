@@ -4,7 +4,8 @@
 import { validateAdminLogin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/security/password-hash";
-import { decryptTotpSecret, verifyTotpCode } from "@/lib/security/mfa";
+import { decryptTotpSecret, verifyTotpCodeOnce } from "@/lib/security/mfa";
+import { consumeRateLimit, isRateLimited, resetRateLimit } from "@/lib/security/rate-limit";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: { admin: { findUnique: jest.fn(), update: jest.fn() } }
@@ -16,7 +17,12 @@ jest.mock("@/lib/security/password-hash", () => ({
 }));
 jest.mock("@/lib/security/mfa", () => ({
   decryptTotpSecret: jest.fn(),
-  verifyTotpCode: jest.fn()
+  verifyTotpCodeOnce: jest.fn()
+}));
+jest.mock("@/lib/security/rate-limit", () => ({
+  consumeRateLimit: jest.fn(),
+  isRateLimited: jest.fn(),
+  resetRateLimit: jest.fn()
 }));
 jest.mock("@/lib/security/security-events", () => ({ writeSecurityEvent: jest.fn() }));
 jest.mock("@/lib/security/audit-log", () => ({ writeAuditLog: jest.fn() }));
@@ -45,7 +51,6 @@ function adminRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// A fresh email per call keeps the in-memory per-email rate limit out of the way.
 let n = 0;
 const credentials = (extra: Record<string, string> = {}) => ({
   email: `admin${++n}@grwtee.test`,
@@ -55,6 +60,9 @@ const credentials = (extra: Record<string, string> = {}) => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (isRateLimited as jest.Mock).mockResolvedValue(false);
+  (consumeRateLimit as jest.Mock).mockResolvedValue({ ok: true, retryAfterSeconds: 0 });
+  (resetRateLimit as jest.Mock).mockResolvedValue(undefined);
 });
 
 describe("validateAdminLogin lockout", () => {
@@ -91,7 +99,7 @@ describe("validateAdminLogin lockout", () => {
     );
     passwordMatches.mockResolvedValue(true);
     (decryptTotpSecret as jest.Mock).mockReturnValue("secret");
-    (verifyTotpCode as jest.Mock).mockReturnValue(true);
+    (verifyTotpCodeOnce as jest.Mock).mockResolvedValue(true);
 
     const result = await validateAdminLogin(credentials({ totp: "123456" }));
 
@@ -110,7 +118,7 @@ describe("validateAdminLogin lockout", () => {
       );
       passwordMatches.mockResolvedValue(passwordOk);
       (decryptTotpSecret as jest.Mock).mockReturnValue("secret");
-      (verifyTotpCode as jest.Mock).mockReturnValue(codeOk);
+      (verifyTotpCodeOnce as jest.Mock).mockResolvedValue(codeOk);
 
       const result = await validateAdminLogin(credentials(totp ? { totp } : {}));
 
@@ -119,4 +127,52 @@ describe("validateAdminLogin lockout", () => {
       expect(update).not.toHaveBeenCalled();
     }
   );
+});
+
+describe("validateAdminLogin throttling", () => {
+  it("refuses before checking anything once the email and IP are over the limit", async () => {
+    (isRateLimited as jest.Mock).mockResolvedValueOnce(true);
+
+    const result = await validateAdminLogin(credentials(), { headers: { "x-forwarded-for": "203.0.113.9" } });
+
+    expect(result).toEqual({ ok: false, error: "rate_limited" });
+    expect(isRateLimited).toHaveBeenCalledWith(expect.stringMatching(/^admin-login:admin\d+@grwtee\.test::203\.0\.113\.9$/), 6, 600_000);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it("counts a wrong authenticator code against the account, from any IP", async () => {
+    findUnique.mockResolvedValue(adminRow({ mfaEnabled: true, mfaSecret: "enc", mfaLastTimeStep: 100 }));
+    passwordMatches.mockResolvedValue(true);
+    (decryptTotpSecret as jest.Mock).mockReturnValue("secret");
+    (verifyTotpCodeOnce as jest.Mock).mockResolvedValue(false);
+
+    const result = await validateAdminLogin(credentials({ totp: "000000" }));
+
+    expect(result).toEqual({ ok: false, error: "mfa_invalid" });
+    expect(verifyTotpCodeOnce).toHaveBeenCalledWith("admin-1", "secret", "000000", 100);
+    expect(consumeRateLimit).toHaveBeenCalledWith("admin-mfa:admin-1", 5, 900_000);
+  });
+
+  it("stops checking authenticator codes after five wrong ones", async () => {
+    findUnique.mockResolvedValue(adminRow({ mfaEnabled: true, mfaSecret: "enc" }));
+    passwordMatches.mockResolvedValue(true);
+    (decryptTotpSecret as jest.Mock).mockReturnValue("secret");
+    (isRateLimited as jest.Mock).mockImplementation(async (key: string) => key === "admin-mfa:admin-1");
+
+    const result = await validateAdminLogin(credentials({ totp: "123456" }));
+
+    expect(result).toEqual({ ok: false, error: "rate_limited" });
+    expect(verifyTotpCodeOnce).not.toHaveBeenCalled();
+  });
+
+  it("refuses the sign-in when the authenticator secret can't be decrypted", async () => {
+    findUnique.mockResolvedValue(adminRow({ mfaEnabled: true, mfaSecret: "v2:old:x:y:z" }));
+    passwordMatches.mockResolvedValue(true);
+    (decryptTotpSecret as jest.Mock).mockReturnValue(null);
+
+    const result = await validateAdminLogin(credentials({ totp: "123456" }));
+
+    expect(result).toEqual({ ok: false, error: "mfa_invalid" });
+    expect(verifyTotpCodeOnce).not.toHaveBeenCalled();
+  });
 });

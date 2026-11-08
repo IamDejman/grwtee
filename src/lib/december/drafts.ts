@@ -36,14 +36,24 @@ const draftSchema = z.object({
 
 export const DRAFT_RETENTION_DAYS = 90;
 
-/** Returns false for input that isn't a valid draft; never throws for bad input. */
-export async function saveDraft(raw: unknown): Promise<boolean> {
+/**
+ * Saves a draft. "invalid" for input that isn't a valid draft (never throws
+ * for bad input); "limited" when it would be a new draft and `canCreate` says
+ * this visitor has started too many.
+ */
+export async function saveDraft(
+  raw: unknown,
+  canCreate: () => Promise<boolean> = async () => true
+): Promise<"saved" | "invalid" | "limited"> {
   const parsed = draftSchema.safeParse(raw);
-  if (!parsed.success) return false;
+  if (!parsed.success) return "invalid";
   const { clientRef, step, brief } = parsed.data;
   const email = parseEmail(brief.email);
   const phone = parsePhoneNumberFromString(brief.whatsapp, brief.country as CountryCode);
-  if (!email.ok || !phone?.isValid()) return false;
+  if (!email.ok || !phone?.isValid()) return "invalid";
+
+  const known = await prisma.decemberDraft.findUnique({ where: { clientRef }, select: { id: true } });
+  if (!known && !(await canCreate())) return "limited";
 
   const fields = {
     name: brief.name,
@@ -59,7 +69,7 @@ export async function saveDraft(raw: unknown): Promise<boolean> {
     if (existing?.bookedAt) return;
     await tx.decemberDraft.upsert({ where: { clientRef }, create: { clientRef, ...fields }, update: fields });
   });
-  return true;
+  return "saved";
 }
 
 export async function pruneDrafts(now = new Date()): Promise<number> {

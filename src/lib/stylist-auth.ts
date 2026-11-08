@@ -20,6 +20,13 @@ export async function getStylistId(): Promise<string | null> {
 
 /** API routes — JWT validated against live tokenVersion. */
 export async function requireStylistId(request: NextRequest): Promise<string | null> {
+  return (await requireStylist(request))?.profileId ?? null
+}
+
+/** Like requireStylistId, plus the admin id the audit log records. */
+export async function requireStylist(
+  request: NextRequest
+): Promise<{ adminId: string; profileId: string } | null> {
   const admin = await requireAdminFromRequest(request)
   if (!admin) return null
 
@@ -30,7 +37,7 @@ export async function requireStylistId(request: NextRequest): Promise<string | n
     .eq('email', admin.email)
     .single()
 
-  return data?.id ?? null
+  return data?.id ? { adminId: admin.id, profileId: data.id } : null
 }
 
 export function stylistError(message?: string, status = 500) {

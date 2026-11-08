@@ -7,33 +7,10 @@ import { getConfig } from "@/lib/config";
 import { subscribeConfirmHtml } from "@/lib/email-templates";
 
 import { parseEmail } from "@/lib/security/email-validation";
+import { guardPublicForm, tooManyRequests, turnstileTokenOf } from "@/lib/security/public-form";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 
-const schema = z.object({ email: z.string() });
-
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX = 5;
-type RL = { count: number; firstAt: number };
-const recent = new Map<string, RL>();
-
-function rateLimited(key: string) {
-  const now = Date.now();
-  const prev = recent.get(key);
-  if (!prev) return false;
-  if (now - prev.firstAt > RATE_LIMIT_WINDOW_MS) {
-    recent.delete(key);
-    return false;
-  }
-  return prev.count >= RATE_LIMIT_MAX;
-}
-function bump(key: string) {
-  const now = Date.now();
-  const prev = recent.get(key);
-  if (!prev || now - prev.firstAt > RATE_LIMIT_WINDOW_MS) {
-    recent.set(key, { count: 1, firstAt: now });
-    return;
-  }
-  recent.set(key, { count: prev.count + 1, firstAt: prev.firstAt });
-}
+const schema = z.object({ email: z.string().max(254) });
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -54,19 +31,13 @@ export async function POST(req: Request) {
   }
 
   const email = emailResult.email;
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
-  const key = `${ip}::${email}`;
-
-  if (rateLimited(key)) {
-    return NextResponse.json(
-      { success: false, error: "Too many requests. Try again later." },
-      { status: 429 }
-    );
-  }
-  bump(key);
+  const refused = await guardPublicForm(req, {
+    form: "newsletter",
+    limit: 5,
+    windowMs: 60 * 60_000,
+    turnstileToken: turnstileTokenOf(body)
+  });
+  if (refused) return refused;
 
   const existing = await prisma.subscriber.findUnique({ where: { email } });
 
@@ -76,6 +47,10 @@ export async function POST(req: Request) {
       message: "You're already subscribed."
     });
   }
+
+  // However many addresses send it, one inbox gets a few confirmation emails a day at most.
+  const perAddress = await consumeRateLimit(`newsletter-confirm:${email}`, 3, 24 * 60 * 60_000);
+  if (!perAddress.ok) return tooManyRequests(perAddress.retryAfterSeconds);
 
   const confirmToken = randomUUID();
   const confirmTokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);

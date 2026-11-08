@@ -5,7 +5,8 @@ import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/styli
 /**
  * Messages in one of the stylist's conversations created at or after `after` (an ISO time,
  * normally the newest message the open thread already shows). The thread polls this for new
- * client messages, so the browser never reads Supabase itself.
+ * client messages, so the browser never reads Supabase itself. New messages from the client are
+ * marked read.
  */
 export async function GET(request: NextRequest) {
   const ownerId = await requireStylistId(request)
@@ -29,12 +30,21 @@ export async function GET(request: NextRequest) {
   // At or after: two messages can share a timestamp, and the thread drops ones it already has.
   const { data: messages, error } = await admin
     .from('messages')
-    .select('id, sender_id, content, created_at, image_url')
+    .select('id, sender_id, content, created_at, image_url, hidden_at')
     .eq('conversation_id', conversationId)
     .gte('created_at', after)
     .order('created_at', { ascending: true })
     .limit(100)
   if (error) return stylistError(error.message, 500)
+
+  if (messages?.some((m) => m.sender_id !== ownerId)) {
+    await admin
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', ownerId)
+      .eq('is_read', false)
+  }
 
   return NextResponse.json({ messages: messages ?? [] }, { headers: { 'Cache-Control': 'no-store' } })
 }

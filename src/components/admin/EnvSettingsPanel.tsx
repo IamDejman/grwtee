@@ -63,6 +63,8 @@ async function apiError(res: Response, fallback: string) {
   return typeof json?.error === "string" ? json.error : fallback;
 }
 
+type EncryptionStatus = { enabled: boolean; keyId: string | null; toUpdate: number; unreadable: number };
+
 export function EnvSettingsPanel() {
   const toast = useToast();
   const { askPassword, dialog } = useConfirm();
@@ -71,6 +73,7 @@ export function EnvSettingsPanel() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [reencrypting, setReencrypting] = useState(false);
+  const [encryption, setEncryption] = useState<EncryptionStatus | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = async () => {
@@ -85,8 +88,19 @@ export function EnvSettingsPanel() {
     }
   };
 
+  const loadEncryption = async () => {
+    try {
+      const res = await adminFetch("/api/payment-accounts/re-encrypt");
+      const json = (await res.json()) as { data?: EncryptionStatus };
+      if (res.ok && json.data) setEncryption(json.data);
+    } catch {
+      // The panel still offers Re-encrypt without the status line.
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadEncryption();
   }, []);
 
   const changes = Object.entries(draft)
@@ -149,7 +163,7 @@ export function EnvSettingsPanel() {
   const reencrypt = async () => {
     const currentPassword = await askPassword({
       title: "Re-encrypt payment details?",
-      body: "Stored bank and payment details are encrypted again with the current key. Only needed after the encryption key changes.",
+      body: "Stored bank and payment details, and two-step sign-in secrets, are encrypted again with the current key. Only needed after the encryption key changes.",
       confirmLabel: "Re-encrypt"
     });
     if (!currentPassword) return;
@@ -160,10 +174,18 @@ export function EnvSettingsPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword })
       });
-      const json = (await res.json().catch(() => null)) as { error?: string; data?: { updated?: number; skipped?: number } } | null;
+      const json = (await res.json().catch(() => null)) as { error?: string; data?: { updated?: number; unreadable?: number } } | null;
       if (!res.ok) throw new Error(json?.error || "Couldn't re-encrypt. Try again.");
       const updated = json?.data?.updated ?? 0;
-      toast.success(updated ? `Re-encrypted ${updated} ${updated === 1 ? "account" : "accounts"}.` : "Everything was already up to date.");
+      const unreadable = json?.data?.unreadable ?? 0;
+      if (unreadable) {
+        toast.error(
+          `Re-encrypted ${updated}. ${unreadable} couldn't be opened with the keys set: add the old key as DATA_ENCRYPTION_PREVIOUS_KEYS and try again.`
+        );
+      } else {
+        toast.success(updated ? `Re-encrypted ${updated} ${updated === 1 ? "item" : "items"}.` : "Everything was already up to date.");
+      }
+      await loadEncryption();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Couldn't re-encrypt. Try again.");
     } finally {
@@ -283,7 +305,20 @@ export function EnvSettingsPanel() {
 
       <Panel title="Payment details encryption">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-atelier-muted">Only needed if you or your developer changed the encryption key.</p>
+          <div className="text-sm text-atelier-muted">
+            {encryption && !encryption.enabled ? (
+              <p className="font-medium text-red-600">
+                DATA_ENCRYPTION_KEY isn&apos;t set, so bank details and two-step sign-in can&apos;t be saved on the live site.
+              </p>
+            ) : encryption ? (
+              <p>
+                Encrypted with key {encryption.keyId}.
+                {encryption.toUpdate ? ` ${encryption.toUpdate} stored ${encryption.toUpdate === 1 ? "item uses" : "items use"} an older key or none: re-encrypt them.` : ""}
+                {encryption.unreadable ? ` ${encryption.unreadable} can't be opened with the keys set.` : ""}
+              </p>
+            ) : null}
+            <p>Only needed if you or your developer changed the encryption key.</p>
+          </div>
           <Button size="sm" variant="outline" loading={reencrypting} onClick={() => void reencrypt()}>
             Re-encrypt payment details
           </Button>

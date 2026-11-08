@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTurnstile } from "@/components/security/useTurnstile";
 
 type Variant = "light" | "dark";
 
@@ -15,10 +16,17 @@ export function WaitlistForm({
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const captcha = useTurnstile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
+    if (!captcha.ready) {
+      captcha.arm();
+      setStatus("error");
+      setMessage("Finishing a quick check. Try again in a moment.");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
 
@@ -29,7 +37,8 @@ export function WaitlistForm({
         body: JSON.stringify({
           email,
           name: name.trim() || undefined,
-          source
+          source,
+          turnstileToken: captcha.token
         })
       });
       const data = await res.json();
@@ -45,6 +54,8 @@ export function WaitlistForm({
     } catch {
       setStatus("error");
       setMessage("Network error. Try again.");
+    } finally {
+      captcha.reset();
     }
   }
 
@@ -112,6 +123,7 @@ export function WaitlistForm({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onFocus={captcha.arm}
           disabled={status === "loading"}
           className={`mt-1 ${inputClass}`}
         />
@@ -126,10 +138,12 @@ export function WaitlistForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onFocus={captcha.arm}
           disabled={status === "loading"}
           className={`mt-1 ${inputClass}`}
         />
       </div>
+      {captcha.widget}
       <button type="submit" disabled={status === "loading"} className={buttonClass}>
         {status === "loading" ? "Joining…" : "Join the Waiting List"}
       </button>

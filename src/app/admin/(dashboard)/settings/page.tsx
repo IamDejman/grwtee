@@ -16,13 +16,27 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export default async function AdminSettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { tab } = await searchParams;
+export default async function AdminSettingsPage({
+  searchParams
+}: {
+  searchParams: Promise<{ tab?: string; setup?: string }>;
+}) {
+  const { tab, setup } = await searchParams;
   const active: TabId = TABS.find((t) => t.id === tab)?.id ?? "business";
 
   return (
     <div>
       <PageHeader title="Settings" />
+      {setup === "mfa" ? (
+        <p className="mb-6 rounded-xl bg-gold/10 px-4 py-3 text-sm text-[#8A6420]" role="status">
+          Turn on two-step sign-in below to keep using the dashboard. It protects the business and your clients&apos;
+          details if your password is ever stolen. Once it&apos;s on,{" "}
+          <Link href="/admin/dashboard" className="font-medium underline underline-offset-2">
+            go to the dashboard
+          </Link>
+          .
+        </p>
+      ) : null}
       <nav aria-label="Settings sections" className="-mx-4 mb-6 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
         <ul className="flex w-max gap-1 border-b border-atelier-border sm:w-auto">
           {TABS.map((t) => (

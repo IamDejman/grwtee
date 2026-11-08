@@ -16,7 +16,9 @@ const adminProtected = [
   "/admin/lookbooks",
   "/admin/calendar",
   "/admin/clients",
-  "/admin/messages"
+  "/admin/messages",
+  "/admin/approvals",
+  "/admin/reports"
 ];
 
 const adminPublicPaths = ["/admin/login", "/admin/forgot-password"];
@@ -27,9 +29,16 @@ const adminApiPrefixes = [
   "/api/invoices",
   "/api/settings",
   "/api/upload",
-  "/api/gallery",
-  "/api/bookings",
-  "/api/stylist"
+  "/api/stylist",
+  // The sign-in form posts here (NextAuth's credentials callback).
+  "/api/auth/callback"
+];
+
+// Routes the public site shares with the dashboard: only the admin methods
+// are kept to the allowed IPs, so the booking form and gallery still work.
+const sharedApiRoutes: { path: string; publicMethods: string[] }[] = [
+  { path: "/api/bookings", publicMethods: ["POST"] },
+  { path: "/api/gallery", publicMethods: ["GET"] }
 ];
 
 function getClientIp(request: NextRequest): string | null {
@@ -51,9 +60,13 @@ function isAdminIpAllowed(request: NextRequest): boolean {
   return Boolean(ip && allowlist.includes(ip));
 }
 
-function requiresAdminIpGuard(pathname: string): boolean {
+function requiresAdminIpGuard(pathname: string, method: string): boolean {
   if (adminPublicPaths.some((p) => pathname.startsWith(p))) return false;
   if (pathname.startsWith("/admin")) return true;
+  for (const route of sharedApiRoutes) {
+    if (pathname === route.path) return !route.publicMethods.includes(method);
+    if (pathname.startsWith(`${route.path}/`)) return true;
+  }
   return adminApiPrefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -65,7 +78,7 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (requiresAdminIpGuard(pathname) && !isAdminIpAllowed(request)) {
+  if (requiresAdminIpGuard(pathname, request.method) && !isAdminIpAllowed(request)) {
     return withSecurityHeaders(new NextResponse("Forbidden", { status: 403 }));
   }
 
@@ -97,6 +110,14 @@ export async function middleware(request: NextRequest) {
     if (token.mustChangePassword && !pathname.startsWith("/admin/change-password")) {
       return withSecurityHeaders(
         NextResponse.redirect(new URL("/admin/change-password", request.url))
+      );
+    }
+
+    // Two-step sign-in is required: until it's on, the dashboard opens on
+    // the page that sets it up.
+    if (token.mfaSetupRequired && pathname !== "/admin/settings") {
+      return withSecurityHeaders(
+        NextResponse.redirect(new URL("/admin/settings?tab=account&setup=mfa", request.url))
       );
     }
   }

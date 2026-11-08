@@ -93,6 +93,33 @@ export default function TermsPage() {
             </h2>
             <p className="mt-2">Requests outside the agreed scope incur additional charges.</p>
           </section>
+          <section>
+            <h2 className="font-accent text-lg font-semibold text-purple-medium">
+              12. Using the GRWTEE App
+            </h2>
+            <p className="mt-2">
+              12.1 Accounts: New accounts are reviewed by your stylist before you can use the app. Keep your sign-in
+              details to yourself; you&apos;re responsible for what happens on your account.
+            </p>
+            <p>
+              12.2 What you post: You&apos;re responsible for the comments, messages and photos you add. There is no
+              place in the app for content that is abusive, hateful, sexual, violent, illegal or that infringes
+              someone else&apos;s rights, and no tolerance for harassing other people.
+            </p>
+            <p>
+              12.3 Reporting and blocking: You can report content and block other people from within the app. We
+              review reports, and may remove content or close accounts that break these terms.
+            </p>
+            <p>
+              12.4 AI features: Virtual try-on, auto-tagging and background removal use outside AI services and can get
+              things wrong. Their results are a guide, not a promise of fit, colour or availability. See our{" "}
+              <a className="font-semibold text-green-dark" href="/privacy">Privacy Policy</a> for what they receive.
+            </p>
+            <p>
+              12.5 Deleting your account: You can delete your account at any time in Profile &rarr; Privacy &amp; data,
+              or <a className="font-semibold text-green-dark" href="/delete-account">on our website</a>.
+            </p>
+          </section>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <a

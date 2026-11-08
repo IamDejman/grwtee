@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, CalendarCheck, ChevronRight, Inbox, MessageSquare, Receipt, Sparkles, Wallet } from "lucide-react";
+import { ArrowUpRight, CalendarCheck, ChevronRight, Flag, Inbox, MessageSquare, Receipt, Sparkles, UserCheck, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getStylistId } from "@/lib/stylist-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getModerationCounts } from "@/lib/stylist-moderation";
 import { activeBookingCount, decemberEnabled } from "@/lib/december/booking";
 import { getSettings } from "@/lib/december/settings";
 import { formatSlot, whatsappLink } from "@/lib/december/format";
@@ -115,7 +116,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const showDecember = decemberEnabled();
 
-  const [dec, money, newEnquiries, enquiries, unread, subscribers] = await Promise.all([
+  const [dec, money, newEnquiries, enquiries, unread, subscribers, moderation] = await Promise.all([
     showDecember ? safe("December", () => december(now), null) : Promise.resolve(null),
     safe("Invoices", () => owed(now), null),
     safe("Enquiry count", () => prisma.bookingRequest.count({ where: { status: "pending" } }), 0),
@@ -130,7 +131,8 @@ export default async function DashboardPage() {
       []
     ),
     safe("Messages", unreadMessages, 0),
-    safe("Subscribers", () => prisma.subscriber.count({ where: { status: "confirmed" } }), null)
+    safe("Subscribers", () => prisma.subscriber.count({ where: { status: "confirmed" } }), null),
+    safe("App moderation", getModerationCounts, { signups: 0, reports: 0 })
   ]);
 
   const today = lagosDay(now);
@@ -153,7 +155,14 @@ export default async function DashboardPage() {
       text: dec?.awaitingPayment === 1 ? "December client hasn't paid yet" : "December clients haven't paid yet"
     },
     { href: "/admin/invoices", icon: Receipt, count: money?.overdue ?? 0, text: money?.overdue === 1 ? "invoice is overdue" : "invoices are overdue" },
-    { href: "/admin/messages", icon: MessageSquare, count: unread, text: unread === 1 ? "unread message" : "unread messages" }
+    { href: "/admin/messages", icon: MessageSquare, count: unread, text: unread === 1 ? "unread message" : "unread messages" },
+    {
+      href: "/admin/approvals",
+      icon: UserCheck,
+      count: moderation.signups,
+      text: moderation.signups === 1 ? "new app sign-up to approve" : "new app sign-ups to approve"
+    },
+    { href: "/admin/reports", icon: Flag, count: moderation.reports, text: moderation.reports === 1 ? "report to review" : "reports to review" }
   ].filter((a) => a.count > 0);
 
   return (

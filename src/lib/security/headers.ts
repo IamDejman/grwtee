@@ -2,6 +2,17 @@
  * Central security headers — applied in middleware and mirrored in vercel.json.
  * Configure once here; infrastructure docs reference this module.
  */
+
+// The app's Supabase storage, which the stylist pages show photos from
+// (wardrobes, avatars, lookbook covers, message photos).
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
+
 export const SECURITY_HEADERS: Record<string, string> = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "X-Content-Type-Options": "nosniff",
@@ -18,7 +29,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' https://fonts.gstatic.com data:",
     // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
     // hosts such as region1.google-analytics.com.
-    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com",
+    `img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com ${SUPABASE_ORIGIN}`.trim(),
     "connect-src 'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",

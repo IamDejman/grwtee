@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
 import { useToast } from '@/components/admin/Toast'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Message {
   id: string
@@ -10,6 +11,8 @@ interface Message {
   content: string
   created_at: string
   image_url: string | null
+  /** Set when someone reported it; hidden from the client until you review it. */
+  hidden_at?: string | null
 }
 
 interface MessageThreadProps {
@@ -117,7 +120,7 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
     if (!text || sending) return
     setSending(true)
     try {
-      const res = await fetch('/api/stylist/messages', {
+      const res = await adminFetch('/api/stylist/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversation_id: conversationId, content: text })
@@ -169,6 +172,9 @@ export function MessageThread({ conversationId, initialMessages, currentUserId }
                   ) : null}
                   {msg.content ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p> : null}
                   <p className={`mt-0.5 text-right text-[11px] tabular-nums ${mine ? 'text-white/60' : 'text-atelier-faint'}`}>{timeLabel(msg.created_at)}</p>
+                  {msg.hidden_at ? (
+                    <p className={`text-right text-[11px] ${mine ? 'text-white/60' : 'text-[#8A6420]'}`}>Reported: hidden until you review it</p>
+                  ) : null}
                 </div>
               </div>
             </div>

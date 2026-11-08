@@ -3,36 +3,37 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/security/password-hash";
 import { writeAuditLog } from "@/lib/security/audit-log";
-import { decryptTotpSecret, verifyTotpCode } from "@/lib/security/mfa";
-import { createAdminSession, isAdminSessionActive, revokeAllAdminSessions } from "@/lib/security/admin-sessions";
+import { decryptTotpSecret, verifyTotpCodeOnce } from "@/lib/security/mfa";
+import {
+  createAdminSession,
+  isAdminSessionActive,
+  revokeAdminSession,
+  revokeAllAdminSessions
+} from "@/lib/security/admin-sessions";
 import { writeSecurityEvent } from "@/lib/security/security-events";
+import { consumeRateLimit, isRateLimited, resetRateLimit } from "@/lib/security/rate-limit";
 
-type RateLimitState = { count: number; firstAttempt: number };
+// Failed sign-ins per email and IP, kept in the database so the limit holds
+// across server instances.
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 6;
 const LOCKOUT_MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
-const attempts = new Map<string, RateLimitState>();
+// Wrong authenticator codes per account, from any IP. Codes are only checked
+// after the right password, so only someone who has it can use these up.
+const MFA_FAILURE_MAX = 5;
+const MFA_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const prev = attempts.get(key);
-  if (!prev) return false;
-  if (now - prev.firstAttempt > RATE_LIMIT_WINDOW_MS) {
-    attempts.delete(key);
-    return false;
-  }
-  return prev.count >= RATE_LIMIT_MAX;
-}
+const loginKey = (key: string) => `admin-login:${key}`;
+const mfaKey = (adminId: string) => `admin-mfa:${adminId}`;
 
 function bumpAttempt(key: string) {
-  const now = Date.now();
-  const prev = attempts.get(key);
-  if (!prev || now - prev.firstAttempt > RATE_LIMIT_WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAttempt: now });
-    return;
-  }
-  attempts.set(key, { count: prev.count + 1, firstAttempt: prev.firstAttempt });
+  return consumeRateLimit(loginKey(key), RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+}
+
+/** Whether every admin must turn on two-step sign-in (on unless set to "false"). */
+export function adminMfaRequired(): boolean {
+  return process.env.ADMIN_REQUIRE_MFA !== "false";
 }
 
 function progressiveDelayMs(failedAttempts: number): number {
@@ -101,13 +102,13 @@ export async function validateAdminLogin(
   const email = credentials.email.trim().toLowerCase();
   const ip = requestIp(req);
   const key = `${email}::${ip || "unknown"}`;
-  if (isRateLimited(key)) {
+  if (await isRateLimited(loginKey(key), RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
     return { ok: false, error: "rate_limited" };
   }
 
   let admin = await prisma.admin.findUnique({ where: { email } });
   if (!admin) {
-    bumpAttempt(key);
+    await bumpAttempt(key);
     await sleep(progressiveDelayMs(1));
     return { ok: false, error: "invalid_credentials" };
   }
@@ -127,13 +128,13 @@ export async function validateAdminLogin(
   // MFA the lock holds regardless: a password on its own could be guessed.
   const locked = Boolean(admin.lockedUntil && admin.lockedUntil > new Date());
   if (locked && !admin.mfaEnabled) {
-    bumpAttempt(key);
+    await bumpAttempt(key);
     return { ok: false, error: "account_locked" };
   }
 
   const valid = await verifyPassword(credentials.password, admin.password);
   if (!valid) {
-    bumpAttempt(key);
+    await bumpAttempt(key);
     if (locked) {
       return { ok: false, error: "account_locked" };
     }
@@ -148,8 +149,14 @@ export async function validateAdminLogin(
     if (!code) {
       return { ok: false, error: locked ? "account_locked" : "mfa_required" };
     }
-    if (!secret || !verifyTotpCode(secret, code)) {
-      bumpAttempt(key);
+    if (await isRateLimited(mfaKey(admin.id), MFA_FAILURE_MAX, MFA_FAILURE_WINDOW_MS)) {
+      return { ok: false, error: "rate_limited" };
+    }
+    // A code is accepted once: replaying one seen on the way in fails.
+    const accepted = secret ? await verifyTotpCodeOnce(admin.id, secret, code, admin.mfaLastTimeStep) : false;
+    if (!accepted) {
+      await bumpAttempt(key);
+      await consumeRateLimit(mfaKey(admin.id), MFA_FAILURE_MAX, MFA_FAILURE_WINDOW_MS);
       await writeSecurityEvent({
         category: "auth",
         action: "admin.mfa.failed",
@@ -158,8 +165,10 @@ export async function validateAdminLogin(
       });
       return { ok: false, error: locked ? "account_locked" : "mfa_invalid" };
     }
+    await resetRateLimit(mfaKey(admin.id));
   }
 
+  await resetRateLimit(loginKey(key));
   return { ok: true, adminId: admin.id };
 }
 
@@ -205,6 +214,7 @@ async function authorizeAdmin(
     name: admin.name,
     tokenVersion: admin.tokenVersion,
     mustChangePassword: admin.mustChangePassword,
+    mfaSetupRequired: adminMfaRequired() && !admin.mfaEnabled,
     sessionJti
   };
 }
@@ -229,6 +239,15 @@ function buildAuthOptions(secret: string): NextAuthOptions {
     pages: {
       signIn: "/admin/login"
     },
+    events: {
+      // Signing out ends the session record too, so a copy of the cookie
+      // stops working straight away instead of when it expires.
+      async signOut({ token }) {
+        if (typeof token?.sessionJti === "string") {
+          await revokeAdminSession(token.sessionJti);
+        }
+      }
+    },
     callbacks: {
       async jwt({ token, user }) {
         if (user) {
@@ -237,6 +256,7 @@ function buildAuthOptions(secret: string): NextAuthOptions {
           token.name = user.name;
           token.tokenVersion = (user as { tokenVersion?: number }).tokenVersion ?? 0;
           token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+          token.mfaSetupRequired = (user as { mfaSetupRequired?: boolean }).mfaSetupRequired ?? false;
           token.sessionJti = (user as { sessionJti?: string }).sessionJti;
           return token;
         }
@@ -246,7 +266,7 @@ function buildAuthOptions(secret: string): NextAuthOptions {
           // would let anyone who knows the email sign the admin out.
           const admin = await prisma.admin.findUnique({
             where: { id: token.id as string },
-            select: { tokenVersion: true, mustChangePassword: true }
+            select: { tokenVersion: true, mustChangePassword: true, mfaEnabled: true }
           });
           if (!admin || admin.tokenVersion !== token.tokenVersion) {
             return {};
@@ -260,6 +280,7 @@ function buildAuthOptions(secret: string): NextAuthOptions {
           }
 
           token.mustChangePassword = admin.mustChangePassword;
+          token.mfaSetupRequired = adminMfaRequired() && !admin.mfaEnabled;
         }
 
         return token;
@@ -322,6 +343,7 @@ declare module "next-auth" {
     name: string | null;
     tokenVersion?: number;
     mustChangePassword?: boolean;
+    mfaSetupRequired?: boolean;
     sessionJti?: string;
   }
   interface Session {
@@ -339,6 +361,7 @@ declare module "next-auth/jwt" {
     id?: string;
     tokenVersion?: number;
     mustChangePassword?: boolean;
+    mfaSetupRequired?: boolean;
     sessionJti?: string;
   }
 }

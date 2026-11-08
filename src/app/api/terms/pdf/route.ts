@@ -117,6 +117,35 @@ export async function GET() {
     // Section 11
     addText("11. Additional Services", 12, [91, 44, 111], true, true);
     addText("Requests outside the agreed scope incur additional charges.", 10, [0, 0, 0]);
+    yPos += 3;
+
+    // Section 12 (keep in step with src/app/terms/page.tsx)
+    addText("12. Using the GRWTEE App", 12, [91, 44, 111], true, true);
+    addText(
+      "12.1 Accounts: New accounts are reviewed by your stylist before you can use the app. Keep your sign-in details to yourself; you're responsible for what happens on your account.",
+      10,
+      [0, 0, 0]
+    );
+    addText(
+      "12.2 What you post: You're responsible for the comments, messages and photos you add. There is no place in the app for content that is abusive, hateful, sexual, violent, illegal or that infringes someone else's rights, and no tolerance for harassing other people.",
+      10,
+      [0, 0, 0]
+    );
+    addText(
+      "12.3 Reporting and blocking: You can report content and block other people from within the app. We review reports, and may remove content or close accounts that break these terms.",
+      10,
+      [0, 0, 0]
+    );
+    addText(
+      "12.4 AI features: Virtual try-on, auto-tagging and background removal use outside AI services and can get things wrong. Their results are a guide, not a promise of fit, colour or availability. See our Privacy Policy (grwtee.com/privacy) for what they receive.",
+      10,
+      [0, 0, 0]
+    );
+    addText(
+      "12.5 Deleting your account: You can delete your account at any time in Profile > Privacy & data, or on our website at grwtee.com/delete-account.",
+      10,
+      [0, 0, 0]
+    );
     yPos += 5;
 
     // Footer

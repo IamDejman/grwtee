@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
+import { lookPatchSchema, lookSchema, parseBody } from '@/lib/stylist-schemas'
+import { replaceItems } from '@/lib/stylist-items'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ownerId = await requireStylistId(request)
@@ -19,8 +21,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!ownerId) return stylistUnauthorized()
 
   const { id } = await params
-  const body = await request.json()
-  const { items, stylist_id: _ignored, ...lookData } = body
+  const parsed = await parseBody(request, lookSchema)
+  if ('response' in parsed) return parsed.response
+  const { items, ...lookData } = parsed.data
   const admin = createAdminClient()
 
   const { data: look, error } = await admin
@@ -31,15 +34,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (error || !look) return stylistError(error?.message, 500)
 
   if (items !== undefined) {
-    await admin.from('look_items').delete().eq('look_id', id)
-    if (items.length > 0) {
-      await admin.from('look_items').insert(
-        items.map((item: Record<string, unknown>, i: number) => ({
-          ...item, look_id: id, sort_order: i,
-          price: item.price ? parseFloat(item.price as string) : null
-        }))
-      )
-    }
+    const itemsError = await replaceItems(admin, 'look_items', 'look_id', id, items)
+    if (itemsError) return stylistError(itemsError, 500)
   }
 
   return NextResponse.json({ look })
@@ -50,13 +46,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!ownerId) return stylistUnauthorized()
 
   const { id } = await params
-  const body = await request.json()
-  const { stylist_id: _ignored, ...patchData } = body
+  const parsed = await parseBody(request, lookPatchSchema)
+  if ('response' in parsed) return parsed.response
   const admin = createAdminClient()
 
   const { data: look, error } = await admin
     .from('looks')
-    .update({ ...patchData, updated_at: new Date().toISOString() })
+    .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id).eq('stylist_id', ownerId).select().single()
 
   if (error) return stylistError(error.message, 500)

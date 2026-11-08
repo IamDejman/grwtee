@@ -19,7 +19,7 @@ jest.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
       const query: Record<string, unknown> = {};
-      for (const method of ["select", "eq", "gte", "order", "limit", "maybeSingle"]) {
+      for (const method of ["select", "eq", "neq", "gte", "order", "limit", "maybeSingle", "update"]) {
         query[method] = (...args: unknown[]) => {
           (calls[table] ??= []).push([method, ...args]);
           return query;
@@ -79,13 +79,32 @@ describe("GET /api/stylist/messages", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(await res.json()).toEqual({ messages: results.messages.data });
-    expect(calls.messages).toEqual([
-      ["select", "id, sender_id, content, created_at, image_url"],
+    expect(calls.messages?.slice(0, 5)).toEqual([
+      ["select", "id, sender_id, content, created_at, image_url, hidden_at"],
       ["eq", "conversation_id", "conv-1"],
       ["gte", "created_at", AFTER],
       ["order", "created_at", { ascending: true }],
       ["limit", 100]
     ]);
+  });
+
+  it("marks the client's messages read", async () => {
+    await get(`conversation_id=conv-1&after=${AFTER}`);
+    expect(calls.messages?.slice(5)).toEqual([
+      ["update", { is_read: true }],
+      ["eq", "conversation_id", "conv-1"],
+      ["neq", "sender_id", "stylist-1"],
+      ["eq", "is_read", false]
+    ]);
+  });
+
+  it("leaves read state alone when only the stylist's own messages come back", async () => {
+    results.messages = {
+      data: [{ id: "m3", sender_id: "stylist-1", content: "Hi", created_at: "2026-11-08T10:00:06+00:00", image_url: null }],
+      error: null
+    };
+    await get(`conversation_id=conv-1&after=${AFTER}`);
+    expect(calls.messages?.some(([method]) => method === "update")).toBe(false);
   });
 
   it("reports a failed read as a server error", async () => {

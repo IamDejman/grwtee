@@ -196,6 +196,11 @@ function TwoStepPanel({ enabled, onChange }: { enabled: boolean; onChange: (enab
         body: JSON.stringify(turningOff ? { currentPassword: password, code } : { secret: setup?.secret, code, currentPassword: password })
       });
       if (!res.ok) throw new Error(await errorFrom(res, "That didn't work. Check the code and try again."));
+      if (!turningOff) {
+        // Re-issue the session cookie so it knows two-step sign-in is on
+        // (the dashboard opens on this page until it does).
+        await fetch("/api/auth/session", { cache: "no-store" }).catch(() => {});
+      }
       onChange(!turningOff);
       toast.success(turningOff ? "Two-step sign-in is off." : "Two-step sign-in is on.");
       reset();

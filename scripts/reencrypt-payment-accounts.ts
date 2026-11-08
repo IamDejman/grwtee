@@ -1,15 +1,14 @@
 /**
- * One-off CLI to re-encrypt plaintext payment account fields.
- * Requires DATA_ENCRYPTION_KEY and DATABASE_URL in the environment.
+ * Re-encrypts stored payment details and authenticator secrets with the
+ * current DATA_ENCRYPTION_KEY (plain text, `v1:` values and values under an
+ * older key), the same as Settings → Re-encrypt. Keep the old key in
+ * DATA_ENCRYPTION_PREVIOUS_KEYS while this runs. Needs DATABASE_URL too.
  *
  * Usage: npx tsx scripts/reencrypt-payment-accounts.ts
  */
 import { prisma } from "../src/lib/prisma";
-import { isEncryptionEnabled } from "../src/lib/security/field-encryption";
-import {
-  paymentAccountNeedsReencryption,
-  reencryptPaymentAccountFields
-} from "../src/lib/security/payment-account-crypto";
+import { currentKeyId, isEncryptionEnabled } from "../src/lib/security/field-encryption";
+import { reencryptStoredSecrets } from "../src/lib/security/reencrypt";
 
 async function main() {
   if (!isEncryptionEnabled()) {
@@ -17,21 +16,12 @@ async function main() {
     process.exit(1);
   }
 
-  const accounts = await prisma.paymentAccount.findMany();
-  let updated = 0;
-
-  for (const account of accounts) {
-    if (!paymentAccountNeedsReencryption(account)) continue;
-    const fields = reencryptPaymentAccountFields(account);
-    await prisma.paymentAccount.update({
-      where: { id: account.id },
-      data: fields
-    });
-    updated += 1;
-    console.log(`Re-encrypted account ${account.id} (${account.label})`);
+  const summary = await reencryptStoredSecrets();
+  console.log(`Key ${currentKeyId()}:`, JSON.stringify(summary, null, 2));
+  if (summary.unreadable.paymentAccounts || summary.unreadable.mfaSecrets) {
+    console.error("Some values couldn't be decrypted: add their key to DATA_ENCRYPTION_PREVIOUS_KEYS and run again.");
+    process.exitCode = 2;
   }
-
-  console.log(`Done. Updated ${updated} of ${accounts.length} account(s).`);
 }
 
 main()

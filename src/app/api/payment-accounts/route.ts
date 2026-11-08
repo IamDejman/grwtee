@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireStepUp } from "@/lib/security/step-up";
 import { writeAuditLog, requestMeta } from "@/lib/security/audit-log";
-import { jsonGenericServerError, jsonUnauthorized } from "@/lib/security/api-response";
+import { encryptionKeyMissing, jsonGenericServerError, jsonUnauthorized } from "@/lib/security/api-response";
 import { encryptPaymentAccountInput, decryptPaymentAccount, decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
+import { EncryptionKeyMissingError } from "@/lib/security/field-encryption";
 import { requireAdminSession } from "@/lib/security/session-auth";
 
 const commonFields = {
@@ -125,6 +126,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, data: decryptPaymentAccount(created) });
   } catch (err) {
+    if (err instanceof EncryptionKeyMissingError) return encryptionKeyMissing();
     console.error("[PaymentAccounts POST]", err);
     return jsonGenericServerError("payment-accounts-post");
   }

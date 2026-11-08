@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTurnstile } from "@/components/security/useTurnstile";
 
 export function SubscribePageForm() {
   const [email, setEmail] = useState("");
@@ -8,10 +9,17 @@ export function SubscribePageForm() {
     "idle"
   );
   const [message, setMessage] = useState<string | null>(null);
+  const captcha = useTurnstile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
+    if (!captcha.ready) {
+      captcha.arm();
+      setStatus("error");
+      setMessage("Finishing a quick check. Try again in a moment.");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
 
@@ -19,7 +27,7 @@ export function SubscribePageForm() {
       const res = await fetch("/api/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, turnstileToken: captcha.token })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -33,6 +41,8 @@ export function SubscribePageForm() {
     } catch {
       setStatus("error");
       setMessage("Network error. Try again.");
+    } finally {
+      captcha.reset();
     }
   }
 
@@ -71,10 +81,12 @@ export function SubscribePageForm() {
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        onFocus={captcha.arm}
         placeholder="you@example.com"
         disabled={status === "loading"}
         className="w-full rounded-md border border-gray-medium px-4 py-3 text-sm outline-none transition focus:border-green-dark disabled:opacity-60"
       />
+      {captcha.widget}
       <button
         type="submit"
         disabled={status === "loading"}

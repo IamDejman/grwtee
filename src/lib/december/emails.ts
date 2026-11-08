@@ -1,6 +1,6 @@
 import type { DecemberBooking, PaymentAccount } from "@prisma/client";
 import { getConfig } from "@/lib/config";
-import { escapeHtml } from "@/lib/email-templates";
+import { escapeHtml, safeFirstName } from "@/lib/email-templates";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
 import { decryptPaymentAccounts } from "@/lib/security/payment-account-crypto";
@@ -128,7 +128,11 @@ async function send(to: string, subject: string, html: string, text: string, rep
   return !error;
 }
 
-const first = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+// "You're booked, Ada." Only a plain first name goes into an email (see safeFirstName).
+const withName = (text: string, name: string) => {
+  const first = safeFirstName(name);
+  return first ? `${text}, ${first}.` : `${text}.`;
+};
 
 // ---------------------------------------------------------------------------------------------
 
@@ -141,7 +145,7 @@ export interface Email {
 export function confirmationEmail(b: DecemberBooking, manageUrl: string, payment: { html: string; text: string }): Email {
   const html = layout(
     `${eyebrow("GRWTEE x Lagos in December")}
-${title(`You're booked, ${first(b.name)}.`)}
+${title(withName("You're booked", b.name))}
 ${slotBlock(b)}
 ${para("Your calendar invite with the Google Meet link is on its way from book@grwtee.com. We'll use your brief to prepare, so come ready to talk through your December.")}
 ${payment.html}
@@ -151,7 +155,7 @@ ${rowsTable(briefRows(b))}`,
     `Your December consultation: ${describeSlot(b.slotStart, b.timezone)}`
   );
   const text = [
-    `You're booked, ${first(b.name)}.`,
+    withName("You're booked", b.name),
     "",
     describeSlot(b.slotStart, b.timezone),
     "30 minutes on Google Meet" + (b.meetUrl ? `: ${b.meetUrl}` : ""),
@@ -172,7 +176,7 @@ export function holdEmail(b: DecemberBooking, manageUrl: string, payment: { html
   const deadline = describeDeadline(b.holdExpiresAt ?? b.slotStart, b.timezone);
   const html = layout(
     `${eyebrow("GRWTEE x Lagos in December")}
-${title(`Your time is held, ${first(b.name)}.`)}
+${title(withName("Your time is held", b.name))}
 ${slotBlock({ ...b, meetUrl: null })}
 ${para(`We're holding this time for you until <strong>${e(deadline)}</strong>. Pay the consultation fee and reply to this email with your receipt.`)}
 ${para("Once we confirm your payment, we'll send your calendar invite with the Google Meet link. If payment isn't confirmed by then, the time is released.")}
@@ -183,7 +187,7 @@ ${rowsTable(briefRows(b))}`,
     `Pay by ${deadline} to confirm your December consultation`
   );
   const text = [
-    `Your time is held, ${first(b.name)}.`,
+    withName("Your time is held", b.name),
     "",
     describeSlot(b.slotStart, b.timezone),
     "30 minutes on Google Meet",
@@ -210,7 +214,7 @@ export async function sendConfirmation(b: DecemberBooking, manageUrl: string): P
 
 /** Sent when the stylist marks a held booking paid; Google sends the invite alongside it. */
 export function paidEmail(b: DecemberBooking): Email {
-  const heading = `You're booked, ${first(b.name)}.`;
+  const heading = withName("You're booked", b.name);
   const html = layout(
     `${eyebrow("GRWTEE x Lagos in December")}
 ${title(heading)}

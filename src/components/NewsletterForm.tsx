@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTurnstile } from "@/components/security/useTurnstile";
 
 export function NewsletterForm() {
   const [email, setEmail] = useState("");
@@ -8,10 +9,17 @@ export function NewsletterForm() {
     "idle"
   );
   const [message, setMessage] = useState<string | null>(null);
+  const captcha = useTurnstile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
+    if (!captcha.ready) {
+      captcha.arm();
+      setStatus("error");
+      setMessage("Finishing a quick check. Try again in a moment.");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
 
@@ -19,7 +27,7 @@ export function NewsletterForm() {
       const res = await fetch("/api/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, turnstileToken: captcha.token })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -33,6 +41,8 @@ export function NewsletterForm() {
     } catch {
       setStatus("error");
       setMessage("Network error. Try again.");
+    } finally {
+      captcha.reset();
     }
   }
 
@@ -51,6 +61,7 @@ export function NewsletterForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onFocus={captcha.arm}
           placeholder="you@example.com"
           disabled={status === "loading"}
           className="min-w-0 flex-1 rounded-full border border-cream/30 bg-cream/10 px-4 py-2 text-sm text-cream placeholder:text-cream/50 focus:border-gold-light focus:outline-none focus:ring-1 focus:ring-gold-light disabled:opacity-60"
@@ -63,6 +74,7 @@ export function NewsletterForm() {
           {status === "loading" ? "Sending…" : "Subscribe"}
         </button>
       </div>
+      {captcha.widget}
       {message && (
         <p
           className={`text-xs ${

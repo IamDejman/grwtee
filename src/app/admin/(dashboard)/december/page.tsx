@@ -372,6 +372,36 @@ export default function AdminDecemberPage() {
   }, [data]);
 
   const unpaid = upcoming.filter((b) => b.status === "pending" || b.status === "scheduled").length;
+  const holds = upcoming.filter((b) => b.status === "pending");
+
+  // For a burst of fake bookings: frees every hold shown here in one go.
+  const releaseHolds = async () => {
+    const ok = await confirm({
+      title: `Release all ${holds.length} unpaid holds?`,
+      body: "Their times open up again straight away and nobody is emailed. Anyone genuine who hasn't paid yet loses their hold too, so message them first.",
+      confirmLabel: "Release holds",
+      danger: true
+    });
+    if (!ok) return;
+    setBusy("holds");
+    try {
+      const res = await adminFetch("/api/admin/december/holds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: holds.map((b) => b.id) })
+      });
+      const json = (await res.json().catch(() => ({}))) as { data?: { released: number; failed: number }; error?: string };
+      if (!res.ok || !json.data) throw new Error(json.error ?? "Couldn't release the holds.");
+      await load();
+      const { released, failed } = json.data;
+      if (failed) toast.error(`${released} released. ${failed} couldn't be released (calendar error); try again.`);
+      else toast.success(`${released} hold${released === 1 ? "" : "s"} released.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't release the holds.");
+    } finally {
+      setBusy(null);
+    }
+  };
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: "upcoming", label: "Upcoming", count: upcoming.length },
     { value: "past", label: "Past and cancelled", count: past.length },
@@ -532,7 +562,19 @@ export default function AdminDecemberPage() {
             </div>
           )
         ) : tab === "upcoming" ? (
-          bookingTable(upcoming, "No upcoming consultations yet.")
+          <>
+            {holds.length > 1 ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-atelier-border/70 px-4 py-3 sm:px-6">
+                <p className="text-sm text-atelier-muted">
+                  {holds.length} bookings are holding a time until they pay.
+                </p>
+                <Button size="sm" variant="outline" loading={busy === "holds"} disabled={busy !== null} onClick={() => void releaseHolds()}>
+                  Release unpaid holds
+                </Button>
+              </div>
+            ) : null}
+            {bookingTable(upcoming, "No upcoming consultations yet.")}
+          </>
         ) : tab === "past" ? (
           bookingTable(past, "Nothing here yet.")
         ) : tab === "drafts" ? (

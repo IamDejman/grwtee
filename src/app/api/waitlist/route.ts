@@ -2,40 +2,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/resend";
-import { waitlistConfirmHtml } from "@/lib/email-templates";
+import { greeting, waitlistConfirmHtml } from "@/lib/email-templates";
 
 import { parseEmail } from "@/lib/security/email-validation";
+import { guardPublicForm, turnstileTokenOf } from "@/lib/security/public-form";
 
 const schema = z.object({
-  email: z.string(),
+  email: z.string().max(254),
   name: z.string().trim().min(1).max(120).optional(),
   source: z.string().trim().max(60).optional()
 });
-
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX = 5;
-type RL = { count: number; firstAt: number };
-const recent = new Map<string, RL>();
-
-function rateLimited(key: string) {
-  const now = Date.now();
-  const prev = recent.get(key);
-  if (!prev) return false;
-  if (now - prev.firstAt > RATE_LIMIT_WINDOW_MS) {
-    recent.delete(key);
-    return false;
-  }
-  return prev.count >= RATE_LIMIT_MAX;
-}
-function bump(key: string) {
-  const now = Date.now();
-  const prev = recent.get(key);
-  if (!prev || now - prev.firstAt > RATE_LIMIT_WINDOW_MS) {
-    recent.set(key, { count: 1, firstAt: now });
-    return;
-  }
-  recent.set(key, { count: prev.count + 1, firstAt: prev.firstAt });
-}
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -59,19 +35,13 @@ export async function POST(req: Request) {
   const name = parsed.data.name?.trim() || null;
   const source = parsed.data.source?.trim() || "inner-circle";
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
-  const key = `waitlist::${ip}::${email}`;
-
-  if (rateLimited(key)) {
-    return NextResponse.json(
-      { success: false, error: "Too many requests. Try again later." },
-      { status: 429 }
-    );
-  }
-  bump(key);
+  const refused = await guardPublicForm(req, {
+    form: "waitlist",
+    limit: 5,
+    windowMs: 60 * 60_000,
+    turnstileToken: turnstileTokenOf(body)
+  });
+  if (refused) return refused;
 
   const existing = await prisma.waitlistEntry.findUnique({ where: { email } });
 
@@ -91,7 +61,7 @@ export async function POST(req: Request) {
     to: email,
     subject: "You're on the Inner Circle list",
     html: waitlistConfirmHtml({ name }),
-    text: `${name ? `Hi ${name},\n\n` : ""}You're on the Inner Circle waiting list. When the doors open, you'll be among the first to know.\n\nOutfits sorted.\nGRWTEE`
+    text: `${greeting(name)}\n\nYou're on the Inner Circle waiting list. When the doors open, you'll be among the first to know.\n\nOutfits sorted.\nGRWTEE`
   });
 
   if (error) {

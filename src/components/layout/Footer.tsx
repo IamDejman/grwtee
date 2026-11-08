@@ -39,6 +39,7 @@ const quickLinks = [
 
 const legalLinks = [
   { href: "/terms", label: "Terms & Conditions" },
+  { href: "/privacy", label: "Privacy Policy" },
   { href: "/payment", label: "Payment Policies" }
 ];
 
