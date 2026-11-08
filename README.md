@@ -72,4 +72,11 @@ Place these files:
 - Bookings: status updates + CSV export.
 - Settings: site settings + password change.
 
+## Hosting region
+
+Vercel Functions run in `fra1` (Frankfurt), set by `regions` in `vercel.json`, to sit next to the
+Supabase database in `eu-central-1` (Frankfurt). Pages and API routes that read the database wait
+on that round trip once per query, so keep the two in the same region: if the database moves,
+change `regions` to match.
+
 

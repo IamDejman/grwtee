@@ -4,7 +4,7 @@ import { Prisma, type DecemberBooking } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { parseEmail } from "@/lib/security/email-validation";
-import { generateSlots, type BusyRange, type SlotRules } from "./availability";
+import { generateSlots, slotsEnd, type BusyRange, type SlotRules } from "./availability";
 import { notifyBooked, notifyCancelled, notifyExpired, notifyPaid, notifyRescheduled } from "./notify";
 import { eventDescription } from "./format";
 import { feeLabel, getRules, getSettings } from "./settings";
@@ -59,14 +59,14 @@ async function heldRanges(from: Date, to: Date, slotMinutes: number): Promise<Bu
 }
 
 const SLOT_CACHE_MS = 60_000;
-let slotCache: { at: number; days: [string, string[]][] } | null = null;
+let slotCache: { at: number; minNoticeMinutes: number; days: [string, string[]][] } | null = null;
 
 /** Open slots as [Lagos date, ISO starts][]. Cached briefly so each visitor doesn't hit Google. */
 export async function openSlots(now = new Date()): Promise<[string, string[]][]> {
   if (slotCache && now.getTime() - slotCache.at < SLOT_CACHE_MS) {
-    // Drop anything that has fallen inside the notice period since it was cached.
-    const rules = await getRules();
-    const earliest = now.getTime() + rules.minNoticeMinutes * 60_000;
+    // Drop anything that has fallen inside the notice period since it was cached. The notice is
+    // the one the slots were made with, so a cached answer needs no database read.
+    const earliest = now.getTime() + slotCache.minNoticeMinutes * 60_000;
     return slotCache.days
       .map(([d, s]) => [d, s.filter((iso) => Date.parse(iso) >= earliest)] as [string, string[]])
       .filter(([, s]) => s.length);
@@ -74,13 +74,14 @@ export async function openSlots(now = new Date()): Promise<[string, string[]][]>
   // Before Google is asked: a lapsed hold's event would still show the time as busy.
   await expireHolds(now);
   const rules = await getRules();
-  const to = new Date(now.getTime() + (rules.windowDays + 1) * 86_400_000);
+  // Ask Google only up to the last bookable time, not the whole rolling window.
+  const to = slotsEnd(now, rules);
   const [google, held] = await Promise.all([
     bookingMode() === "live" ? queryBusy(now, to) : Promise.resolve([]),
     heldRanges(now, to, rules.slotMinutes)
   ]);
   const days = [...generateSlots(now, rules, [...google, ...held]).entries()];
-  slotCache = { at: now.getTime(), days };
+  slotCache = { at: now.getTime(), minNoticeMinutes: rules.minNoticeMinutes, days };
   return days;
 }
 
