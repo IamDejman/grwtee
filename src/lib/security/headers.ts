@@ -3,27 +3,15 @@
  * Configure once here; infrastructure docs reference this module.
  */
 
-/**
- * The Content-Security-Policy; `extraConnectSrc` lets the page connect to more origins, and
- * `extraImgSrc` lets it show images from more origins.
- */
-function contentSecurityPolicy(extraConnectSrc: string[] = [], extraImgSrc: string[] = []): string {
-  return [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com",
-    // Cloudflare Turnstile renders its challenge in an iframe.
-    "frame-src https://challenges.cloudflare.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com data:",
-    // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
-    // hosts such as region1.google-analytics.com.
-    `img-src ${["'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com", ...extraImgSrc].join(" ")}`,
-    `connect-src ${["'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com", ...extraConnectSrc].join(" ")}`,
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'"
-  ].join("; ");
-}
+// The app's Supabase storage, which the stylist pages show photos from
+// (wardrobes, avatars, lookbook covers, message photos).
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
 
 export const SECURITY_HEADERS: Record<string, string> = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -32,39 +20,26 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-  "Content-Security-Policy": contentSecurityPolicy()
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com",
+    // Cloudflare Turnstile renders its challenge in an iframe.
+    "frame-src https://challenges.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
+    // hosts such as region1.google-analytics.com.
+    `img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com ${SUPABASE_ORIGIN}`.trim(),
+    "connect-src 'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ].join("; ")
 };
 
-/**
- * This project's Supabase origins, for the browser client's REST calls and its Realtime WebSocket,
- * from NEXT_PUBLIC_SUPABASE_URL. Empty when that is unset or not an http(s) URL.
- */
-export function supabaseOrigins(url: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL): string[] {
-  if (!url) return [];
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return [];
-  }
-  const socket = parsed.protocol === "https:" ? "wss:" : parsed.protocol === "http:" ? "ws:" : null;
-  if (!socket) return [];
-  return [`${parsed.protocol}//${parsed.host}`, `${socket}//${parsed.host}`];
-}
-
-/**
- * `supabase` also lets the page reach this project's Supabase. Only admin pages need it: the
- * stylist pages show photos from the app's storage (wardrobes, avatars, lookbook covers, message
- * photos), and the messages thread streams new messages over Supabase Realtime.
- */
-export function applySecurityHeaders(response: Response, { supabase = false }: { supabase?: boolean } = {}): Response {
+export function applySecurityHeaders(response: Response): Response {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
-  }
-  if (supabase) {
-    const origins = supabaseOrigins();
-    const storage = origins.filter((o) => o.startsWith("http"));
-    response.headers.set("Content-Security-Policy", contentSecurityPolicy(origins, storage));
   }
   response.headers.delete("X-Powered-By");
   return response;
