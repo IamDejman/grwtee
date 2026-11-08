@@ -1,9 +1,9 @@
 "use client";
 
-import { GoogleAnalytics, sendGAEvent } from "@next/third-parties/google";
+import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { isGALoaded } from "@/lib/analytics";
+import { gtag, isGALoaded } from "@/lib/analytics";
 
 export function AnalyticsProvider({ gaId }: { gaId: string | undefined }) {
   const pathname = usePathname();
@@ -13,17 +13,29 @@ export function AnalyticsProvider({ gaId }: { gaId: string | undefined }) {
     if (!gaId || !isGALoaded()) return;
     // Only send page_view on client-side navigation (skip initial load; GA config handles that)
     if (prevPathRef.current !== null && prevPathRef.current !== pathname) {
-      sendGAEvent("event", "page_view", { page_path: pathname });
+      gtag("event", "page_view", { page_path: pathname });
     }
     prevPathRef.current = pathname;
   }, [gaId, pathname]);
 
   if (!gaId) return null;
 
+  const debug = process.env.NODE_ENV === "development" ? ", { debug_mode: true }" : "";
+  // Loaded once the page has finished loading and the browser is idle: Google's script is the
+  // largest on every page (177 KB) and was preloaded ahead of the page's own on slow phones.
   return (
-    <GoogleAnalytics
-      gaId={gaId}
-      debugMode={process.env.NODE_ENV === "development"}
-    />
+    <>
+      <Script id="ga-init" strategy="lazyOnload">
+        {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', ${JSON.stringify(gaId)}${debug});`}
+      </Script>
+      <Script
+        id="ga"
+        strategy="lazyOnload"
+        src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`}
+      />
+    </>
   );
 }
