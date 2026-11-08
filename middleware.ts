@@ -104,8 +104,10 @@ export async function middleware(request: NextRequest) {
   return withSecurityHeaders(NextResponse.next());
 }
 
+// Static files skip middleware; vercel.json still adds the security headers to them. Videos are
+// included because a phone fetches one in many range requests, each of which ran middleware.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|mov)$).*)"
   ]
 };
