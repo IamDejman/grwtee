@@ -47,14 +47,17 @@ describe("applySecurityHeaders", () => {
     expect(cspOf()).toBe(PUBLIC_CSP);
   });
 
-  it("lets admin pages connect to this project's Supabase, and changes nothing else", () => {
+  it("lets admin pages connect to and show images from this project's Supabase, and changes nothing else", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://abcdefghijklmnopqrst.supabase.co";
     const admin = directives(cspOf(true));
     const pub = directives(PUBLIC_CSP);
     expect(admin.get("connect-src")).toBe(
       `${pub.get("connect-src")} https://abcdefghijklmnopqrst.supabase.co wss://abcdefghijklmnopqrst.supabase.co`
     );
-    for (const [name, value] of pub) if (name !== "connect-src") expect(admin.get(name)).toBe(value);
+    expect(admin.get("img-src")).toBe(`${pub.get("img-src")} https://abcdefghijklmnopqrst.supabase.co`);
+    for (const [name, value] of pub) {
+      if (name !== "connect-src" && name !== "img-src") expect(admin.get(name)).toBe(value);
+    }
     expect(admin.size).toBe(pub.size);
   });
 

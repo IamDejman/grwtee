@@ -3,8 +3,11 @@
  * Configure once here; infrastructure docs reference this module.
  */
 
-/** The Content-Security-Policy; `extraConnectSrc` lets the page connect to more origins. */
-function contentSecurityPolicy(extraConnectSrc: string[] = []): string {
+/**
+ * The Content-Security-Policy; `extraConnectSrc` lets the page connect to more origins and
+ * `extraImgSrc` lets it show images from more origins.
+ */
+function contentSecurityPolicy(extraConnectSrc: string[] = [], extraImgSrc: string[] = []): string {
   return [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com",
@@ -14,7 +17,7 @@ function contentSecurityPolicy(extraConnectSrc: string[] = []): string {
     "font-src 'self' https://fonts.gstatic.com data:",
     // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
     // hosts such as region1.google-analytics.com.
-    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com",
+    `img-src ${["'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com", ...extraImgSrc].join(" ")}`,
     `connect-src ${["'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com", ...extraConnectSrc].join(" ")}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
@@ -51,13 +54,18 @@ export function supabaseOrigins(url: string | undefined = process.env.NEXT_PUBLI
 
 /**
  * `supabase` also lets the page reach this project's Supabase. Only admin pages need it: the
- * stylist messages thread streams new messages over Supabase Realtime.
+ * stylist messages thread streams new messages over Supabase Realtime, and client pages show
+ * images from Supabase Storage (wardrobe photos, and signed twin and try-on images).
  */
 export function applySecurityHeaders(response: Response, { supabase = false }: { supabase?: boolean } = {}): Response {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
   }
-  if (supabase) response.headers.set("Content-Security-Policy", contentSecurityPolicy(supabaseOrigins()));
+  if (supabase) {
+    const origins = supabaseOrigins();
+    const imageOrigins = origins.filter((origin) => origin.startsWith("http"));
+    response.headers.set("Content-Security-Policy", contentSecurityPolicy(origins, imageOrigins));
+  }
   response.headers.delete("X-Powered-By");
   return response;
 }
