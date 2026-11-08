@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm run build:deploy",
+  "regions": ["fra1"],
   "crons": [
     {
       "path": "/api/cron/december-reminders",

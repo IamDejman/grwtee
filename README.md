@@ -39,6 +39,10 @@ Vercel runs `npm run build:deploy` (`scripts/vercel-build.sh`). Production build
 
 Security headers are set in `next.config.ts` from `src/lib/security/headers.ts`. Deploy checklists are in `docs/infrastructure-security.md`.
 
+### Hosting region
+
+Vercel Functions run in `fra1` (Frankfurt), set by `regions` in `vercel.json`, to sit next to the Supabase database in `eu-central-1` (Frankfurt). Pages and API routes that read the database wait on that round trip once per query, so keep the two in the same region: if the database moves, change `regions` to match.
+
 ### Scheduled jobs
 
 Hobby only runs daily jobs, so the frequent ones run from Supabase (pg_cron), defined in `grwtee-mobile/api/supabase/28-scheduled-jobs.sql`. Every job calls a route on this site with `CRON_SECRET`, which must also be in Supabase Vault as `website_cron_secret`.

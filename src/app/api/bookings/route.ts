@@ -1,6 +1,6 @@
 import { enquirySchema, saveEnquiry, sendEnquiryEmails } from "@/lib/enquiries";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 export const revalidate = 300;
 
@@ -85,7 +85,8 @@ export async function POST(req: Request) {
   }
 
   // Notification to CONTACT_EMAIL (e.g. book@grwtee.com) and confirmation to the client via Resend.
-  await sendEnquiryEmails("booking", data);
+  // Sent after the response, so the client isn't kept waiting on the email service.
+  after(() => sendEnquiryEmails("booking", data));
 
   return NextResponse.json({
     success: true,

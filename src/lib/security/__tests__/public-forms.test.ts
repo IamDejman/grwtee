@@ -28,20 +28,32 @@ jest.mock("@/lib/security/rate-limit", () => ({
   consumeRateLimit: jest.fn()
 }));
 jest.mock("@/lib/security/session-auth", () => ({ requireAdminSession: jest.fn() }));
+// after() needs a live request. Here it runs the task, and post() waits for it as a request
+// would before it finishes.
+const mockAfterTasks: Promise<unknown>[] = [];
+jest.mock("next/server", () => ({
+  ...jest.requireActual("next/server"),
+  after: (task: (() => unknown) | Promise<unknown>) => {
+    mockAfterTasks.push(Promise.resolve().then(() => (typeof task === "function" ? task() : task)));
+  }
+}));
 
 const send = sendEmail as jest.Mock;
 const limit = consumeRateLimit as jest.Mock;
 const env = process.env as Record<string, string | undefined>;
 const ENV = { ...process.env };
 
-const post = (handler: (req: Request) => Promise<Response>, body: unknown, ip = "198.51.100.7") =>
-  handler(
+const post = async (handler: (req: Request) => Promise<Response>, body: unknown, ip = "198.51.100.7") => {
+  const res = await handler(
     new Request("https://grwtee.com/api/form", {
       method: "POST",
       headers: { "content-type": "application/json", "x-forwarded-for": ip },
       body: JSON.stringify(body)
     })
   );
+  await Promise.all(mockAfterTasks.splice(0));
+  return res;
+};
 
 const enquiry = {
   name: "Ada Obi",
