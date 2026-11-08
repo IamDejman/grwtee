@@ -1,8 +1,13 @@
-import { sendGAEvent } from "@next/third-parties/google";
+type Gtag = (...args: unknown[]) => void;
 
-/** True when the GA script has loaded; false when blocked (e.g. by content blocker). */
+/** True once the GA snippet has run; false while it waits to load or when blocked (e.g. by a content blocker). */
 export function isGALoaded(): boolean {
   return typeof window !== "undefined" && typeof (window as unknown as { gtag?: unknown }).gtag === "function";
+}
+
+/** Calls GA's gtag() when it has loaded; does nothing otherwise. */
+export function gtag(...args: unknown[]): void {
+  if (isGALoaded()) (window as unknown as { gtag: Gtag }).gtag(...args);
 }
 
 /**
@@ -20,8 +25,8 @@ export function trackEvent(
 ): void {
   if (!isGALoaded()) return;
   if (params) {
-    sendGAEvent("event", name, params);
+    gtag("event", name, params);
   } else {
-    sendGAEvent("event", name);
+    gtag("event", name);
   }
 }
