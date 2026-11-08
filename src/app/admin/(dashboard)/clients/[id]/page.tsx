@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, BookOpen, Shirt } from 'lucide-react'
+import { ArrowLeft, BookOpen, PersonStanding, Shirt } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStylistId } from '@/lib/stylist-auth'
 import { clientName } from '@/lib/stylist-clients'
+import { getClientTwin } from '@/lib/stylist-twins'
 import { lookbookStatusLabel, stylistLabel } from '@/lib/stylist-labels'
 import { Badge, EmptyState, Field, Panel } from '@/components/admin/ui'
 import { ButtonLink } from '@/components/ui/Button'
@@ -22,11 +23,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id } = await params
   const admin = createAdminClient()
 
-  const [profileRes, wardrobeRes, lookbooksRes, conversationRes] = await Promise.all([
+  const [profileRes, wardrobeRes, lookbooksRes, conversationRes, twin] = await Promise.all([
     admin.from('profiles').select('*').eq('id', id).maybeSingle(),
     admin.from('wardrobe_items').select('id, name, image_url').eq('user_id', id).order('created_at', { ascending: false }).limit(12),
     admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false }),
-    admin.from('conversations').select('id').eq('stylist_id', ownerId).eq('client_id', id).maybeSingle()
+    admin.from('conversations').select('id').eq('stylist_id', ownerId).eq('client_id', id).maybeSingle(),
+    getClientTwin(admin, id)
   ])
 
   const profile = profileRes.data
@@ -83,6 +85,56 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <Field label="Shoe size">{size(profile.shoe_size, profile.shoe_size_region)}</Field>
             <Field label="Plan">{stylistLabel(profile.subscription_tier)}</Field>
           </dl>
+        </Panel>
+
+        <Panel title="Twin">
+          {!twin ? (
+            <EmptyState
+              icon={PersonStanding}
+              title="No twin yet. They can create one in the app under Profile, Your twin."
+            />
+          ) : (
+            <div className="flex flex-col gap-5 sm:flex-row">
+              <div className="w-full shrink-0 sm:w-40">
+                <div className="aspect-[2/3] overflow-hidden rounded-xl bg-atelier-canvas">
+                  {twin.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={twin.imageUrl} alt={`${name}'s twin`} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-atelier-faint">
+                      <PersonStanding className="h-6 w-6" aria-hidden />
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-atelier-muted">
+                  <Badge tone={twin.status === 'ready' ? 'green' : twin.status === 'failed' ? 'red' : 'gold'}>
+                    {twin.status === 'ready' ? 'Ready' : twin.status === 'failed' ? 'Failed' : 'Building'}
+                  </Badge>
+                  {twin.source === 'photo' ? 'Own photo' : 'From selfie'}
+                </p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="mb-3 text-sm text-atelier-muted">Looks they have seen on their twin</p>
+                {!twin.renders.length ? (
+                  <p className="text-sm text-atelier-faint">None yet.</p>
+                ) : (
+                  <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {twin.renders.map((render) => (
+                      <li key={render.id} title={render.lookTitle ?? undefined}>
+                        <div className="aspect-[2/3] overflow-hidden rounded-xl bg-atelier-canvas">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img loading="lazy" src={render.url} alt={render.lookTitle ?? 'Look on twin'} className="h-full w-full object-cover" />
+                        </div>
+                        {render.lookTitle ? (
+                          <p className="mt-1 truncate text-xs text-atelier-muted">{render.lookTitle}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
         </Panel>
 
         <div className="grid gap-5 lg:grid-cols-2">

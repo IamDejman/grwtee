@@ -18,7 +18,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' https://fonts.gstatic.com data:",
     // Google Analytics hosts follow Google's CSP guide for GA4 without Ads; hits go to regional
     // hosts such as region1.google-analytics.com.
-    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://www.googletagmanager.com https://*.google-analytics.com",
+    // *.supabase.co: client wardrobe photos and signed twin/try-on images shown on admin client pages.
+    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://www.grwtee.com https://grwtee.com https://*.supabase.co https://www.googletagmanager.com https://*.google-analytics.com",
     "connect-src 'self' https://res.cloudinary.com https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
