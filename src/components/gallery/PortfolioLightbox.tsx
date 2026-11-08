@@ -31,7 +31,11 @@ export default function PortfolioLightbox({
     video.muted = true;
     video.volume = 0;
     video.currentTime = 0;
-    video.play().catch(() => {});
+    video.controls = false;
+    // When the phone won't start it (Low Power Mode on iPhones), give the viewer its play button.
+    video.play().catch((err: unknown) => {
+      if ((err as { name?: string } | null)?.name !== "AbortError") video.controls = true;
+    });
   }, [open, current]);
 
   return (

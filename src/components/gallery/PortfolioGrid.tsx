@@ -21,6 +21,13 @@ const getSpan = (i: number) => {
   return "col-span-1";
 };
 
+// Each tile's rendered width, so the browser downloads the right image size: the grid is at most
+// 1088px wide (max-w-6xl less padding) and one column below sm.
+const getSizes = (i: number) =>
+  getSpan(i) === "col-span-2"
+    ? "(max-width: 1152px) 100vw, 1088px"
+    : "(max-width: 640px) 100vw, (max-width: 1152px) 50vw, 544px";
+
 export function PortfolioGrid() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -52,7 +59,8 @@ export function PortfolioGrid() {
             type="button"
             onClick={() => setOpenIndex(idx)}
             className={`group relative w-full overflow-hidden ${getSpan(idx)}`}
-            initial={{ opacity: 0, scale: 0.98 }}
+            // The first tile is the top of the page: shown from the first paint, not once scripts run.
+            initial={idx === 0 ? false : { opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, margin: "-20px" }}
             transition={{ delay: 0.03 * idx, duration: 0.35 }}
@@ -70,7 +78,9 @@ export function PortfolioGrid() {
                   alt={slide.alt}
                   fill
                   className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 50vw"
+                  sizes={getSizes(idx)}
+                  loading={idx === 0 ? "eager" : "lazy"}
+                  fetchPriority={idx === 0 ? "high" : undefined}
                 />
               ) : (
                 <>

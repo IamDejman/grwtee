@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
-import { SECURITY_HEADERS } from "./src/lib/security/headers";
+import { adminContentSecurityPolicy, SECURITY_HEADERS } from "./src/lib/security/headers";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value }))
+      },
+      // Admin pages also reach this project's Supabase. For the same header, a later rule wins.
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "Content-Security-Policy", value: adminContentSecurityPolicy() }]
       }
     ];
   }

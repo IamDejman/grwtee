@@ -94,6 +94,7 @@ If you add Cloudflare in front of Vercel:
 - Keep **service role key** server-only (`src/lib/supabase/admin.ts`).
 - Enable **RLS** on stylist tables if you move off service-role client later.
 - Review Supabase **Auth logs** separately from `AdminAuditLog`.
+- Admin pages' CSP `connect-src` also allows this project's Supabase origin (`https://` and `wss://`), taken from `NEXT_PUBLIC_SUPABASE_URL`, because the stylist messages thread streams new messages over Supabase Realtime. Public pages don't get it (`applySecurityHeaders` in `src/lib/security/headers.ts`, called from `middleware.ts`).
 
 ## Cloudinary uploads
 

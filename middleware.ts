@@ -70,13 +70,13 @@ function requiresAdminIpGuard(pathname: string, method: string): boolean {
   return adminApiPrefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
-function withSecurityHeaders(response: NextResponse): NextResponse {
-  applySecurityHeaders(response);
-  return response;
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Admin pages also reach this project's Supabase from the browser (Realtime for stylist messages).
+  const withSecurityHeaders = (response: NextResponse): NextResponse => {
+    applySecurityHeaders(response, { supabase: pathname.startsWith("/admin") });
+    return response;
+  };
 
   if (requiresAdminIpGuard(pathname, request.method) && !isAdminIpAllowed(request)) {
     return withSecurityHeaders(new NextResponse("Forbidden", { status: 403 }));
@@ -125,8 +125,10 @@ export async function middleware(request: NextRequest) {
   return withSecurityHeaders(NextResponse.next());
 }
 
+// Static files skip middleware; vercel.json still adds the security headers to them. Videos are
+// included because a phone fetches one in many range requests, each of which ran middleware.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|mov)$).*)"
   ]
 };

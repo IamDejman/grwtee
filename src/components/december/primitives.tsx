@@ -1,11 +1,15 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { ReactNode } from "react";
 
 export const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Headline that rises word by word from behind a mask. */
+/**
+ * Headline that rises word by word from behind a mask. A CSS animation (globals.css), so it runs
+ * from the first paint rather than once the scripts load, and Reduce Motion is a media query
+ * the server's HTML and the browser agree on.
+ */
 export function RevealText({
   text,
   as: Tag = "h1",
@@ -19,7 +23,6 @@ export function RevealText({
   delay?: number;
   headingRef?: React.Ref<HTMLHeadingElement>;
 }) {
-  const reduce = useReducedMotion();
   const words = text.split(" ");
   return (
     <Tag
@@ -30,17 +33,10 @@ export function RevealText({
     >
       {words.map((word, i) => (
         <span key={`${word}-${i}`} aria-hidden="true" className="inline-block overflow-hidden pb-[0.12em] align-bottom">
-          <motion.span
-            className="inline-block"
-            initial={reduce ? { opacity: 0 } : { y: "105%" }}
-            // Always end in place and visible: the server can't know about Reduce Motion, so the
-            // page it sends starts every word lowered, and a fade alone would leave it hidden.
-            animate={{ opacity: 1, y: "0%" }}
-            transition={{ duration: 0.8, ease: EASE, delay: delay + i * 0.045 }}
-          >
+          <span className="reveal-rise inline-block" style={{ animationDelay: `${delay + i * 0.045}s` }}>
             {word}
             {i < words.length - 1 ? " " : ""}
-          </motion.span>
+          </span>
         </span>
       ))}
     </Tag>
