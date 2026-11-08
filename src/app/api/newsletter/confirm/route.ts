@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { writeSecurityEvent } from "@/lib/security/security-events";
+import { clientIp } from "@/lib/security/rate-limit";
 
+/**
+ * Links in confirmation emails sent before WEB-18 come here: show the page
+ * with the button instead of confirming on a visit, which mail scanners
+ * make by themselves.
+ */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
-  const base = url.origin;
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    null;
+  const page = new URL("/newsletter/confirm", url.origin);
+  if (token) page.searchParams.set("token", token);
+  return NextResponse.redirect(page, 303);
+}
 
-  if (!token) {
-    return NextResponse.redirect(`${base}/newsletter/unsubscribed?error=missing-token`);
+/** The button on /newsletter/confirm. */
+export async function POST(req: Request) {
+  const base = new URL(req.url).origin;
+  const done = (query = "") => NextResponse.redirect(`${base}/newsletter/confirmed${query}`, 303);
+
+  const form = await req.formData().catch(() => null);
+  const token = form?.get("token");
+  if (typeof token !== "string" || !token) {
+    return done("?error=invalid-or-used");
   }
 
   const subscriber = await prisma.subscriber.findUnique({
@@ -23,24 +35,21 @@ export async function GET(req: Request) {
     await writeSecurityEvent({
       category: "newsletter",
       action: "confirm.invalid_token",
-      ip
+      ip: clientIp(req)
     });
-    return NextResponse.redirect(`${base}/newsletter/confirmed?error=invalid-or-used`);
+    return done("?error=invalid-or-used");
   }
 
-  if (
-    subscriber.confirmTokenExpiresAt &&
-    subscriber.confirmTokenExpiresAt < new Date()
-  ) {
+  if (subscriber.confirmTokenExpiresAt && subscriber.confirmTokenExpiresAt < new Date()) {
     await prisma.subscriber.update({
       where: { id: subscriber.id },
       data: { confirmToken: null, confirmTokenExpiresAt: null }
     });
-    return NextResponse.redirect(`${base}/newsletter/confirmed?error=expired`);
+    return done("?error=expired");
   }
 
   if (subscriber.status === "confirmed") {
-    return NextResponse.redirect(`${base}/newsletter/confirmed?already=1`);
+    return done("?already=1");
   }
 
   await prisma.subscriber.update({
@@ -53,5 +62,5 @@ export async function GET(req: Request) {
     }
   });
 
-  return NextResponse.redirect(`${base}/newsletter/confirmed`);
+  return done();
 }

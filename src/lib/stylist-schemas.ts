@@ -44,19 +44,33 @@ const requiredLink = (message: string) =>
     .max(2048)
     .refine(isWebUrl, LINK_MESSAGE)
 
-/** A price as the forms send it: "1500", "" or a number. Empty becomes null. */
+/**
+ * A look item's price, a number column: "25,000", "₦25,000.50", "" or a
+ * number. Symbols and thousands separators are dropped (parseFloat read
+ * "25,000" as 25: ARCH-01). Empty becomes null.
+ */
 const price = z
-  .union([z.string().trim().max(20), z.number()])
+  .union([z.string().trim().max(30), z.number()])
   .nullish()
   .transform((v, ctx) => {
     if (v === null || v === undefined || v === '') return null
-    const n = typeof v === 'number' ? v : parseFloat(v)
+    const digits = typeof v === 'number' ? String(v) : v.replace(/[^\d.]/g, '')
+    const n = /^\d+(\.\d+)?$/.test(digits) ? Number(digits) : NaN
     if (!Number.isFinite(n) || n < 0 || n >= 100_000_000) {
       ctx.addIssue({ code: 'custom', message: 'Enter a valid price.' })
       return z.NEVER
     }
     return Math.round(n * 100) / 100
   })
+
+/**
+ * A lookbook item's price, a text column the app fills with what people
+ * type ("₦25,000"), so it's kept as written (ARCH-01). Empty becomes null.
+ */
+const priceText = z
+  .union([z.string().trim().max(50), z.number()])
+  .nullish()
+  .transform((v) => (v === null || v === undefined || v === '' ? null : String(v)))
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date.')
 const optionalDate = isoDate.nullish().or(z.literal('')).transform((v) => v || null)
@@ -107,7 +121,7 @@ const lookbookItem = z.object({
   brand: text(200),
   category: text(50),
   image_url: link,
-  price,
+  price: priceText,
   purchase_url: link,
   notes: text(1000)
 })

@@ -9,6 +9,7 @@ import { parseEmail } from "@/lib/security/email-validation";
 import { guardPublicForm, turnstileTokenOf } from "@/lib/security/public-form";
 import { requireAdminSession } from "@/lib/security/session-auth";
 import { jsonUnauthorized } from "@/lib/security/api-response";
+import { clampLimit } from "@/lib/utils";
 
 export async function GET(req: Request) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || undefined;
     const full = searchParams.get("full") === "1";
-    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const limit = clampLimit(searchParams.get("limit"), 20, 200);
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     const data = await prisma.bookingRequest.findMany({

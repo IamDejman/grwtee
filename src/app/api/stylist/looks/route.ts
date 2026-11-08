@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
 import { sanitizeSearchTerm } from '@/lib/security/search-sanitize'
 import { lookSchema, parseBody } from '@/lib/stylist-schemas'
+import { clampLimit } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   const ownerId = await requireStylistId(request)
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   const { searchParams } = new URL(request.url)
   const q = searchParams.get('q')
-  const limit = parseInt(searchParams.get('limit') ?? '50')
+  const limit = clampLimit(searchParams.get('limit'), 50, 200)
 
   let query = admin
     .from('looks')

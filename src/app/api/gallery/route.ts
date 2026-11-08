@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
+import { requireAdminSession } from "@/lib/security/session-auth";
+import { isOwnGalleryUpload } from "@/lib/cloudinary";
+import { clampLimit } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
     const featured = searchParams.get("featured");
-    const limit = parseInt(searchParams.get("limit") || "0", 10);
+    const limit = clampLimit(searchParams.get("limit"), 0, 200);
     const where: any = {};
     if (category) where.category = category;
     if (featured !== null) where.featured = featured === "true";
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -58,6 +59,10 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
+  }
+  // Only images uploaded to our own Cloudinary folders (WEB-21).
+  if (!(await isOwnGalleryUpload(parsed.data.imageUrl, parsed.data.cloudinaryId))) {
+    return NextResponse.json({ success: false, error: "Upload the image here and try again." }, { status: 400 });
   }
   const data = await prisma.galleryImage.create({ data: parsed.data });
   revalidateTag("gallery", "max");

@@ -2,7 +2,7 @@ import "@fontsource-variable/cormorant-garamond/wght.css";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ToastProvider } from "@/components/admin/Toast";
-import { requireAdminSession } from "@/lib/security/session-auth";
+import { getAdminSession } from "@/lib/security/session-auth";
 
 export default async function DashboardLayout({
   children
@@ -11,8 +11,9 @@ export default async function DashboardLayout({
 }) {
   // The middleware only checks the cookie's signature. This also checks the
   // live session: signed out, revoked, or the password changed since.
-  const session = await requireAdminSession();
+  const session = await getAdminSession();
   if (!session) redirect("/admin/login?reason=session_expired");
+  if (session.user.mustChangePassword) redirect("/admin/change-password");
 
   return (
     <ToastProvider>

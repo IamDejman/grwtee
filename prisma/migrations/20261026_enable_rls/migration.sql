@@ -20,4 +20,11 @@ ALTER TABLE "GalleryImage" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Service" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "DecemberBooking" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "DecemberDraft" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+-- Prisma's own table exists wherever migrations are deployed, but not in
+-- the empty database `prisma migrate diff` builds to compare the schema.
+DO $$
+BEGIN
+  IF to_regclass('public."_prisma_migrations"') IS NOT NULL THEN
+    ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;

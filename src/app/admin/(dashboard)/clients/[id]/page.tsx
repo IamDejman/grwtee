@@ -22,11 +22,21 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id } = await params
   const admin = createAdminClient()
 
-  const [profileRes, wardrobeRes, lookbooksRes, conversationRes] = await Promise.all([
+  // Only the stylist's own clients: people with a conversation with them,
+  // as the client list shows. Any other app account's profile, wardrobe and
+  // lookbooks stay out of reach by id (WEB-15).
+  const conversationRes = await admin
+    .from('conversations')
+    .select('id')
+    .eq('stylist_id', ownerId)
+    .eq('client_id', id)
+    .maybeSingle()
+  if (!conversationRes.data) notFound()
+
+  const [profileRes, wardrobeRes, lookbooksRes] = await Promise.all([
     admin.from('profiles').select('*').eq('id', id).maybeSingle(),
     admin.from('wardrobe_items').select('id, name, image_url').eq('user_id', id).order('created_at', { ascending: false }).limit(12),
-    admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false }),
-    admin.from('conversations').select('id').eq('stylist_id', ownerId).eq('client_id', id).maybeSingle()
+    admin.from('lookbooks').select('id, title, type, status, cover_image_url').eq('assigned_to', id).order('created_at', { ascending: false })
   ])
 
   const profile = profileRes.data

@@ -111,7 +111,8 @@ export function LookbookForm({ clients, defaultClientId, initialData }: Lookbook
       assigned_to: assignedTo || null,
       is_published: isPublished,
       show_in_feed: showInFeed,
-      items: items.map((item, i) => ({ ...item, price: item.price.replace(/[^0-9.]/g, ''), sort_order: i }))
+      // Prices are kept as typed ("₦25,000"), as the app stores them.
+      items: items.map((item, i) => ({ ...item, price: item.price.trim(), sort_order: i }))
     }
 
     try {
@@ -242,7 +243,7 @@ export function LookbookForm({ clients, defaultClientId, initialData }: Lookbook
                   <ItemCard key={item.id ?? idx} index={idx} onRemove={() => setItems((prev) => prev.filter((_, i) => i !== idx))}>
                     <Input label="Name" required value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} placeholder="e.g. Gele, emerald" />
                     <Input label="Brand" value={item.brand} onChange={(e) => updateItem(idx, 'brand', e.target.value)} />
-                    <Input label="Price" inputMode="decimal" value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} />
+                    <Input label="Price" placeholder="₦25,000" value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} />
                     <div className="sm:col-span-2">
                       <Input label="Shop link" type="url" value={item.purchase_url} onChange={(e) => updateItem(idx, 'purchase_url', e.target.value)} placeholder="https://" />
                     </div>
@@ -271,7 +272,7 @@ export function LookbookForm({ clients, defaultClientId, initialData }: Lookbook
             </div>
           </Panel>
           <Panel>
-            <ImageField label="Cover photo" value={coverImageUrl} onChange={setCoverImageUrl} onError={setError} />
+            <ImageField kind="lookbook" label="Cover photo" value={coverImageUrl} onChange={setCoverImageUrl} onError={setError} />
           </Panel>
         </div>
       </div>

@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { deleteImage } from "@/lib/cloudinary";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
+import { requireAdminSession } from "@/lib/security/session-auth";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -18,7 +17,7 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -40,7 +39,7 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

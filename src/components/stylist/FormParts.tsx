@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { ArrowLeft, ImagePlus, X } from 'lucide-react'
 import { stylistLabel } from '@/lib/stylist-labels'
+import { shrinkImage } from '@/lib/browser-image'
 
 /** Back arrow, title and save buttons for the look and lookbook editors. */
 export function EditorHeader({ backHref, backLabel, title, actions }: {
@@ -64,12 +65,17 @@ export function ChipPicker({ label, hint, options, selected, onToggle, format = 
   )
 }
 
-/** Photo picker with preview. Uploads through /api/upload and hands back the URL. */
-export function ImageField({ label, value, onChange, onError }: {
+/**
+ * Photo picker with preview. Shrinks the photo, uploads it straight to the
+ * app's Supabase storage (ARCH-05) and hands back the URL.
+ */
+export function ImageField({ label, value, onChange, onError, kind = 'look' }: {
   label: string
   value: string
   onChange: (url: string) => void
   onError: (message: string) => void
+  /** Which storage bucket: the look's or the lookbook's. */
+  kind?: 'look' | 'lookbook'
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -77,12 +83,23 @@ export function ImageField({ label, value, onChange, onError }: {
   async function upload(file: File) {
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = (await res.json().catch(() => null)) as { data?: { imageUrl?: string }; error?: string } | null
-      if (!res.ok || !data?.data?.imageUrl) throw new Error(data?.error || "Couldn't upload the photo. Try again.")
-      onChange(data.data.imageUrl)
+      const photo = await shrinkImage(file)
+      const contentType = photo.type === 'image/png' || photo.type === 'image/webp' ? photo.type : 'image/jpeg'
+      const res = await fetch('/api/stylist/uploads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, contentType })
+      })
+      const data = (await res.json().catch(() => null)) as { data?: { uploadUrl: string; publicUrl: string }; error?: string } | null
+      if (!res.ok || !data?.data) throw new Error(data?.error || "Couldn't upload the photo. Try again.")
+
+      // The same request supabase-js makes for a signed upload.
+      const body = new FormData()
+      body.append('cacheControl', '3600')
+      body.append('', new File([photo], `photo.${contentType.split('/')[1]}`, { type: contentType }))
+      const put = await fetch(data.data.uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body })
+      if (!put.ok) throw new Error("Couldn't upload the photo. Try again.")
+      onChange(data.data.publicUrl)
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't upload the photo. Try again.")
     } finally {

@@ -9,14 +9,17 @@ export type LineItem = {
 
 export const VAT_RATE = 0.075;
 
-export function parseItems(json: string): LineItem[] {
-  try {
-    const parsed = JSON.parse(json);
-    if (Array.isArray(parsed)) return parsed as LineItem[];
-  } catch {
-    // ignore
+/** An invoice's items: the JSON column, or the text it held before (WEB-23). */
+export function parseItems(value: unknown): LineItem[] {
+  let parsed = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
   }
-  return [];
+  return Array.isArray(parsed) ? (parsed as LineItem[]) : [];
 }
 
 export function currencySymbol(currency: string) {
@@ -30,15 +33,21 @@ export function formatMoney(amount: number, currency: string) {
   })}`;
 }
 
+/** Totals in whole kobo or cents, then back to the currency, so adding up
+ *  doesn't drift by fractions of a cent (WEB-23). VAT is rounded per line. */
 export function computeTotals(items: LineItem[]) {
-  let subtotal = 0;
-  let vat = 0;
+  let subtotalMinor = 0;
+  let vatMinor = 0;
   for (const it of items) {
     const qty = Number(it.quantity) || 0;
     const price = Number(it.unitPrice) || 0;
-    const line = qty * price;
-    subtotal += line;
-    if (it.vat) vat += line * VAT_RATE;
+    const lineMinor = Math.round(qty * price * 100);
+    subtotalMinor += lineMinor;
+    if (it.vat) vatMinor += Math.round(lineMinor * VAT_RATE);
   }
-  return { subtotal, vat, total: subtotal + vat };
+  return {
+    subtotal: subtotalMinor / 100,
+    vat: vatMinor / 100,
+    total: (subtotalMinor + vatMinor) / 100
+  };
 }

@@ -1,21 +1,50 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { getServerSessionWithDB } from './auth-helpers'
 import { createAdminClient } from './supabase/admin'
-import { requireAdminFromRequest } from '@/lib/security/session-auth'
+import { prisma } from '@/lib/prisma'
+import { requireAdminFromRequest, requireAdminSession } from '@/lib/security/session-auth'
 import { jsonUnauthorized, sanitizeClientError } from '@/lib/security/api-response'
 
-/** Server Components — session via NextAuth + Supabase profile lookup. */
-export async function getStylistId(): Promise<string | null> {
-  const session = await getServerSessionWithDB()
-  if (!session?.user?.email) return null
+const STAFF_ROLES = ['stylist', 'admin']
+
+/**
+ * The stylist's profile in the app, for a dashboard admin. Linked once by
+ * email and stored on the admin (Admin.supabaseProfileId); after that it's
+ * looked up by id, so changing the email on either side no longer cuts the
+ * dashboard off (ARCH-02). Only a stylist or admin profile counts.
+ */
+export async function stylistProfileId(admin: { id: string; email: string }): Promise<string | null> {
   const supabase = createAdminClient()
+  const row = await prisma.admin.findUnique({ where: { id: admin.id }, select: { supabaseProfileId: true } })
+
+  if (row?.supabaseProfileId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', row.supabaseProfileId)
+      .in('role', STAFF_ROLES)
+      .maybeSingle()
+    return data?.id ?? null
+  }
+
   const { data } = await supabase
     .from('profiles')
     .select('id')
-    .eq('email', session.user.email)
-    .single()
-  return data?.id ?? null
+    .eq('email', admin.email)
+    .in('role', STAFF_ROLES)
+    .maybeSingle()
+  if (!data?.id) return null
+  await prisma.admin
+    .update({ where: { id: admin.id }, data: { supabaseProfileId: data.id } })
+    .catch((err) => console.error('[Stylist] Could not save the linked profile', { code: (err as { code?: string }).code }))
+  return data.id
+}
+
+/** Server Components: the signed-in admin's app profile id. */
+export async function getStylistId(): Promise<string | null> {
+  const session = await requireAdminSession()
+  if (!session?.user?.email || !session.user.id) return null
+  return stylistProfileId({ id: session.user.id, email: session.user.email })
 }
 
 /** API routes — JWT validated against live tokenVersion. */
@@ -30,14 +59,8 @@ export async function requireStylist(
   const admin = await requireAdminFromRequest(request)
   if (!admin) return null
 
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', admin.email)
-    .single()
-
-  return data?.id ? { adminId: admin.id, profileId: data.id } : null
+  const profileId = await stylistProfileId(admin)
+  return profileId ? { adminId: admin.id, profileId } : null
 }
 
 export function stylistError(message?: string, status = 500) {

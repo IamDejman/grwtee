@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { getAuthOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminSession } from "@/lib/security/session-auth";
@@ -31,7 +29,7 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return jsonUnauthorized();
   }
@@ -52,7 +50,7 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(await getAuthOptions());
+  const session = await requireAdminSession();
   if (!session?.user?.email) {
     return jsonUnauthorized();
   }

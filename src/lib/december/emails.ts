@@ -322,8 +322,33 @@ export async function notifyStylist(b: DecemberBooking, event: StylistEvent, sit
   return send(await stylistInbox(), email.subject, email.html, email.text, b.email);
 }
 
-export function reminderEmail(b: DecemberBooking): Email {
-  const heading = "Your consultation is tomorrow.";
+/** "today" or "tomorrow" in the client's own timezone; null when it's further off. */
+export function callDay(slot: Date, now: Date, timeZone: string): "today" | "tomorrow" | null {
+  const dayOf = (d: Date) => {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+    } catch {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+    }
+  };
+  const slotDay = dayOf(slot);
+  if (slotDay === dayOf(now)) return "today";
+  if (slotDay === dayOf(new Date(now.getTime() + 86_400_000))) return "tomorrow";
+  return null;
+}
+
+/** Worded from the call's actual date: a call booked the evening before was
+ *  told "tomorrow" on the morning of the call (WEB-19). */
+export function reminderEmail(b: DecemberBooking, now = new Date()): Email {
+  const when = callDay(b.slotStart, now, b.timezone);
+  const heading =
+    when === "today" ? "Your consultation is today." : when === "tomorrow" ? "Your consultation is tomorrow." : "Your consultation is coming up.";
+  const subject =
+    when === "today"
+      ? "Today: your GRWTEE consultation"
+      : when === "tomorrow"
+        ? "Tomorrow: your GRWTEE consultation"
+        : "Coming up: your GRWTEE consultation";
   const html = layout(
     `${eyebrow("GRWTEE x Lagos in December")}
 ${title(heading)}
@@ -341,11 +366,11 @@ ${para("Need to change the time? Use the link in your confirmation email, or rep
     "",
     "Need to change the time? Use the link in your confirmation email, or reply to this one."
   ].join("\n");
-  return { subject: "Tomorrow: your GRWTEE consultation", html, text };
+  return { subject, html, text };
 }
 
 /** Returns whether the email was accepted, so the reminder job can retry on its next run. */
-export async function sendReminder(b: DecemberBooking): Promise<boolean> {
-  const email = reminderEmail(b);
+export async function sendReminder(b: DecemberBooking, now = new Date()): Promise<boolean> {
+  const email = reminderEmail(b, now);
   return send(b.email, email.subject, email.html, email.text, await stylistInbox());
 }

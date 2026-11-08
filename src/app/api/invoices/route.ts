@@ -1,14 +1,17 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { maskInvoiceListItem } from "@/lib/security/pii-mask";
 import { requireAdminSession } from "@/lib/security/session-auth";
 import { jsonUnauthorized, jsonGenericServerError } from "@/lib/security/api-response";
+import { clampLimit } from "@/lib/utils";
 
 const lineItemSchema = z.object({
   description: z.string().min(1),
   quantity: z.number().positive(),
-  unitPrice: z.number().nonnegative(),
+  // Kept to the cent: the totals are worked out in whole cents.
+  unitPrice: z.number().nonnegative().transform((n) => Math.round(n * 100) / 100),
   vat: z.boolean().default(false)
 });
 
@@ -23,19 +26,11 @@ const createSchema = z.object({
   paymentAccountIds: z.array(z.string()).optional().nullable()
 });
 
+// From a database sequence: never reused after a delete, and two invoices
+// made at the same moment get different numbers (WEB-20).
 async function nextInvoiceNumber(): Promise<string> {
-  const last = await prisma.invoice.findFirst({
-    orderBy: { createdAt: "desc" },
-    select: { invoiceNumber: true }
-  });
-  let nextNum = 1;
-  if (last?.invoiceNumber) {
-    const match = last.invoiceNumber.match(/(\d+)$/);
-    if (match) {
-      nextNum = parseInt(match[1], 10) + 1;
-    }
-  }
-  return `INV-${String(nextNum).padStart(4, "0")}`;
+  const [row] = await prisma.$queryRaw<{ n: bigint }[]>`SELECT nextval('"invoice_number_seq"') AS n`;
+  return `INV-${String(row.n).padStart(4, "0")}`;
 }
 
 export async function GET(req: Request) {
@@ -47,7 +42,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || undefined;
     const full = searchParams.get("full") === "1";
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const limit = clampLimit(searchParams.get("limit"), 50, 200);
     const where: Record<string, unknown> = {};
     if (status && status !== "all") where.status = status;
     const rows = await prisma.invoice.findMany({
@@ -92,11 +87,11 @@ export async function POST(req: Request) {
         clientName: data.clientName,
         clientAddress: data.clientAddress ?? null,
         currency: data.currency,
-        items: JSON.stringify(data.items),
+        items: data.items,
         notes: data.notes ?? null,
         reference: data.reference?.trim() || null,
         dueDate,
-        paymentAccountIds: selectedIds.length ? JSON.stringify(selectedIds) : null
+        paymentAccountIds: selectedIds.length ? selectedIds : Prisma.DbNull
       }
     });
     return NextResponse.json({ success: true, data: created });

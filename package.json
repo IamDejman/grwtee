@@ -26,6 +26,7 @@
     "@headlessui/react": "^2.2.0",
     "@hookform/resolvers": "^5.9.1",
     "@prisma/client": "^6.1.0",
+    "@sentry/nextjs": "11.9.0",
     "@supabase/supabase-js": "^2.110.6",
     "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",

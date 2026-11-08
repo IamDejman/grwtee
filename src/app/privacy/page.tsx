@@ -4,7 +4,7 @@ export const metadata = {
 };
 
 // Bump when the policy changes; shown at the bottom of the page.
-const LAST_UPDATED = "27 October 2026";
+const LAST_UPDATED = "28 October 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -142,8 +142,15 @@ export default function PrivacyPage() {
               providers&apos; backups are removed as those backups expire.
             </p>
             <p>
-              Enquiries, bookings and invoices are kept as long as we need them for the service and our records. Newsletter
-              addresses are kept until you unsubscribe, and waitlist entries until you ask us to remove them.
+              Enquiries from our booking form are deleted two years after we last updated them, and consultation bookings
+              two years after the call. A booking that was cancelled, or a held time that lapsed, is deleted 90 days after
+              the time it was for, and a booking form you started but didn&apos;t finish after 90 days. Invoices are kept
+              for our financial records.
+            </p>
+            <p>
+              Newsletter addresses are kept until you unsubscribe and removed within 30 days after that; a sign-up you
+              never confirmed is removed after 30 days. Waitlist entries are kept until you ask us to remove them. Records
+              we keep to protect the site, such as failed sign-in attempts, are deleted after a year.
             </p>
           </Section>
 
