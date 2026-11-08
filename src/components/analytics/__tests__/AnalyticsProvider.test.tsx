@@ -3,9 +3,9 @@ import { usePathname } from "next/navigation";
 import { AnalyticsProvider, isPrivatePath } from "@/components/analytics/AnalyticsProvider";
 
 jest.mock("next/navigation", () => ({ usePathname: jest.fn() }));
-jest.mock("@next/third-parties/google", () => ({
-  GoogleAnalytics: () => <div data-testid="ga" />,
-  sendGAEvent: jest.fn()
+jest.mock("next/script", () => ({
+  __esModule: true,
+  default: ({ id }: { id: string }) => <div data-testid={id} />
 }));
 
 const pathname = usePathname as jest.Mock;

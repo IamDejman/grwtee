@@ -83,7 +83,7 @@ export const slides: Slide[] = [
   },
   {
     type: "video",
-    src: "/slideshow/IMG_0391.MP4",
+    src: "/slideshow/styling-in-action.mp4",
     alt: "Styling Session",
     title: "Styling in action",
     description: "See how we put looks together.",
