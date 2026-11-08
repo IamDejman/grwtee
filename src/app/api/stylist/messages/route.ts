@@ -3,17 +3,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStylistId, stylistError, stylistUnauthorized } from '@/lib/stylist-auth'
 
 /**
- * GET /api/stylist/messages?conversation_id=...&after=ISO — messages newer
- * than `after`, oldest first. The thread polls this while it's open; new
- * messages from the client are marked read.
+ * Messages in one of the stylist's conversations created at or after `after` (an ISO time,
+ * normally the newest message the open thread already shows). The thread polls this for new
+ * client messages, so the browser never reads Supabase itself. New messages from the client are
+ * marked read.
  */
 export async function GET(request: NextRequest) {
   const ownerId = await requireStylistId(request)
   if (!ownerId) return stylistUnauthorized()
 
-  const { searchParams } = new URL(request.url)
-  const conversationId = searchParams.get('conversation_id')
-  const after = searchParams.get('after')
+  const conversationId = request.nextUrl.searchParams.get('conversation_id')
+  const after = request.nextUrl.searchParams.get('after')
   if (!conversationId || !after || Number.isNaN(Date.parse(after))) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
@@ -27,11 +27,12 @@ export async function GET(request: NextRequest) {
     .maybeSingle()
   if (!conv) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // At or after: two messages can share a timestamp, and the thread drops ones it already has.
   const { data: messages, error } = await admin
     .from('messages')
     .select('id, sender_id, content, created_at, image_url, hidden_at')
     .eq('conversation_id', conversationId)
-    .gt('created_at', new Date(after).toISOString())
+    .gte('created_at', after)
     .order('created_at', { ascending: true })
     .limit(100)
   if (error) return stylistError(error.message, 500)
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       .eq('is_read', false)
   }
 
-  return NextResponse.json({ messages: messages ?? [] })
+  return NextResponse.json({ messages: messages ?? [] }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: NextRequest) {
