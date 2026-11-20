@@ -36,10 +36,17 @@ export function Hero({ december = false }: { december?: boolean }) {
       >
         <source src="/hero-loop.mp4" type="video/mp4" />
       </video>
+      {/* Keeps the headline and buttons readable over the bright frames of the loop. */}
+      <div className="absolute inset-0 bg-night/45" aria-hidden="true" />
 
       <div className="container-shell relative z-10 flex min-h-[78vh] flex-col items-center justify-center py-20 text-center">
+        <h1 className="max-w-3xl text-balance font-heading text-4xl font-semibold leading-tight text-white md:text-6xl md:leading-tight">
+          Personal styling, in Lagos and worldwide
+        </h1>
+
         {december ? (
           <motion.div
+            className="mt-8"
             initial={reduceMotion ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -48,6 +55,7 @@ export function Hero({ december = false }: { december?: boolean }) {
             <Link
               href="/december"
               prefetch
+              data-track="hero_december"
               className="group inline-flex flex-col items-center gap-2 rounded-3xl border border-gold/60 bg-night/70 px-5 py-3 font-accent text-sm text-cream shadow-lg backdrop-blur-sm transition hover:border-gold hover:bg-night/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold sm:flex-row sm:gap-3 sm:rounded-full sm:py-1.5 sm:pl-1.5 sm:pr-5"
             >
               <span className="whitespace-nowrap rounded-full bg-gold px-3 py-1 text-xs font-semibold uppercase tracking-wider text-night">
@@ -74,7 +82,7 @@ export function Hero({ december = false }: { december?: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
-            <ButtonLink href="/services" variant="primary" size="lg">
+            <ButtonLink href="/services" variant="primary" size="lg" data-track="hero_services">
               Explore Services
             </ButtonLink>
           </motion.div>
@@ -87,6 +95,7 @@ export function Hero({ december = false }: { december?: boolean }) {
               href="/book"
               variant="outline"
               size="lg"
+              data-track="hero_book"
               className="border-cream/70 text-white hover:bg-cream hover:text-purple-dark"
             >
               Book Now

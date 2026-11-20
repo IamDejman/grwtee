@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 type Variant = "light" | "dark";
 
@@ -38,6 +39,7 @@ export function WaitlistForm({
         setMessage(data.error || "Something went wrong. Try again.");
         return;
       }
+      trackEvent("waitlist_join", { source });
       setStatus("success");
       setMessage(data.message || "You're on the list.");
       setName("");

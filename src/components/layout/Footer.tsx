@@ -34,6 +34,9 @@ const quickLinks = [
   { href: "/portfolio", label: "Portfolio" },
   { href: "/services", label: "Services" },
   { href: "/book", label: "Book Now" },
+  { href: "/inner-circle", label: "Inner Circle" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/contact", label: "Contact" },
   { href: "/subscribe", label: "Newsletter" }
 ];
 

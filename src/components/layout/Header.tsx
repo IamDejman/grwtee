@@ -97,6 +97,7 @@ export function Header() {
                   href={item.href}
                   variant="secondary"
                   size="sm"
+                  data-track="header_book"
                 >
                   {item.label}
                 </ButtonLink>

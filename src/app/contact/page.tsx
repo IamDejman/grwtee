@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { parseEmail } from "@/lib/security/email-validation";
+import { trackEvent } from "@/lib/analytics";
 
 type FormData = {
   name: string;
@@ -76,6 +77,7 @@ export default function ContactPage() {
         setError(typeof json?.error === "string" ? json.error : "Request failed. Please try again.");
         return;
       }
+      trackEvent("generate_lead", { form_name: "contact", service: data.service });
       setSuccess("Thank you! We'll be in touch soon.");
       setTurnstileToken("");
       reset();

@@ -4,6 +4,7 @@ import { AnimatePresence, MotionConfig, PresenceContext, motion, useReducedMotio
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { emptyBrief, firstName, type DecemberBrief } from "@/lib/december/types";
 import { AmbientLight, WordPanel } from "./Ambient";
 import { BriefStep, type EditTarget } from "./BriefStep";
@@ -261,6 +262,7 @@ export function DecemberFlow({
   const go = (target: Step) => {
     setDir(STEPS.indexOf(target) >= index ? 1 : -1);
     setStep(target);
+    trackEvent("december_step", { step: target });
     userNavigated.current = true;
     window.scrollTo({ top: 0, behavior: "instant" });
   };
@@ -297,6 +299,7 @@ export function DecemberFlow({
       }
       setBooked({ meetUrl: json.meetUrl ?? null, manageUrl: json.manageUrl ?? null, holdExpiresAt: json.holdExpiresAt ?? null });
       writeSaved(null);
+      trackEvent("december_booked");
       go("done");
       return { ok: true };
     } catch {
