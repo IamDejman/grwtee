@@ -43,6 +43,7 @@ export default async function ServicesPage() {
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href="/book"
+              data-track="services_book"
               className="rounded-full border border-white px-8 py-3 font-accent font-semibold transition hover:bg-white hover:text-purple-dark"
             >
               Book Now

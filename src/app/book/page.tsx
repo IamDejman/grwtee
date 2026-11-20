@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { trackEvent } from "@/lib/analytics";
 
 const serviceOptions = [
   { value: "virtual-personal-styling", label: "Virtual Personal Styling" },
@@ -41,6 +42,14 @@ export default function BookPage() {
     setState("submitting");
     setErrorMsg("");
 
+    // A Turnstile token works once, so a failed attempt needs a fresh one before the next try.
+    const fail = (message: string) => {
+      setState("error");
+      setErrorMsg(message);
+      setTurnstileToken("");
+      window.turnstile?.reset();
+    };
+
     const fd = new FormData(e.currentTarget);
 
     const body = {
@@ -63,14 +72,14 @@ export default function BookPage() {
       });
       const json = await res.json();
       if (json.success) {
+        trackEvent("generate_lead", { form_name: "booking", service: body.service });
         setState("success");
+        window.scrollTo({ top: 0 });
       } else {
-        setState("error");
-        setErrorMsg("Something went wrong. Please try again.");
+        fail(typeof json.error === "string" ? json.error : "Please check your details and try again.");
       }
     } catch {
-      setState("error");
-      setErrorMsg("Network error. Please try again.");
+      fail("We couldn't reach GRWTEE. Check your connection and try again.");
     }
   }
 
@@ -79,23 +88,46 @@ export default function BookPage() {
       <div className="pattern-light">
         <div className="container-shell flex min-h-[60vh] flex-col items-center justify-center py-16 text-center">
           <div className="rounded-full bg-green-dark/10 p-4">
-            <svg className="h-12 w-12 text-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg aria-hidden="true" className="h-12 w-12 text-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
           <h1 className="mt-6 font-heading text-3xl font-semibold text-purple-dark">
             Thank You!
           </h1>
-          <p className="mt-3 max-w-md font-body text-base text-gray-dark/80">
-            Your booking request has been submitted. We&apos;ll reach out within
-            24–48 hours to get you started.
-          </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex rounded-full bg-purple-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
-          >
-            Back to Home
-          </Link>
+          <p className="mt-3 font-body text-base text-gray-dark/80">Your booking request is in.</p>
+          <ol className="mt-8 w-full max-w-md space-y-4 text-left font-body text-base text-gray-dark">
+            {[
+              "We email your quote and invoice within 24 to 48 hours.",
+              "You pay by bank transfer and send proof of payment to confirm.",
+              "We schedule your styling and get started."
+            ].map((text, i) => (
+              <li key={text} className="flex gap-4">
+                <span
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-dark font-accent text-sm font-semibold text-white"
+                >
+                  {i + 1}
+                </span>
+                <span className="pt-1">{text}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+            <Link
+              href="/payment"
+              data-track="booking_done_payment"
+              className="inline-flex rounded-full bg-purple-dark px-8 py-3 font-accent font-semibold text-white transition hover:bg-purple-medium"
+            >
+              Payment Details
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex rounded-full border border-purple-dark px-8 py-3 font-accent font-semibold text-purple-dark transition hover:bg-purple-dark hover:text-white"
+            >
+              Back to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -206,7 +238,7 @@ export default function BookPage() {
           </fieldset>
 
           {errorMsg && (
-            <p className="text-center text-sm font-semibold text-red-600">{errorMsg}</p>
+            <p role="alert" className="text-center text-sm font-semibold text-red-600">{errorMsg}</p>
           )}
 
           <TurnstileWidget onToken={setTurnstileToken} />

@@ -39,13 +39,13 @@ export const metadata: Metadata = {
     siteName: "GRWTEE",
     title: "GRWTEE | Wardrobe Stylist | Creative Director",
     description: "Premium styling services tailored to your unique style",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "GRWTEE" }]
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "GRWTEE" }]
   },
   twitter: {
     card: "summary_large_image",
     title: "GRWTEE | Wardrobe Stylist | Creative Director",
     description: "Premium styling services tailored to your unique style",
-    images: ["/og-image.svg"]
+    images: ["/og-image.png"]
   },
   robots: {
     index: true,
