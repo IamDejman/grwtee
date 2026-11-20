@@ -25,7 +25,7 @@
     "@fontsource/poppins": "^5.3.0",
     "@headlessui/react": "^2.2.0",
     "@hookform/resolvers": "^5.9.1",
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "^7.10.1",
     "@supabase/supabase-js": "^2.110.6",
     "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
